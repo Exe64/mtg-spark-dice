@@ -15,6 +15,8 @@
 #define MINUS "\xE2\x88\x92" /* U+2212 */
 #define MENU_ROWS 5
 #define LOG_ROWS 5
+#define UNDO_PILL_MS 4000
+#define PM_TAP 26 /* |local x| beyond which a tap on the selected seat is - or + */
 
 enum { HOME_PROFILE, HOME_PLAYERS };
 enum { MENU_UNDO, MENU_LOG, MENU_SHEET, MENU_NEW, MENU_BACK };
@@ -33,7 +35,7 @@ static struct {
     uint8_t sel;
     ui_screen_t scr;
     int menu_focus, log_scroll;
-    uint32_t now;
+    uint32_t now, undo_until;
     lv_obj_t *dial;
     lv_font_t *f_solo, *f_arena[SD_MAX_PLAYERS + 1], *f_hub, *f_title, *f_row, *f_label, *f_small;
 } U;
@@ -214,7 +216,11 @@ static void fmt_action(char *buf, size_t n, const sd_action_t *a)
 {
     char d[12];
     fmt_signed(d, sizeof(d), a->amount);
-    if (a->kind == SD_LIFE)
+    if (a->kind == SD_TURN)
+        snprintf(buf, n, S_TURN_FMT "  J%d" S_SEP "J%d", a->turn, a->player + 1, a->src + 1);
+    else if (a->kind == SD_LIFE && a->src != a->player)
+        snprintf(buf, n, "J%d" S_SEP "J%d  PV %s", a->src + 1, a->player + 1, d);
+    else if (a->kind == SD_LIFE)
         snprintf(buf, n, "J%d  PV %s", a->player + 1, d);
     else if (a->kind == SD_POISON)
         snprintf(buf, n, "J%d  " S_POISON " %s", a->player + 1, d);
@@ -263,16 +269,30 @@ static void save(void)
 
 static void redraw(void) { lv_obj_invalidate(U.dial); }
 
+/* Arena seats show committed values: while only the pending delta / pill changes, repaint the hub, not the turned
+ * seat layers (each is an ARGB8888 layer, costly on the S3). */
+static void redraw_hub(void)
+{
+    if (U.scr != UI_SCR_GAME || U.g.n_players == 1) {
+        redraw();
+        return;
+    }
+    lv_area_t a = {CX - HUB_R - 6, CY - HUB_R - 6, CX + HUB_R + 6, CY + HUB_R + 6};
+    lv_obj_invalidate_area(U.dial, &a);
+}
+
 /* Called after any commit: persist, haptics, defeat and game-over detection. */
 static void committed(bool was_lost[SD_MAX_PLAYERS])
 {
     save();
+    U.undo_until = U.now + UNDO_PILL_MS;
     bool new_loss = false;
     for (int i = 0; i < U.g.n_players; i++)
         new_loss |= !was_lost[i] && sd_player_lost(&U.g, (uint8_t)i);
     haptic(new_loss ? UI_HAPTIC_DEFEAT : UI_HAPTIC_COMMIT);
     if (sd_game_over(&U.g))
         U.scr = UI_SCR_OVER;
+
 }
 
 static void snapshot_lost(bool out[SD_MAX_PLAYERS])
@@ -296,6 +316,40 @@ static void adjust(uint8_t player, sd_kind_t kind, uint8_t src, int step)
     if (sd_game_adjust(&U.g, player, kind, src, (int16_t)step, U.now))
         committed(lost);
     haptic(UI_HAPTIC_DETENT);
+}
+
+static bool undo_pill(void) { return !U.g.has_pending && U.g.log_len && U.now < U.undo_until; }
+
+static void undo(void)
+{
+    if (sd_game_undo(&U.g)) {
+        save();
+        haptic(UI_HAPTIC_COMMIT);
+    }
+    U.undo_until = 0;
+}
+
+static void next_turn(void)
+{
+    bool lost[SD_MAX_PLAYERS];
+    snapshot_lost(lost);
+    if (sd_game_flush(&U.g))
+        committed(lost);
+    if (U.scr == UI_SCR_GAME && sd_game_next_turn(&U.g)) {
+        save();
+        U.undo_until = U.now + UNDO_PILL_MS;
+        haptic(UI_HAPTIC_COMMIT);
+    }
+}
+
+/* Selected seat's local frame: seats face their owner (rotation = seat angle - 90°). */
+static float seat_rot(int i) { return U.g.n_players == 1 ? 0.f : seat_angle(i) - 90.f; }
+static const float R_NUM[] = {0, 0, 96, 104, 108};
+static float seat_local_x(int i, int x, int y)
+{
+    float a = seat_angle(i) * (float)M_PI / 180.f, r = seat_rot(i) * (float)M_PI / 180.f;
+    float nx = CX + R_NUM[U.g.n_players] * cosf(a), ny = CY + R_NUM[U.g.n_players] * sinf(a);
+    return (x - nx) * cosf(r) + (y - ny) * sinf(r);
 }
 
 static void upper(char *s)
@@ -337,20 +391,49 @@ static void go_home(void)
 
 /* ---------- screens: drawing ---------- */
 
+/* drawn + and - marks (no glyphs), one rule weight */
+static void pm_marks(lv_layer_t *l, int cx, int cy, int dx, uint32_t color)
+{
+    const int h = 9;
+    line(l, cx - dx - h, cy, cx - dx + h, cy, color, LV_OPA_COVER);
+    line(l, cx + dx - h, cy, cx + dx + h, cy, color, LV_OPA_COVER);
+    line(l, cx + dx, cy - h, cx + dx, cy + h, color, LV_OPA_COVER);
+}
+
 static void draw_hub(lv_layer_t *l)
 {
     const sd_game_t *g = &U.g;
     if (!g->has_pending) {
-        /* at rest the hub is sealed: everything committed */
+        char t[16];
+        if (undo_pill()) { /* quick undo of the last commit, tap the hub */
+            const sd_action_t *a = &g->log[g->log_len - 1];
+            if (a->automatic && g->log_len > 1) /* an automatic pass is undone with the hit that caused it */
+                a--;
+            fill(l, CX - HUB_R, CY - HUB_R, CX + HUB_R, CY + HUB_R, T->ink, LV_RADIUS_CIRCLE);
+            text(l, U.f_small, T->ground, LV_OPA_COVER, CX, CY - 14, S_MENU_UNDO);
+            if (a->kind == SD_TURN) /* the hand-off it reverses */
+                snprintf(t, sizeof(t), "J%d" S_SEP "J%d", a->player + 1, a->src + 1);
+            else
+                fmt_signed(t, sizeof(t), a->kind == SD_CMD ? -a->amount : a->amount);
+            text(l, U.f_row, T->ground, LV_OPA_COVER, CX, CY + 12, t);
+            return;
+        }
+        /* at rest the hub is sealed (everything committed) and shows whose turn it is; tap = next turn */
         fill(l, CX - HUB_R, CY - HUB_R, CX + HUB_R, CY + HUB_R, T->ground, LV_RADIUS_CIRCLE);
         crimp_arc(l, HUB_R, -90.f, 270.f, T->ink, LV_OPA_COVER);
+        snprintf(t, sizeof(t), S_TURN_FMT, g->turn);
+        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, CY - 20, t);
+        snprintf(t, sizeof(t), S_SEAT_FMT, g->active + 1);
+        text(l, U.f_hub, T->seat[g->active], LV_OPA_COVER, CX, CY + 8, t);
         return;
     }
     char d[12], sub[24];
-    fmt_signed(d, sizeof(d), g->pending.amount);
+    fmt_signed(d, sizeof(d), g->pending.kind == SD_CMD ? -g->pending.amount : g->pending.amount); /* effect on life */
     foil(l, CX - HUB_R, CY - HUB_R, CX + HUB_R, CY + HUB_R, LV_RADIUS_CIRCLE);
     text(l, U.f_hub, T->foil_ink, LV_OPA_COVER, CX, CY - 8, d);
-    if (g->pending.kind == SD_CMD) { /* source seat, drawn pointer, target seat */
+    if (g->pending.kind == SD_CMD)
+        text(l, U.f_small, T->foil_ink, LV_OPA_COVER, CX, CY - 36, S_CMD);
+    if (g->pending.src != g->pending.player) { /* source seat, drawn pointer, target seat */
         snprintf(sub, sizeof(sub), S_SEAT_FMT, g->pending.src + 1);
         text(l, U.f_small, T->foil_ink, LV_OPA_COVER, CX - 17, CY + 26, sub);
         snprintf(sub, sizeof(sub), S_SEAT_FMT, g->pending.player + 1);
@@ -393,9 +476,18 @@ static void draw_solo(lv_layer_t *l)
     text(l, U.f_label, ink, LV_OPA_COVER, CX, 62, buf);
     snprintf(buf, sizeof(buf), "%d", p->life);
     text(l, U.f_solo, ink, LV_OPA_COVER, CX, 158, buf);
+    pm_marks(l, CX, 162, 136, ink);
     char cnt[24];
     fmt_counters(cnt, sizeof(cnt), p);
-    text(l, U.f_label, ink, LV_OPA_COVER, CX, 324, cnt);
+    text(l, U.f_label, ink, LV_OPA_COVER, CX, 334, cnt);
+    if (undo_pill()) {
+        const sd_action_t *a = &g->log[g->log_len - 1];
+        char d[12];
+        fmt_signed(d, sizeof(d), a->amount);
+        snprintf(buf, sizeof(buf), S_MENU_UNDO "  %s", d);
+        fill(l, 100, 282, 260, 318, T->ink, 0);
+        text(l, U.f_label, T->ground, LV_OPA_COVER, CX, 300, buf);
+    }
     if (!g->has_pending)
         return;
     /* foil band with its crimp sealing left to right */
@@ -417,7 +509,6 @@ static void draw_arena(lv_layer_t *l)
     const sd_game_t *g = &U.g;
     int n = g->n_players;
     float span = seat_span();
-    const float r_num[] = {0, 0, 96, 104, 108};
     fill(l, 0, 0, UI_W - 1, UI_H - 1, T->ground, 0);
     if (!sd_player_lost(g, U.sel))
         wedge(l, seat_angle(U.sel) - span / 2, seat_angle(U.sel) + span / 2, T->seat[U.sel]);
@@ -425,19 +516,32 @@ static void draw_arena(lv_layer_t *l)
         float a = (seat_angle(i) - span / 2) * (float)M_PI / 180.f;
         crimp_teeth(l, CX + HUB_R * cosf(a), CY + HUB_R * sinf(a), CX + R * cosf(a), CY + R * sinf(a), T->ink);
     }
+    /* active seat: a crimped crest along its rim */
+    float aa = seat_angle(g->active);
+    uint32_t crest = (g->active == U.sel && !sd_player_lost(g, g->active)) ? T->seat_ink[g->active] : T->ink;
+    for (float t = aa - span / 2 + 6; t + 6 <= aa + span / 2 - 6; t += 6) { /* filled teeth pointing inward */
+        float a0 = t * (float)M_PI / 180.f, a1 = (t + 6) * (float)M_PI / 180.f, am = (a0 + a1) / 2;
+        tri(l, CX + (R - 4) * cosf(a0), CY + (R - 4) * sinf(a0), CX + (R - 4) * cosf(a1), CY + (R - 4) * sinf(a1),
+            CX + (R - 10) * cosf(am), CY + (R - 10) * sinf(am), crest);
+    }
     for (int i = 0; i < n; i++) {
         bool sel = i == U.sel, lost = sd_player_lost(g, (uint8_t)i);
         uint32_t ink = (sel && !lost) ? T->seat_ink[i] : T->seat[i];
-        lv_opa_t opa = LV_OPA_COVER;
-        float a = seat_angle(i) * (float)M_PI / 180.f;
-        int nx = CX + (int)(r_num[n] * cosf(a)), ny = CY + (int)(r_num[n] * sinf(a));
+        float a = seat_angle(i) * (float)M_PI / 180.f, rot = seat_rot(i);
+        int nx = CX + (int)(R_NUM[n] * cosf(a)), ny = CY + (int)(R_NUM[n] * sinf(a));
         int lh = lv_font_get_line_height(U.f_arena[n]);
+        /* each seat is drawn upright in its own layer, then turned to face its player */
+        const int bw = n == 2 ? 300 : 190, bh = lh + 44;
+        lv_area_t box = {nx - bw / 2, ny - bh / 2, nx - bw / 2 + bw - 1, ny - bh / 2 + bh - 1};
+        bool turn = fabsf(rot) > 0.5f;
+        lv_layer_t *ly = turn ? lv_draw_layer_create(l, LV_COLOR_FORMAT_ARGB8888, &box) : l;
         char buf[40], cnt[24];
         snprintf(buf, sizeof(buf), "%d", g->p[i].life);
-        text(l, U.f_arena[n], ink, opa, nx, ny, buf);
+        text(ly, U.f_arena[n], ink, LV_OPA_COVER, nx, ny - 8, buf);
         if (lost) /* defeat: the total is crimped shut, never faded */
-            crimp(l, nx - 44, ny, nx + 44, ny, T->ink, LV_OPA_COVER);
-        /* one label line: seat + counters, on the rim side (above the number for side seats) */
+            crimp(ly, nx - 44, ny - 8, nx + 44, ny - 8, T->ink, LV_OPA_COVER);
+        if (sel && !lost)
+            pm_marks(ly, nx, ny - 6, n == 2 ? 110 : 64, ink);
         fmt_counters(cnt, sizeof(cnt), &g->p[i]);
         if (lost)
             snprintf(buf, sizeof(buf), S_SEAT_FMT "  " S_DEFEATED, i + 1);
@@ -445,9 +549,16 @@ static void draw_arena(lv_layer_t *l)
             snprintf(buf, sizeof(buf), S_SEAT_FMT "  %s", i + 1, cnt);
         else
             snprintf(buf, sizeof(buf), S_SEAT_FMT, i + 1);
-        float sy = sinf(a);
-        int dir = sy > 0.3f ? 1 : -1;
-        text(l, U.f_label, ink, opa, nx, ny + dir * (lh / 2 - 4), buf);
+        text(ly, U.f_label, ink, LV_OPA_COVER, nx, ny + lh / 2 - 8, buf); /* rim side, inside the crest */
+        if (turn) {
+            lv_draw_image_dsc_t d;
+            lv_draw_image_dsc_init(&d);
+            d.src = ly;
+            d.rotation = (int32_t)lroundf(rot * 10.f);
+            d.pivot.x = bw / 2;
+            d.pivot.y = bh / 2;
+            lv_draw_layer(l, &d, &box);
+        }
     }
     draw_hub(l);
 }
@@ -509,7 +620,10 @@ static void draw_menu(lv_layer_t *l)
         switch (i) {
         case MENU_UNDO:
             if (U.g.log_len) {
-                fmt_action(act, sizeof(act), &U.g.log[U.g.log_len - 1]);
+                const sd_action_t *last = &U.g.log[U.g.log_len - 1];
+                if (last->automatic && U.g.log_len > 1) /* undone together with the hit that caused it */
+                    last--;
+                fmt_action(act, sizeof(act), last);
                 snprintf(buf, sizeof(buf), S_MENU_UNDO "  %s", act);
             } else
                 s = S_NOTHING_TO_UNDO;
@@ -541,15 +655,20 @@ static void draw_log(lv_layer_t *l)
         const sd_action_t *a = &U.g.log[idx];
         int y = 104 + k * 44;
         fill(l, 70, y - 7, 84, y + 7, T->seat[a->player], 0);
-        fmt_action(buf, sizeof(buf), a);
+        char act[48];
+        fmt_action(act, sizeof(act), a);
+        if (a->kind == SD_TURN)
+            snprintf(buf, sizeof(buf), "%s", act);
+        else
+            snprintf(buf, sizeof(buf), "T%d  %s", a->turn, act);
         lv_draw_label_dsc_t d;
         lv_draw_label_dsc_init(&d);
-        d.font = U.f_row;
+        d.font = U.f_label;
         d.color = C(T->ink);
         d.text = buf;
         d.text_local = 1;
-        int h = lv_font_get_line_height(U.f_row);
-        lv_area_t ar = {96, y - h / 2, 300, y + h / 2};
+        int h = lv_font_get_line_height(U.f_label);
+        lv_area_t ar = {96, y - h / 2, 310, y + h / 2};
         lv_draw_label(l, &d, &ar);
     }
     text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 326, S_TAP_BACK);
@@ -689,13 +808,20 @@ void ui_knob(int detents, uint32_t now)
         }
         haptic(UI_HAPTIC_DETENT);
         break;
-    case UI_SCR_GAME:
-        /* the knob keeps feeding the pending delta on the selected seat (commander damage included) */
+    case UI_SCR_GAME: {
+        uint16_t before = U.g.log_len;
+        /* the knob keeps feeding the pending delta on the selected seat; ccw always lowers life */
         if (U.g.has_pending && U.g.pending.player == U.sel)
-            adjust(U.sel, (sd_kind_t)U.g.pending.kind, U.g.pending.src, detents);
+            adjust(U.sel, (sd_kind_t)U.g.pending.kind, U.g.pending.src,
+                   U.g.pending.kind == SD_CMD ? -detents : detents);
         else
-            adjust(U.sel, SD_LIFE, 0, detents);
+            adjust(U.sel, SD_LIFE, U.sel, detents);
+        if (U.g.log_len == before && U.scr == UI_SCR_GAME) { /* nothing committed: only the hub changed */
+            redraw_hub();
+            return;
+        }
         break;
+    }
     case UI_SCR_SHEET: adjust(U.sel, SD_POISON, 0, detents); break;
     case UI_SCR_MENU:
         U.menu_focus = ((U.menu_focus + detents) % MENU_ROWS + MENU_ROWS) % MENU_ROWS;
@@ -717,10 +843,7 @@ static void menu_activate(int row)
 {
     switch (row) {
     case MENU_UNDO:
-        if (sd_game_undo(&U.g)) {
-            save();
-            haptic(UI_HAPTIC_COMMIT);
-        }
+        undo();
         U.scr = UI_SCR_GAME;
         break;
     case MENU_LOG:
@@ -754,13 +877,30 @@ void ui_tap(int x, int y, uint32_t now)
         }
         break;
     case UI_SCR_GAME:
-        if (in_hub(x, y) && U.g.n_players > 1)
-            flush(); /* tapping the seal commits now */
-        else {
+        if (U.g.n_players == 1) {
+            if (undo_pill() && y >= 276 && y < 324 && x >= 100 && x < 260)
+                undo();
+            else if (x < 110 || x >= 250)
+                ui_knob(x < 110 ? -1 : 1, now);
+        } else if (in_hub(x, y)) {
+            if (sd_game_pending_toggle_cmd(&U.g)) { /* attack <-> commander damage */
+                U.g.pending_since = now;
+                haptic(UI_HAPTIC_DETENT);
+            } else if (U.g.has_pending)
+                flush(); /* tapping the seal commits now */
+            else if (undo_pill())
+                undo();
+            else
+                next_turn();
+        } else {
             int s = seat_at(x, y);
             if (s >= 0 && s != U.sel) {
                 flush();
                 U.sel = (uint8_t)s;
+            } else if (s >= 0) { /* selected seat: - / + on either side of the number, in the seat's own frame */
+                float lx = seat_local_x(s, x, y);
+                if (lx < -PM_TAP || lx > PM_TAP)
+                    ui_knob(lx < 0 ? -1 : 1, now);
             }
         }
         break;
@@ -779,10 +919,7 @@ void ui_tap(int x, int y, uint32_t now)
         break;
     case UI_SCR_OVER:
         if (y >= 196 && y < 252) {
-            if (sd_game_undo(&U.g)) {
-                save();
-                haptic(UI_HAPTIC_COMMIT);
-            }
+            undo();
             U.scr = sd_game_over(&U.g) ? UI_SCR_OVER : UI_SCR_GAME;
         } else if (y >= 252 && y < 310)
             go_home();
@@ -809,26 +946,32 @@ void ui_long_press(int x, int y, uint32_t now)
 void ui_drag(int x0, int y0, int x1, int y1, uint32_t now)
 {
     U.now = now;
-    if (U.scr != UI_SCR_GAME || U.g.n_players < 2 || !U.g.rules.cmd_lethal)
+    if (U.scr != UI_SCR_GAME || U.g.n_players < 2)
         return;
     int a = seat_at(x0, y0), b = seat_at(x1, y1);
     if (a < 0 || b < 0 || a == b)
         return;
-    U.sel = (uint8_t)b; /* commander of A deals damage to B; the knob then sets the amount */
-    adjust((uint8_t)b, SD_CMD, (uint8_t)a, 1);
+    U.sel = (uint8_t)b; /* A attacks B: combat damage, the knob sets the amount, a hub tap makes it commander damage */
+    adjust((uint8_t)b, SD_LIFE, (uint8_t)a, -1);
     redraw();
 }
 
 void ui_tick(uint32_t now)
 {
     U.now = now;
+    if (U.undo_until && now >= U.undo_until) {
+        U.undo_until = 0;
+        redraw_hub();
+    }
     if (!U.g.has_pending)
         return;
     bool lost[SD_MAX_PLAYERS];
     snapshot_lost(lost);
-    if (sd_game_tick(&U.g, now))
+    if (sd_game_tick(&U.g, now)) {
         committed(lost);
-    redraw();
+        redraw();
+    } else
+        redraw_hub();
 }
 
 ui_screen_t ui_screen(void) { return U.scr; }

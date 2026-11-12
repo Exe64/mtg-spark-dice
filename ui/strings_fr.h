@@ -25,4 +25,6 @@
 #define S_WINS_FMT "J%d GAGNE"
 #define S_DEFEAT "DÉFAITE"
 #define S_GAME_OVER "PARTIE TERMINÉE"
+#define S_TURN_FMT "TOUR %d"
+#define S_SEP " \xE2\x80\xBA " /* U+203A, text separator "J1 › J3" */
 #define S_TAP_BACK "TOUCHER POUR REVENIR"

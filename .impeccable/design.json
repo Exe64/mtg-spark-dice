@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-12T12:19:16+00:00",
+  "generatedAt": "2026-11-12T14:31:05+01:00",
   "title": "Design System: SparkDice",
   "extensions": {
     "colorMeta": {
@@ -148,19 +148,19 @@
       },
       "headline-hub": {
         "displayName": "Headline Hub",
-        "purpose": "Pending delta in hub; Fiche poison tally."
+        "purpose": "Pending delta in hub; active J# in resting hub; Fiche poison tally."
       },
       "row": {
         "displayName": "Row",
-        "purpose": "Menu rows, buttons, foil text, log rows, CMDT tallies."
+        "purpose": "Menu rows, primary buttons, foil text, undo-pill delta or hand-off, CMDT tallies."
       },
       "label": {
         "displayName": "Label",
-        "purpose": "Seat/profile lines, section labels, secondary buttons."
+        "purpose": "Seat/profile lines, section labels, journal rows, Solo undo bar, secondary buttons."
       },
       "label-small": {
         "displayName": "Label Small",
-        "purpose": "Sub-lines, chip numbers, hub sub-line, hints."
+        "purpose": "Sub-lines, chip numbers, hub tags (TOUR n, CMDT, ANNULER), hub sub-line, hints."
       }
     },
     "shadows": [],
@@ -169,6 +169,11 @@
         "name": "commit-seal",
         "value": "800ms linear",
         "purpose": "Crimp length = elapsed share of SD_COMMIT_MS; closing completes the commit (foil band left to right, hub clockwise from 12 o'clock)."
+      },
+      {
+        "name": "undo-window",
+        "value": "4000ms",
+        "purpose": "After any commit or pass, the hub (arena) or the bottom bar (Solo) offers ANNULER for 4 s."
       }
     ],
     "breakpoints": [
@@ -192,6 +197,11 @@
         "name": "arc-crimp",
         "value": "2px zigzag, step 7°, amplitude 4px outward",
         "purpose": "Hub seal at radius 48."
+      },
+      {
+        "name": "crest",
+        "value": "filled teeth pointing inward, 6° pitch, radius 176→170px (R−4 to R−10), inset 6° from seams",
+        "purpose": "Active seat's rim; Wrapper Black on the selected field, Wrapper Ink otherwise."
       }
     ],
     "geometry": {
@@ -204,7 +214,25 @@
         "3": "104px",
         "4": "108px"
       },
-      "labelRotation": "none (dial faces its owner)"
+      "labelRotation": "per seat: ARGB8888 layer turned by (seat angle − 90°); J1 drawn directly; Solo upright",
+      "seatFrame": {
+        "layerBox": "300px wide (2 players) / 190px (3–4) × (line height + 44px)",
+        "numeral": "ny − 8",
+        "label": "ny + lh/2 − 8 (rim side)",
+        "pmMarks": "ny − 6, ±110px (2p) / ±64px (3–4p), 18px drawn marks",
+        "pmTap": "|local x| > 26px in the seat frame"
+      },
+      "solo": {
+        "pmMarks": "±136px at y 162",
+        "pmTap": "x < 110 / x ≥ 250",
+        "undoBar": "x 100–260, y 282–318"
+      },
+      "hub": {
+        "rest": "TOUR n (Label Small, ink) at CY−20 over active J# (Headline Hub, seat hue) at CY+8",
+        "undo": "ink disc, ANNULER at CY−14, delta or J1 › J2 at CY+12",
+        "pending": "delta at CY−8, CMDT tag at CY−36, sub-line at CY+26 with drawn 8×10 triangle",
+        "repaint": "invalidate (CX,CY) ± 54px only while only the hub changes"
+      }
     },
     "platform": "LVGL 9 draw calls; tokens are ui_theme_t constants in ui/theme_booster.c; fonts via lv_tiny_ttf, kerning off"
   },
@@ -229,7 +257,7 @@
       "name": "Menu",
       "kind": "nav",
       "refersTo": "menu-row-focus",
-      "description": "Five centred rows at 52 px pitch; focused row is an ink-inverse bar.",
+      "description": "Five centred rows at 52 px pitch; focused row is an ink-inverse bar. The undo row previews the action (an automatic pass previews its cause).",
       "html": "<nav class=\"ds-menu\"><div class=\"ds-menu-row ds-on\">ANNULER  J1  PV −3</div><div class=\"ds-menu-row\">JOURNAL</div><div class=\"ds-menu-row\">FICHE J1</div><div class=\"ds-menu-row\">NOUVELLE PARTIE</div><div class=\"ds-menu-row\">RETOUR</div></nav>",
       "css": ".ds-menu{background:#121014;width:288px;padding:8px 0;} .ds-menu-row{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;font-size:30px;color:#FFF6E8;height:52px;line-height:52px;text-align:center;white-space:pre;} .ds-menu-row.ds-on,.ds-menu-row:hover{background:#FFF6E8;color:#121014;}"
     },
@@ -253,7 +281,7 @@
       "name": "Seat Field",
       "kind": "card",
       "refersTo": "seat-chip-on",
-      "description": "Selected seat: hue field with black numeral and label; unselected: hue numeral on ground; defeated: hue numeral crimped shut in ink.",
+      "description": "Each arena seat drawn in its own frame turned to face its player, label on the rim side. Selected: hue field with black numeral, label and drawn +/−; unselected: hue numeral on ground; defeated: hue numeral crimped shut in ink.",
       "html": "<div class=\"ds-seats\"><div class=\"ds-seat ds-sel\"><b>40</b><small>J1</small></div><div class=\"ds-seat\" style=\"color:#179C8E\"><small>J2  POISON 3</small><b>34</b></div><div class=\"ds-seat ds-lost\" style=\"color:#8A6CD0\"><small>J4  VAINCU</small><b>0</b></div></div>",
       "css": ".ds-seats{display:flex;gap:2px;background:#121014;} .ds-seat{width:140px;height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#121014;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;white-space:pre;} .ds-seat b{font-weight:800;font-size:80px;line-height:1;} .ds-seat small{font-weight:600;font-size:24px;} .ds-seat.ds-sel{background:#E4572E;color:#121014;} .ds-seat.ds-lost b{position:relative;} .ds-seat.ds-lost b::after{content:'';position:absolute;left:50%;top:50%;width:88px;height:8px;margin:-4px 0 0 -44px;background:repeating-linear-gradient(135deg,transparent 0 3px,#FFF6E8 3px 5px,transparent 5px 8px);}"
     },
@@ -261,26 +289,43 @@
       "name": "Hub Seal",
       "kind": "custom",
       "refersTo": "hub-pending",
-      "description": "Radius-48 hub: sealed crimp ring at rest; foil with delta while pending, crimp sweeping clockwise over 800 ms; tap commits.",
-      "html": "<div class=\"ds-hub\"><b>−6</b><small>= 34</small></div>",
-      "css": ".ds-hub{width:96px;height:96px;border-radius:50%;background:linear-gradient(90deg,#B9BEC6 0%,#F3F4F6 59%,#B9BEC6 100%);box-shadow:0 0 0 2px #FFF6E8;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;color:#121014;} .ds-hub b{font-weight:800;font-size:48px;line-height:.9;} .ds-hub small{font-weight:600;font-size:20px;}"
+      "description": "Radius-48 hub: at rest a sealed crimp ring with TOUR n over the active J# (tap = next turn); while pending, foil with the life-effect delta (or J3 ▸ J1 for an attack, CMDT tag for commander damage) and a crimp sweeping clockwise over 800 ms.",
+      "html": "<div class=\"ds-hub\"><i>CMDT</i><b>−5</b><small>J3 <span class=\"ds-tri\"></span> J1</small></div>",
+      "css": ".ds-hub{width:96px;height:96px;border-radius:50%;background:linear-gradient(90deg,#B9BEC6 0%,#F3F4F6 59%,#B9BEC6 100%);box-shadow:0 0 0 2px #FFF6E8;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;color:#121014;} .ds-hub b{font-weight:800;font-size:48px;line-height:.9;} .ds-hub small{font-weight:600;font-size:20px;} .ds-hub i{font-style:normal;font-weight:600;font-size:20px;line-height:1;} .ds-tri{display:inline-block;width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:8px solid #121014;}"
+    },
+    {
+      "name": "Hub Undo Pill",
+      "kind": "button",
+      "refersTo": "hub-undo",
+      "description": "For 4 s after a commit the hub is an ink-inverse disc: ANNULER over the delta it reverses, or J1 › J2 after a pass; tap = undo.",
+      "html": "<button class=\"ds-hub-undo\"><small>ANNULER</small><b>J1 › J2</b></button>",
+      "css": ".ds-hub-undo{width:96px;height:96px;border-radius:50%;border:none;background:#FFF6E8;color:#121014;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;} .ds-hub-undo small{font-size:20px;} .ds-hub-undo b{font-weight:600;font-size:30px;line-height:1;} .ds-hub-undo:focus-visible{outline:2px solid #FFF6E8;outline-offset:4px;} .ds-hub-undo:active{background:#121014;color:#FFF6E8;}"
+    },
+    {
+      "name": "Active-Seat Crest",
+      "kind": "custom",
+      "refersTo": "seat-chip-on",
+      "description": "Filled teeth along the active seat's rim pointing inward, 6° pitch; black on the selected field, ink otherwise.",
+      "html": "<div class=\"ds-crest\"></div>",
+      "css": ".ds-crest{width:240px;height:40px;background:#E4572E;position:relative;} .ds-crest::before{content:'';position:absolute;left:0;right:0;top:4px;height:6px;background:linear-gradient(135deg,#121014 25%,transparent 25%) 0 0/12px 6px repeat-x,linear-gradient(225deg,#121014 25%,transparent 25%) 0 0/12px 6px repeat-x;}"
     }
   ],
   "narrative": {
     "northStar": "The Sealed Booster",
-    "overview": "The dial is a booster wrapper. Each seat is a saturated wrapper field on a wrapper-interior black ground. A pending change rides a foil band, and a crimp closes over it in exactly 800 ms; when the crimp is closed, the change is committed. This one metaphor governs every surface: colour fields, a single foil, and the crimped seal as the only ornament and the only progress indicator.\n\nDensity is low and the type is loud. Every screen has one huge condensed numeral or title, a single line of uppercase labels, and nothing else. Hierarchy comes from size and field fill, not from tints, shadows or opacity. The build is drawn in code (LVGL 9 draw calls into one full-screen object), so the system consists of flat fills, 2 px lines, filled triangles, one horizontal gradient and two TTF faces. The dial is round (360×360) and every layout is centred on (180, 180).\n\nRejected (from the contract): the default life-counter look of a black dial, a white number, a thin progress ring and rainbow quadrants. Also rejected by the product record: any copy of Soul Dial branding, and any Wizards of the Coast logos, mana symbols or card art.",
+    "overview": "The dial is a booster wrapper. Each seat is a saturated wrapper field on a wrapper-interior black ground. A pending change rides a foil band, and a crimp closes over it in exactly 800 ms; when the crimp is closed, the change is committed. This one metaphor governs every surface: colour fields, a single foil, and the crimped seal as the only ornament and the only progress indicator.\n\nDensity is low and the type is loud. Every screen has one huge condensed numeral or title, a single line of uppercase labels, and nothing else. Hierarchy comes from size and field fill, not from tints, shadows or opacity. The build is drawn in code (LVGL 9 draw calls into one full-screen object), so the system consists of flat fills, 2 px lines, filled triangles, one horizontal gradient and two TTF faces; in the arena each seat is drawn into its own layer and turned to face its player. The dial is round (360×360) and every layout is centred on (180, 180).\n\nRejected (from the contract): the default life-counter look of a black dial, a white number, a thin progress ring and rainbow quadrants. Also rejected by the product record: any copy of Soul Dial branding, and any Wizards of the Coast logos, mana symbols or card art.",
     "keyCharacteristics": [
       "A strict tonal set: ground, ink, four seat hues, foil. No tints, no alpha fades.",
-      "The crimp (a zigzag or toothed seal) marks every seam, commit, focus and defeat.",
+      "The crimp (a zigzag or toothed seal) marks every seam, commit, focus, defeat and the active turn.",
       "One rule weight (2 px) for every line, outline, crimp and arc.",
       "Condensed ExtraBold numerals and SemiBold uppercase labels, kerning off.",
       "The foil gradient appears only while something is pending.",
-      "A seat is never identified by hue alone: every seat carries its J1–J4 label."
+      "A seat is never identified by hue alone: every seat carries its J1–J4 label.",
+      "Every arena seat faces its player; the hub at the centre is the turn marker, the undo pill and the pending seal."
     ],
     "rules": [
       {
         "name": "The Seat Owns Its Hue Rule",
-        "body": "Seat hues mark seats only: fields, numerals, the J-labels, home seat chips and the 14 px seat swatch in the log. Chrome (buttons, menu focus, focus marks) is never drawn in a seat hue.",
+        "body": "Seat hues mark seats only: fields, numerals, the J-labels, the active seat's J# in the resting hub, home seat chips and the 14 px seat swatch in the log. Chrome (buttons, menu focus, focus marks, the undo pill, the active-seat crest) is never drawn in a seat hue.",
         "section": "colors"
       },
       {
@@ -300,12 +345,17 @@
       },
       {
         "name": "The All Caps Rule",
-        "body": "Every label and row is uppercase French, taken from ui/strings_fr.h. Numerals are the only non-letter display text.",
+        "body": "Every label and row is uppercase French, taken from ui/strings_fr.h. Beyond letters and numerals, text carries only signed deltas and the separators \"·\", \"=\", \"/\" and \"›\".",
         "section": "typography"
       },
       {
-        "name": "The Face The Owner Rule",
-        "body": "Numerals and labels are never rotated per seat. (Open question below.)",
+        "name": "The Drawn Pointer Rule",
+        "body": "In text rows (journal, menu, undo pill) a hand-off or attack is written with U+203A as the separator (\"J3 › J1\"). In the pending hub the pointer is a drawn filled triangle between the two J#, never a glyph. The +/− beside a selected total are drawn 2 px marks (18 px), never glyphs.",
+        "section": "typography"
+      },
+      {
+        "name": "The Seats Face Their Players Rule",
+        "body": "An arena seat's numeral, label, +/− marks and tap zones all live in that seat's frame, turned by (seat angle − 90°), with the label on the rim side. Never lay out a seat element in screen coordinates.",
         "section": "layout"
       },
       {
@@ -317,6 +367,11 @@
         "name": "The One Rule Weight Rule",
         "body": "2 px everywhere. No hairlines and no heavier strokes.",
         "section": "shapes"
+      },
+      {
+        "name": "The Hub-Only Repaint Rule",
+        "body": "Arena seats show committed values. While only the pending value, the seal or the pill changes, invalidate the hub box (radius 48 + 6 px) and never the turned seat layers.",
+        "section": "components"
       }
     ],
     "dos": [
@@ -324,16 +379,18 @@
       "Do draw every edge, seam, focus mark, seal and defeat strike as a crimp in the 2 px rule weight.",
       "Do show pending state on foil, with the crimp length equal to the remaining time to commit (800 ms, linear).",
       "Do pair every seat hue with its J1–J4 label.",
-      "Do use ink-inverse fills (or the field's own text colour on a seat field) for primary actions and focus.",
-      "Do take every user-facing string from ui/strings_fr.h, in uppercase."
+      "Do use ink-inverse fills (or the field's own text colour on a seat field) for primary actions and focus; the hub undo pill and the Solo undo bar are always Wrapper Ink.",
+      "Do take every user-facing string from ui/strings_fr.h, in uppercase.",
+      "Do draw each arena seat in its own frame, turned by (seat angle − 90°), with the label on the rim side.",
+      "Do keep the hub the single place for turn, undo and pending state; repaint only the hub while only it changes."
     ],
     "donts": [
-      "Don't use a seat hue for chrome, buttons or menu focus.",
+      "Don't use a seat hue for chrome, buttons, menu focus, the undo pill or the crest.",
       "Don't add a second gradient, or show foil when nothing is pending.",
       "Don't fade, dim or lower the opacity of a defeated or inactive seat. Crimp it.",
       "Don't add shadows, glows or offset depth.",
       "Don't use strokes other than 2 px.",
-      "Don't use a hyphen for minus.",
+      "Don't use a hyphen for minus, or a glyph for the hub pointer or the +/− marks.",
       "Don't fall back to the category default (black dial, white number, thin progress ring, rainbow quadrants), and don't copy Soul Dial branding or use WotC marks, mana symbols or card art."
     ]
   }

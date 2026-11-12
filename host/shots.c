@@ -100,12 +100,28 @@ int main(int argc, char **argv)
     assert(ui_screen() == UI_SCR_GAME && ui_game()->n_players == 4);
     snap("08-arene-4");
 
+    /* turns: a hub tap passes the turn clockwise; the undo pill (4 s) takes it back */
+    assert(ui_game()->turn == 1 && ui_game()->active == 0);
+    ui_tap(180, 180, t);
+    assert(ui_game()->active == 1);
+    snap("08b-arene-pastille-annuler");
+    ui_tap(180, 180, t);      /* pill: undo the pass */
+    assert(ui_game()->active == 0);
+    ui_tap(180, 180, t);      /* pass again */
+    assert(ui_game()->active == 1 && ui_game()->turn == 1);
+    t += 4100;
+    ui_tick(t);
+    snap("08c-arene-tour-j2");
+
     int x, y, x2, y2;
     /* J2 loses 6 */
     seat_xy(4, 1, &x, &y);
     ui_tap(x, y, t);
     assert(ui_selected() == 1);
-    ui_knob(-6, t);
+    ui_tap(x, y + 50, t);     /* "+" side of J2 (seat turned 90°: its right is screen-down) */
+    assert(ui_game()->has_pending && ui_game()->pending.amount == 1);
+    ui_knob(-7, t);
+    assert(ui_game()->pending.amount == -6);
     t += 300;
     ui_tick(t);
     snap("09-arene-delta-en-attente");
@@ -113,14 +129,24 @@ int main(int argc, char **argv)
     ui_tick(t);
     assert(ui_game()->p[1].life == 34);
 
-    /* commander damage: drag J3 -> J1, knob adds 4 more */
+    /* attack: drag J3 -> J1 = combat damage; a hub tap turns it into commander damage; ccw adds 4 more */
+    t += 4100;
+    ui_tick(t);
     seat_xy(4, 2, &x, &y);
     seat_xy(4, 0, &x2, &y2);
     ui_drag(x, y, x2, y2, t);
-    ui_knob(4, t + 50);
+    assert(ui_selected() == 0 && ui_game()->pending.kind == SD_LIFE && ui_game()->pending.src == 2 &&
+           ui_game()->pending.amount == -1);
+    ui_knob(-2, t + 20);
+    t += 300;
+    ui_tick(t);
+    snap("10a-arene-attaque");
+    ui_knob(2, t);
+    ui_tap(180, 180, t + 10);
+    ui_knob(-4, t + 50);
     t += 450;
     ui_tick(t);
-    assert(ui_selected() == 0 && ui_game()->pending.kind == SD_CMD && ui_game()->pending.amount == 5);
+    assert(ui_game()->pending.kind == SD_CMD && ui_game()->pending.amount == 5);
     snap("10-arene-degats-commandant");
     t += 500;
     ui_tick(t);
@@ -158,7 +184,15 @@ int main(int argc, char **argv)
     t += 900;
     ui_tick(t);
     assert(sd_player_lost(ui_game(), 1) && haptics[UI_HAPTIC_DEFEAT] == 1);
+    assert(ui_game()->active == 2); /* J2 was active: the turn moved on to J3 */
     snap("13-arene-joueur-vaincu");
+    ui_tap(180, 180, t);      /* pill: one undo restores J2 and its turn */
+    assert(ui_game()->p[1].life == 34 && ui_game()->active == 1 && !sd_player_lost(ui_game(), 1));
+    snap("13b-arene-annulation-coup-fatal");
+    ui_knob(-34, t);          /* replay the lethal hit */
+    t += 900;
+    ui_tick(t);
+    assert(sd_player_lost(ui_game(), 1) && ui_game()->active == 2);
     seat_xy(4, 3, &x, &y);
     ui_tap(x, y, t);
     ui_long_press(x, y, t);
@@ -186,8 +220,12 @@ int main(int argc, char **argv)
     assert(ui_game()->n_players == 2 && ui_game()->p[0].life == 20);
     seat_xy(2, 0, &x, &y);
     seat_xy(2, 1, &x2, &y2);
-    ui_drag(x, y, x2, y2, t); /* ignored: Standard has no commander damage */
-    assert(!ui_game()->has_pending);
+    ui_drag(x, y, x2, y2, t); /* J1 attacks J2 */
+    assert(ui_game()->has_pending && ui_game()->pending.kind == SD_LIFE && ui_game()->pending.player == 1);
+    ui_tap(180, 180, t);      /* Standard: no commander damage, the hub tap commits */
+    assert(!ui_game()->has_pending && ui_game()->p[1].life == 19);
+    t += 4100;
+    ui_tick(t);
     snap("15-arene-2-standard");
     ui_long_press(180, 180, t);
     ui_tap(180, 232, t);
