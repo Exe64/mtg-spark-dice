@@ -25,7 +25,8 @@ SparkDice is a dedicated life counter: a rotary knob + touch round screen that r
 ## Operating Context
 
 - Dial placed on the table in front of a player; totals must be legible by the whole table at ~60–70 cm.
-- Knob: accumulated delta, committed after 800 ms of inactivity. Touch: tap selects a player, drag A→B = commander damage, long press = menus.
+- Knob: accumulated delta, committed after 800 ms of inactivity. Touch: tap selects a player (tap either side of the selected number = −/+), drag A→B = an attack (combat damage; a hub tap turns it into commander damage), tap on the hub at rest = next turn, long press = menus.
+- Turn tracking: active player + Next (clockwise, defeated players skipped, undoable); the journal notes the turn.
 - Formats: Standard profile (20 life, 2 players) and Commander profile (40 life, 4 players, commander damage lethal at 21). Poison lethal at 10.
 - Hardware: Waveshare ESP32-S3-Knob-Touch-LCD-1.8 (2 units ordered, expected 2026-11-24 → 2026-12-10).
 
@@ -50,5 +51,5 @@ SparkDice is a dedicated life counter: a rotary knob + touch round screen that r
 
 ## Accessibility & Inclusion
 
-- Life totals readable at 60–70 cm by every player under bright store light.
+- Life totals readable at 60–70 cm by every player under bright store light; each seat faces its player.
 - Players distinguished by position + label/number, not by hue only (color-blind safe).
