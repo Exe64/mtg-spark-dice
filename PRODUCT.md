@@ -33,13 +33,15 @@ SparkDice is a dedicated life counter: a rotary knob + touch round screen that r
 ## Capabilities and Constraints
 
 - MVP: Home (profile, player count), Solo (giant life + pending delta), Arena 1–4 players, game menu (undo, log, new game), player sheet (poison, commander damage), game over. Undo, NVS game resume.
-- UI strings in French, centralized in one file.
+- UI strings in French, centralized in one file (per-language tables in plan #2).
 - Out of scope for now: radio, OTA, web/API, D&D mode, 5–6 players, sleep/battery.
 - Embedded constraints: LVGL bitmap/TTF fonts, RGB565 on target, limited animation budget.
 
 ## Brand Commitments
 
-- Name: SparkDice. Original identity: must not copy Soul Dial branding or visuals.
+- Name: SparkDice (working name; DiceSpark under consideration). The name lives in one constant.
+- Logo: `ui/assets/logo.svg`, owner-approved 2026-11-12. It is white line art on a transparent ground: a knurled knob seen in 3/4 view, a d20 half-sunk in its opening, and light rays rising from beneath. `ui/assets/logo_gen.py` generates it.
+- Visual direction: the "luminous" theme is primary (radial layout, glow and depth, dark bluish ground, line icons). It takes the spirit of a third-party dial app the owner pointed to, without copying its colours, icons, logo or composition. The booster theme from plan #1 stays as a second theme.
 - Wizards of the Coast materials (mana and set symbols, iconography, game terms) may be used, owner decision 2026-11-12; the defeat mark `ui/assets/dead.svg` resembles the black mana symbol. Fact to keep in mind, not a restriction: Wizards' Fan Content Policy covers free, non-commercial fan content; selling the device or firmware with these assets would need a licence from Wizards.
 
 ## Product Principles

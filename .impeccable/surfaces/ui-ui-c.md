@@ -7,21 +7,42 @@ related_targets: []
 
 # Surface brief: SparkDice dial UI (firmware, LVGL)
 
-Scope: every screen of the 360×360 round dial (Accueil, Solo, Arène 1–4, Menu de partie, Fiche joueur, Fin de partie). Mode: Operate. Build path: code-led (no image generation). Audience and constraints: see PRODUCT.md (store/tournament, read by the whole table at 60–70 cm, never colour-only).
+Scope: every screen of the 360×360 round dial (Accueil, Solo, Arène 1–4, Menu de partie, Journal, Fiche joueur, Fin de partie; Réglages and Mise en route of plan #2 inherit it). Mode: Operate. Build path: code-led (no image generation). Audience and constraints: see PRODUCT.md (store/tournament, read by the whole table at 60–70 cm, never colour-only).
+
+Two themes share one layout and one set of gestures: **Lumineux** (primary, below) and **Booster** (2nd theme, kept as shipped in plan #1). The selector is in plan #3.
 
 ## Direction contract
 
-THESIS: The dial is a sealed booster. Each seat is a saturated wrapper field; the pending delta rides a silver band that the foil sheen fills from left to right in exactly 800 ms, which is the commit. Every edge is smooth: the user rejected zigzag crimps (2026-11-12). Refuses the category default: black dial, white number, thin progress ring, rainbow quadrants.
+THESIS: The dial is the knob's well of light, seen from above, as in the logo: the hub is the light source and everything is lit from the centre outward. The pending delta is light gathering; the commit is the light reaching the rim. The active player is the one the light points at. Refuses: flat colour quadrants, thin progress ring on black, neon gamer HUD (no scanlines, no chrome bevels, no hexagon grids).
 
-OWN-WORLD: Wrapper-interior black ground #121014. Four seat fields, vermilion #E4572E, teal #179C8E, gold #F2B134, violet #8A6CD0, each labelled J1–J4. Ink #FFF6E8 on ground, black #121014 on every seat field (all ≥4.5:1). Foil is the only gradient, silver #B9BEC6→#F3F4F6, used only for the pending band. Every edge between fields is a straight 2 px rule; no zigzag anywhere. Barlow Condensed ExtraBold numerals, SemiBold uppercase labels.
+OWN-WORLD: Night-well ground, a radial gradient from #18214A at the centre to #060914 at the rim. The user picks the ground hue in the settings from six dark presets: Nuit (default), Noir, Améthyste, Forêt, Grenat and Ardoise. The rim tone is derived from the chosen hue, and every preset keeps white ink at 7:1 or more. White line ink #F4F7FF, the logo's language: round-capped strokes of 2 or 3 px, and line-art icons with no fill. Seat hues are light, never paint: J1 ember #FF7A45, J2 aqua #3FD8C0, J3 gold #FFC94D, J4 iris #A98BFF. Each tints its seat's glass (a 12–18 % lift) and its halo, and is always paired with J#. The knob ring is a thin white circle near the rim with 16 detent ticks, the logo's knurl. Glows are pre-rendered A8 halos tinted at draw time, with no runtime blur. Glass buttons are round, with a dark fill, a 1 px top highlight and a soft halo when focused. Typography: Barlow Condensed ExtraBold for numerals and SemiBold for labels, kept from plan #1. Numerals are white over a halo in the seat hue.
 
-STORY: The player turns the knob, sees "−3" in the foil band, watches the sheen fill the band, feels the seal tick; the table reads every total at a glance.
+STORY: The player turns the knob and sees "−3" appear in white with the seat's light swelling behind it. The light runs once around the ring in 800 ms, then the total changes and the haptic ticks. The table reads every total at a glance, and sees who is playing because the light points at that seat.
 
-FIRST VIEWPORT: Solo: full-bleed seat field, life numeral about 150 px tall at centre, "J1 · COMMANDER" above it. During a pending delta, the foil band crosses below the numeral and the foil sheen fills it from left to right over 800 ms (bright leading edge on dull silver; edges always complete). Arena: radial sectors with straight 2 px seams. The selected seat is filled; the others are black with their number in seat colour. At rest the hub is a closed 2 px ring; while a delta is pending the ring closes clockwise over 800 ms. Every seat faces its player: each seat's numeral and label are drawn in a layer turned by (seat angle − 90°), label on the rim side; the +/− marks flank the selected numeral in the seat's own frame. The active seat carries a solid 6 px arc along its rim; at rest the hub shows TOUR n and the active seat (tap = next turn); for 4 s after a commit the hub is an ink-inverse ANNULER pill. A drag A→B is an attack drawn in the hub as J3 ▸ J1 (drawn triangle); CMDT tops the hub when it is commander damage. A defeated seat shows the owner's skull mark (ui/assets/dead.svg, A8 mask tinted with the seat hue) instead of its total (the total stays in the log; undo restores it), labelled J# VAINCU. Chrome (primary buttons, menu focus) is ink-inverse, never a seat hue.
+FIRST VIEWPORT:
+- **Solo:** night-well ground with the knob ring at R−10. The life numeral is about 150 px tall at the centre, white over a large halo in the seat hue, with "J1 · COMMANDER" above it. While a delta is pending, the delta sits in a glass pill under the numeral and a light arc runs clockwise along the knob ring in exactly 800 ms.
+- **Arena:** radial glass sectors separated by 6 px gaps of ground, with no rules.
+  - The selected seat's glass is brighter and carries its halo; every seat's numeral and label face its player (rotated layers, as in plan #1).
+  - The hub is a glass disc that glows. At rest it shows TOUR n and the active J#; tap = next turn. While a delta is pending, its light ring closes clockwise over 800 ms. For 4 s after a commit it becomes an ANNULER pill.
+  - The active seat receives three soft rays from the hub, the logo's rays: the signature.
+  - A drag A→B draws J3 ▸ J1 in the hub; CMDT sits on top when it is commander damage.
+  - A defeated seat goes dark: its glass and halo turn off, and the skull mark (ui/assets/dead.svg) appears in dimmed ink with J# VAINCU.
+- **Chrome:** glass buttons with white line icons. Focus is a white halo, never a seat hue.
 
-FORM: booster wrapper, candidate 7 of round 1 (pinned by the user after a re-roll), seed: 31f96a16bbb7f208. Raises: crimp length = measured remaining time (Labanotation); the selected seat owns the field, the rest are numbers on black (Saville sleeve); strict tonal set, 4 seat hues + ink + ground + foil (darkroom zones); one rule weight, 2 px, everywhere (reference setting).
+FORM: luminous well, pinned by the user from their reference (radial layout, glow and depth, dark bluish ground, icons), plus the owner's logo (ui/assets/logo.svg). There was no direction roll. seed: none (unavailable)
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 
+## Theme 2: Booster (kept)
+
+As shipped in plan #1 (DESIGN.md until plan #5 step 7 rewrites it): a sealed-booster wrapper. Seats are saturated fields (#E4572E, #179C8E, #F2B134, #8A6CD0) on #121014, with ink #FFF6E8. A foil band fills in 800 ms. Edges are straight 2 px rules, never zigzag. Chrome is ink-inverse. Same layout, gestures and skull mark.
+
+## Constraints for the light
+
+- Glows and rays are pre-rendered A8 masks; drawing them costs only alpha blits. The cost of a full-screen redraw on the ESP32-S3 is measured at step 7, then checked on hardware.
+- Every text on glass reaches at least 4.5:1, and every numeral at least 7:1 (white on the night well is about 15:1).
+- Halos never carry information alone: J#, position and rays always back them up.
+
 ## Open decisions
-- Theme selector and additional themes: backlog (roadmap.md, "Thèmes d'interface").
+- Product name: SparkDice (working name) or DiceSpark, one constant.
+- Exact rotation, timer and settings flows: plans #2–#4.
