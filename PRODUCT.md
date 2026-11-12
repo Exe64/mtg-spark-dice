@@ -40,7 +40,7 @@ SparkDice is a dedicated life counter: a rotary knob + touch round screen that r
 ## Brand Commitments
 
 - Name: SparkDice. Original identity: must not copy Soul Dial branding or visuals.
-- MTG is referenced only through game terms; no Wizards of the Coast logos, mana symbols or card art.
+- Wizards of the Coast materials (mana and set symbols, iconography, game terms) may be used, owner decision 2026-11-12; the defeat mark `ui/assets/dead.svg` resembles the black mana symbol. Fact to keep in mind, not a restriction: Wizards' Fan Content Policy covers free, non-commercial fan content; selling the device or firmware with these assets would need a licence from Wizards.
 
 ## Product Principles
 

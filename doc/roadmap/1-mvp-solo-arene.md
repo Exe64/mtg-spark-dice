@@ -81,6 +81,9 @@ encore reçu, la logique est testée sur PC et l'UI vérifiée par captures head
 | Direction visuelle | « Emballage de booster » (impeccable, contrat dans `.impeccable/surfaces/ui-ui-c.md`) | Choisie par l'opérateur ; un seul thème au MVP, structure `ui_theme_t`, sélecteur au backlog |
 | Polices | Barlow Condensed ExtraBold/SemiBold (OFL) via tiny_ttf, table GPOS masquée | Bug LVGL 9.2.2 : lecture hors police dans le crénage GPOS (ASan) |
 | Orientation des chiffres | Chaque siège face à son joueur (calques LVGL transformés), étape 7 | Choix opérateur 2026-11-12 ; coût à mesurer sur ESP32-S3 à réception, repli : rotation seulement hors attente |
+| Bords lisses | Plus aucun serti en dents de scie : traits droits 2 px, anneau du moyeu et bords de la bande foil qui se ferment sur 800 ms, arc plein du joueur actif | Retour opérateur en validation (2026-11-12) : « pas fan de l'aspect dentelé » |
+| Minuteur de validation | La bande d'attente argent terne se remplit du reflet foil de gauche à droite sur 800 ms | Retour opérateur : les demi-traits (bords qui se traçaient) ne se lisaient pas comme un minuteur |
+| Joueur vaincu | Tête de mort de l'opérateur (`ui/assets/dead.svg` → masque A8 160 px teinté par siège) à la place du total + « J# VAINCU » | Demande opérateur (2026-11-12) ; ressemble au symbole de mana noir ; ressources Wizards autorisées par l'opérateur (PRODUCT.md) |
 | Glisser A→B | Dégâts de combat ; tap sur le moyeu pendant l'attente → dégâts de commandant | Choix opérateur 2026-11-12 |
 | Tours | Joueur actif + Suivant (sens horaire, vaincus sautés), action annulable | Choix opérateur 2026-11-12 ; mécaniques inspirées de captures d'app tierce, apparence non reprise |
 | Brochage | `main/board.h`, d'après des portages communautaires de la démo Waveshare | Wiki inaccessible (403) ; à vérifier à réception |
@@ -185,6 +188,9 @@ stat -c '%n %s' /srv/dev/mtg-dial/build/sparkdice.bin /srv/dev/mtg-dial/build/st
 | 2026-11-12 | T7 Tours, attaque, sièges orientés | 4/4 normal + ASan, 19 captures, firmware sans avertissement | 4/4 dans les deux builds, 0 erreur ASan, 19 captures, `build_exit=0`, 0 avertissement | ✅ |
 | 2026-11-12 | T7 (après revue) | annulation groupée coup fatal + passe automatique | une annulation rend J2 à 34, main à J2, non vaincu (`13b`) ; 4/4 normal + ASan ; firmware OK | ✅ |
 | 2026-11-12 | TF Tests finaux | build propre : 4/4 normal + ASan, 20 captures, firmware 0 avertissement, bin < 4 Mo | 4/4 et 4/4, 0 erreur ASan, 20 captures, `build_exit=0`, 0, `sparkdice.bin` 846 064 o, `storage.bin` 8 257 536 o | ✅ |
+| 2026-11-12 | TF (après « bords lisses ») | 4/4 normal + ASan, 20 captures, firmware 0 avertissement | 4/4 et 4/4, 20 captures sans zigzag, `build_exit=0`, 0 | ✅ |
+| 2026-11-12 | Bande remplie + tête de mort | 4/4 normal + ASan, firmware sans avertissement | 4/4 et 4/4, `build_exit=0`, 0 | ✅ |
+| 2026-11-12 | Tête de mort SVG | 4/4 normal + ASan, firmware sans avertissement, marque lisible et dégagée du label | 4/4 et 4/4, `build_exit=0`, 0, contrôle visuel 13/13b OK | ✅ |
 
 ## Journal de session
 
