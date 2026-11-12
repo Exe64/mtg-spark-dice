@@ -1,0 +1,10 @@
+roadmap-tracking:
+  collaborative: false
+  mode: auto
+  last-calibration: 2026-11-12
+  help:
+    welcomed: true
+  tests:
+    mode: autonomous
+  issues:
+    mode: github

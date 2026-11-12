@@ -1,0 +1,12 @@
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
+
+# build outputs
+build/
+host/build*/
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock
+shots/*.png
+host/third_party/
