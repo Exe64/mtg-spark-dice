@@ -12,7 +12,9 @@
 #include "esp_lcd_touch_cst816s.h"
 #include "esp_littlefs.h"
 #include "esp_log.h"
-#include "esp_lvgl_port.h"
+#include "esp_heap_caps.h"
+#include "freertos/semphr.h"
+#include "lvgl.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -27,6 +29,8 @@ static const char *TAG = "sparkdice";
 static nvs_handle_t nvs;
 static esp_lcd_touch_handle_t touch;
 static pcnt_unit_handle_t knob;
+static SemaphoreHandle_t lv_mutex;
+static esp_lcd_panel_handle_t panel;
 
 static uint32_t now_ms(void) { return (uint32_t)(esp_timer_get_time() / 1000); }
 
@@ -68,13 +72,69 @@ static void on_haptic(ui_haptic_t p)
 
 /* ---------- hardware init ---------- */
 
-static lv_display_t *display_init(void)
+/* ---------- display + LVGL glue (no esp_lvgl_port: 2.9.0 needs LVGL >= 9.3) ---------- */
+
+static bool disp_lock(void) { return xSemaphoreTakeRecursive(lv_mutex, portMAX_DELAY) == pdTRUE; }
+static void disp_unlock(void) { xSemaphoreGiveRecursive(lv_mutex); }
+
+static bool on_flush_done(esp_lcd_panel_io_handle_t io, esp_lcd_panel_io_event_data_t *e, void *ctx)
 {
+    (void)io;
+    (void)e;
+    lv_display_flush_ready((lv_display_t *)ctx);
+    return false;
+}
+
+static void flush_cb(lv_display_t *d, const lv_area_t *a, uint8_t *px)
+{
+    (void)d;
+    lv_draw_sw_rgb565_swap(px, lv_area_get_size(a)); /* panel expects big-endian RGB565 */
+    esp_lcd_panel_draw_bitmap(panel, a->x1, a->y1, a->x2 + 1, a->y2 + 1, px);
+}
+
+/* QSPI panel writes need even-aligned windows */
+static void rounder_cb(lv_event_t *e)
+{
+    lv_area_t *a = lv_event_get_param(e);
+    a->x1 &= ~1;
+    a->y1 &= ~1;
+    a->x2 |= 1;
+    a->y2 |= 1;
+}
+
+static void lvgl_task(void *arg)
+{
+    (void)arg;
+    for (;;) {
+        uint32_t wait = 10;
+        if (disp_lock()) {
+            wait = lv_timer_handler();
+            disp_unlock();
+        }
+        vTaskDelay(pdMS_TO_TICKS(wait < 5 ? 5 : wait > 30 ? 30 : wait));
+    }
+}
+
+static void display_init(void)
+{
+    lv_mutex = xSemaphoreCreateRecursiveMutex();
+    lv_init();
+    lv_tick_set_cb(now_ms);
+    lv_display_t *disp = lv_display_create(UI_W, UI_H);
+    lv_display_set_color_format(disp, LV_COLOR_FORMAT_RGB565);
+    const size_t buf_px = UI_W * 40;
+    void *b1 = heap_caps_malloc(buf_px * 2, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+    void *b2 = heap_caps_malloc(buf_px * 2, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+    assert(b1 && b2);
+    lv_display_set_buffers(disp, b1, b2, buf_px * 2, LV_DISPLAY_RENDER_MODE_PARTIAL);
+    lv_display_set_flush_cb(disp, flush_cb);
+    lv_display_add_event_cb(disp, rounder_cb, LV_EVENT_INVALIDATE_AREA, NULL);
+
     spi_bus_config_t bus = ST77916_PANEL_BUS_QSPI_CONFIG(PIN_LCD_SCLK, PIN_LCD_D0, PIN_LCD_D1, PIN_LCD_D2, PIN_LCD_D3,
-                                                         UI_W * 40 * sizeof(uint16_t));
+                                                         buf_px * sizeof(uint16_t));
     ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &bus, SPI_DMA_CH_AUTO));
     esp_lcd_panel_io_handle_t io;
-    esp_lcd_panel_io_spi_config_t io_cfg = ST77916_PANEL_IO_QSPI_CONFIG(PIN_LCD_CS, NULL, NULL);
+    esp_lcd_panel_io_spi_config_t io_cfg = ST77916_PANEL_IO_QSPI_CONFIG(PIN_LCD_CS, on_flush_done, disp);
     ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI2_HOST, &io_cfg, &io));
     /* ponytail: driver default init sequence; use the Waveshare demo's init_cmds if the panel stays blank */
     st77916_vendor_config_t vendor = {.flags = {.use_qspi_interface = 1}};
@@ -84,28 +144,13 @@ static lv_display_t *display_init(void)
         .bits_per_pixel = 16,
         .vendor_config = &vendor,
     };
-    esp_lcd_panel_handle_t panel;
     ESP_ERROR_CHECK(esp_lcd_new_panel_st77916(io, &panel_cfg, &panel));
     ESP_ERROR_CHECK(esp_lcd_panel_reset(panel));
     ESP_ERROR_CHECK(esp_lcd_panel_init(panel));
     ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel, true));
     gpio_set_direction(PIN_LCD_BL, GPIO_MODE_OUTPUT);
     gpio_set_level(PIN_LCD_BL, 1); /* ponytail: full brightness, LEDC dimming with sleep (lot 2) */
-
-    lvgl_port_cfg_t port_cfg = ESP_LVGL_PORT_INIT_CONFIG();
-    port_cfg.task_stack = 8192; /* tiny_ttf rasterises glyphs in the LVGL task */
-    ESP_ERROR_CHECK(lvgl_port_init(&port_cfg));
-    lvgl_port_display_cfg_t disp_cfg = {
-        .io_handle = io,
-        .panel_handle = panel,
-        .buffer_size = UI_W * 40,
-        .double_buffer = true,
-        .hres = UI_W,
-        .vres = UI_H,
-        .color_format = LV_COLOR_FORMAT_RGB565,
-        .flags = {.buff_dma = true, .swap_bytes = true},
-    };
-    return lvgl_port_add_disp(&disp_cfg);
+    xTaskCreatePinnedToCore(lvgl_task, "lvgl", 8192, NULL, 5, NULL, 1); /* tiny_ttf rasterises in this task */
 }
 
 static i2c_master_bus_handle_t i2c_init(void)
@@ -188,12 +233,13 @@ typedef struct {
 /* Turns raw touch samples into tap / long press / drag. */
 static void touch_poll(touch_state_t *s, uint32_t now)
 {
-    uint16_t x, y;
+    esp_lcd_touch_point_data_t pt = {0};
     uint8_t cnt = 0;
     if (touch) {
         esp_lcd_touch_read_data(touch);
-        esp_lcd_touch_get_coordinates(touch, &x, &y, NULL, &cnt, 1);
+        esp_lcd_touch_get_data(touch, &pt, &cnt, 1);
     }
+    uint16_t x = pt.x, y = pt.y;
     if (cnt) {
         if (!s->down)
             *s = (touch_state_t){.down = true, .x0 = x, .y0 = y, .t0 = now};
@@ -221,13 +267,13 @@ static void input_task(void *arg)
     touch_state_t ts = {0};
     for (;;) {
         uint32_t now = now_ms();
-        if (lvgl_port_lock(0)) {
+        if (disp_lock()) {
             int d = knob_read();
             if (d)
                 ui_knob(d, now);
             touch_poll(&ts, now);
             ui_tick(now);
-            lvgl_port_unlock();
+            disp_unlock();
         }
         vTaskDelay(pdMS_TO_TICKS(10));
     }
@@ -257,10 +303,10 @@ void app_main(void)
     knob_init();
     display_init();
 
-    lvgl_port_lock(0);
+    disp_lock();
     ui_hooks_t hooks = {.haptic = on_haptic, .save = save_game};
     ui_init(&hooks, profiles, n_profiles, has_saved ? &saved : NULL);
-    lvgl_port_unlock();
+    disp_unlock();
 
     xTaskCreate(input_task, "input", 6144, NULL, 4, NULL);
 }
