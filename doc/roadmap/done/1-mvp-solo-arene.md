@@ -2,8 +2,8 @@
 plan:
   id: '1'
   name: 1-mvp-solo-arene.md
-  link: https://github.com/Exe64/mtg-spark-dice/blob/main/doc/roadmap/1-mvp-solo-arene.md
-status: active
+  link: https://github.com/Exe64/mtg-spark-dice/blob/main/doc/roadmap/done/1-mvp-solo-arene.md
+status: done
 date: 2026-11-12
 description: >
   MVP SparkDice : firmware jouable sur un seul cadran (Solo + Arène 1–4 joueurs),
@@ -62,7 +62,7 @@ encore reçu, la logique est testée sur PC et l'UI vérifiée par captures head
 - [x] Étape 6 — HAL ESP32-S3 : ST77916 QSPI, CST816, encodeur, DRV2605, NVS, LittleFS ; pinout démo Waveshare ; compilé, non validé matériel (L · reasoning → Opus)
 - [x] Étape 7 — Tours, attaque par glisser, sièges orientés : tour + joueur actif (Suivant sur le moyeu, annulable, journal par tour), glisser A→B = dégâts de combat (tap moyeu → commandant), chiffres tournés vers chaque siège (calques LVGL), zones +/−, pastille d'annulation 4 s ; contrat + PRODUCT.md + DESIGN.md mis à jour (L · reasoning → Opus)
 - [x] 🧪 Tests — Rédiger et exécuter la procédure de test (avant-dernière étape, obligatoire)
-- [ ] ✅ Validation — Vérifier les résultats des tests et clôturer (dernière étape, obligatoire)
+- [x] ✅ Validation — Vérifier les résultats des tests et clôturer (dernière étape, obligatoire)
 
 ## Décisions techniques
 
@@ -227,7 +227,11 @@ stat -c '%n %s' /srv/dev/mtg-dial/build/sparkdice.bin /srv/dev/mtg-dial/build/st
 
 ### Session 2026-11-12 (6)
 - ✅ Fait : étape 7 (tours, attaque par glisser, bascule commandant, sièges orientés, +/−, pastille d'annulation, passe automatique sur défaite du joueur actif annulée avec son coup) ; 2 tours de revue de finition ; PRODUCT.md et DESIGN.md mis à jour ; T7 et tests finaux TF verts
-- 🔄 En cours : ✅ Validation (en attente de l'opérateur)
+- 🔄 En cours : —
 - 📋 Prochain : clôture du plan #1, puis plan « validation matériel » à réception des boîtiers (2026-11-24 → 2026-12-10)
 - 🚧 Blocages : aucun. Points ouverts pour le plan matériel : brochage `main/board.h`, séquence d'init ST77916, crans de molette (`KNOB_COUNTS_PER_DETENT`), coût des calques tournés sur ESP32-S3
+
+### Session 2026-11-12 (7) — clôture
+- ✅ Fait : retours de validation de l'opérateur appliqués (bords lisses, bande d'attente remplie par le reflet foil, tête de mort `dead.svg` pour les vaincus, ressources Wizards autorisées) ; tests verts ; **plan validé par l'opérateur et clôturé**
+- 📋 Prochain : plan « validation matériel » à réception des boîtiers (brochage, init ST77916, crans de molette, coût des calques tournés, haptique)
 
