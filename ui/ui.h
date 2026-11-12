@@ -22,6 +22,10 @@ typedef enum { UI_SCR_HOME, UI_SCR_GAME, UI_SCR_MENU, UI_SCR_LOG, UI_SCR_SHEET, 
 /* Call after lv_init() and display creation. `resume` (may be NULL) is offered as "REPRENDRE" on the home screen. */
 void ui_init(const ui_hooks_t *hooks, const sd_profile_t *profiles, int n_profiles, const sd_game_t *resume);
 
+/* Theme (ui_theme_id_t, see theme.h) and ground hue (index in ui_grounds[], used by themes that let the user pick).
+ * Out-of-range values fall back to the defaults. May be called before ui_init() or at any time after. */
+void ui_set_theme(int theme, int ground);
+
 void ui_knob(int detents, uint32_t now_ms); /* +cw / -ccw */
 void ui_tap(int x, int y, uint32_t now_ms);
 void ui_long_press(int x, int y, uint32_t now_ms);

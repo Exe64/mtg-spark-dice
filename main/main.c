@@ -23,6 +23,7 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "profile.h"
+#include "theme.h"
 #include "ui.h"
 
 static const char *TAG = "sparkdice";
@@ -304,6 +305,11 @@ void app_main(void)
     display_init();
 
     disp_lock();
+    /* look: stored apart from the game; written by the settings screens (plan #3) */
+    uint8_t theme = UI_THEME_DEFAULT, ground = 0;
+    nvs_get_u8(nvs, "theme", &theme);
+    nvs_get_u8(nvs, "ground", &ground);
+    ui_set_theme(theme, ground);
     ui_hooks_t hooks = {.haptic = on_haptic, .save = save_game};
     ui_init(&hooks, profiles, n_profiles, has_saved ? &saved : NULL);
     disp_unlock();

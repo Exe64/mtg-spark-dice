@@ -21,7 +21,10 @@
 enum { HOME_PROFILE, HOME_PLAYERS };
 enum { MENU_UNDO, MENU_LOG, MENU_SHEET, MENU_NEW, MENU_BACK };
 
-static const ui_theme_t *T = &ui_theme_booster;
+static const ui_theme_t *const THEMES[UI_THEME_COUNT] = {[UI_THEME_BOOSTER] = &ui_theme_booster,
+                                                         [UI_THEME_LUMINEUX] = &ui_theme_lumineux};
+static ui_theme_t TH; /* active theme, with the user's ground applied */
+static const ui_theme_t *T = &ui_theme_booster; /* == *THEMES[UI_THEME_DEFAULT] until ui_set_theme() */
 
 static struct {
     ui_hooks_t hooks;
@@ -51,6 +54,21 @@ static void fill(lv_layer_t *l, int x1, int y1, int x2, int y2, uint32_t color, 
     d.bg_color = C(color);
     d.radius = radius;
     lv_area_t a = {x1, y1, x2, y2};
+    lv_draw_rect(l, &d, &a);
+}
+
+/* Full-dial ground: flat, or the theme's radial well (centre -> rim). */
+static void ground(lv_layer_t *l)
+{
+    lv_draw_rect_dsc_t d;
+    lv_draw_rect_dsc_init(&d);
+    d.bg_color = C(T->ground);
+    if (T->ground_rim != T->ground) {
+        const lv_color_t c[2] = {C(T->ground), C(T->ground_rim)};
+        lv_gradient_init_stops(&d.bg_grad, c, NULL, NULL, 2);
+        lv_grad_radial_init(&d.bg_grad, CX, CY, CX + R, CY, LV_GRAD_EXTEND_PAD);
+    }
+    lv_area_t a = {0, 0, UI_W - 1, UI_H - 1};
     lv_draw_rect(l, &d, &a);
 }
 
@@ -458,7 +476,10 @@ static void draw_solo(lv_layer_t *l)
     bool lost = sd_player_lost(g, 0);
     uint32_t field = lost ? T->ground : T->seat[0], ink = lost ? T->seat[0] : T->seat_ink[0];
     char buf[64];
-    fill(l, 0, 0, UI_W - 1, UI_H - 1, field, 0);
+    if (lost)
+        ground(l);
+    else
+        fill(l, 0, 0, UI_W - 1, UI_H - 1, field, 0);
     snprintf(buf, sizeof(buf), S_SEAT_PROFILE_FMT, 1, U.profile_name);
     text(l, U.f_label, ink, LV_OPA_COVER, CX, 62, buf);
     snprintf(buf, sizeof(buf), "%d", p->life);
@@ -494,7 +515,7 @@ static void draw_arena(lv_layer_t *l)
     const sd_game_t *g = &U.g;
     int n = g->n_players;
     float span = seat_span();
-    fill(l, 0, 0, UI_W - 1, UI_H - 1, T->ground, 0);
+    ground(l);
     if (!sd_player_lost(g, U.sel))
         wedge(l, seat_angle(U.sel) - span / 2, seat_angle(U.sel) + span / 2, T->seat[U.sel]);
     for (int i = 0; i < n; i++) { /* straight seams between seats */
@@ -557,7 +578,7 @@ static void draw_home(lv_layer_t *l)
 {
     const sd_profile_t *p = &U.profiles[U.profile];
     char buf[48];
-    fill(l, 0, 0, UI_W - 1, UI_H - 1, T->ground, 0);
+    ground(l);
     /* profile */
     char cmd[8], poison[8];
     snprintf(cmd, sizeof(cmd), "%d", p->rules.cmd_lethal);
@@ -603,7 +624,7 @@ static int menu_row_y(int i) { return 76 + i * 52; }
 static void draw_menu(lv_layer_t *l)
 {
     char buf[64], act[40];
-    fill(l, 0, 0, UI_W - 1, UI_H - 1, T->ground, 0);
+    ground(l);
     for (int i = 0; i < MENU_ROWS; i++) {
         int y = menu_row_y(i);
         const char *s = buf;
@@ -633,7 +654,7 @@ static void draw_menu(lv_layer_t *l)
 static void draw_log(lv_layer_t *l)
 {
     char buf[64];
-    fill(l, 0, 0, UI_W - 1, UI_H - 1, T->ground, 0);
+    ground(l);
     text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 48, S_MENU_LOG);
     line(l, 120, 70, 240, 70, T->ink, LV_OPA_COVER);
     if (!U.g.log_len)
@@ -669,7 +690,7 @@ static void draw_sheet(lv_layer_t *l)
     const sd_game_t *g = &U.g;
     const sd_player_t *p = &g->p[U.sel];
     char buf[48];
-    fill(l, 0, 0, UI_W - 1, UI_H - 1, T->ground, 0);
+    ground(l);
     fill(l, 0, 0, UI_W - 1, 132, T->seat[U.sel], 0);
     snprintf(buf, sizeof(buf), S_SEAT_FMT, U.sel + 1);
     text(l, U.f_title, T->seat_ink[U.sel], LV_OPA_COVER, CX, 84, buf);
@@ -710,7 +731,10 @@ static void draw_over(lv_layer_t *l)
     int w = sd_game_winner(&U.g);
     uint32_t field = w >= 0 ? T->seat[w] : T->ground, ink = w >= 0 ? T->seat_ink[w] : T->ink;
     char buf[24];
-    fill(l, 0, 0, UI_W - 1, UI_H - 1, field, 0);
+    if (w >= 0)
+        fill(l, 0, 0, UI_W - 1, UI_H - 1, field, 0);
+    else
+        ground(l);
     if (w >= 0)
         snprintf(buf, sizeof(buf), S_WINS_FMT, w + 1);
     else
@@ -737,6 +761,21 @@ static void draw_cb(lv_event_t *e)
 }
 
 /* ---------- public API ---------- */
+
+void ui_set_theme(int theme, int ground_idx)
+{
+    TH = *THEMES[theme >= 0 && theme < UI_THEME_COUNT ? theme : UI_THEME_DEFAULT];
+    if (TH.ground_pick) {
+        TH.ground = ui_grounds[ground_idx >= 0 && ground_idx < UI_GROUND_COUNT ? ground_idx : 0];
+        TH.ground_rim = ui_ground_rim(TH.ground);
+    }
+    T = &TH;
+    /* ponytail: both themes use the same fonts, so they are not rebuilt; rebuild here if a theme brings its own */
+    if (U.dial) {
+        lv_obj_set_style_bg_color(lv_screen_active(), C(T->ground_rim), 0);
+        redraw();
+    }
+}
 
 void ui_init(const ui_hooks_t *hooks, const sd_profile_t *profiles, int n_profiles, const sd_game_t *resume)
 {
@@ -765,7 +804,7 @@ void ui_init(const ui_hooks_t *hooks, const sd_profile_t *profiles, int n_profil
     U.f_small = TTF(lbl, ll, 20);
 
     lv_obj_t *scr = lv_screen_active();
-    lv_obj_set_style_bg_color(scr, C(T->ground), 0);
+    lv_obj_set_style_bg_color(scr, C(T->ground_rim), 0);
     U.dial = lv_obj_create(scr);
     lv_obj_remove_style_all(U.dial);
     lv_obj_set_size(U.dial, UI_W, UI_H);

@@ -16,6 +16,7 @@
 #define LV_FONT_MONTSERRAT_28 1
 #define LV_FONT_MONTSERRAT_48 1
 
+#define LV_USE_DRAW_SW_COMPLEX_GRADIENTS 1 /* radial ground; mirror in sdkconfig.defaults */
 #define LV_GRADIENT_MAX_STOPS 3 /* foil sheen; mirror in sdkconfig.defaults */
 #define LV_USE_LODEPNG 1 /* encoder used by shot.c */
 #define LV_USE_TINY_TTF 1

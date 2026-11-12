@@ -4,10 +4,12 @@
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "lvgl.h"
 #include "shot.h"
+#include "theme.h"
 #include "ui.h"
 
 static const char *out_dir;
@@ -22,6 +24,30 @@ static void on_save(const sd_game_t *g)
 static void on_haptic(ui_haptic_t p) { haptics[p]++; }
 
 static uint32_t t = 1000;
+
+/* WCAG relative luminance and contrast ratio */
+static double lum(uint32_t c)
+{
+    double l = 0;
+    static const double w[] = {0.2126, 0.7152, 0.0722};
+    for (int i = 0; i < 3; i++) {
+        double v = ((c >> (16 - 8 * i)) & 0xFF) / 255.0;
+        l += w[i] * (v <= 0.03928 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4));
+    }
+    return l;
+}
+static double contrast(uint32_t a, uint32_t b)
+{
+    double la = lum(a), lb = lum(b);
+    return (fmax(la, lb) + 0.05) / (fmin(la, lb) + 0.05);
+}
+static bool near(uint32_t a, uint32_t b, int tol)
+{
+    for (int s = 0; s <= 16; s += 8)
+        if (abs((int)((a >> s) & 0xFF) - (int)((b >> s) & 0xFF)) > tol)
+            return false;
+    return true;
+}
 
 static void snap(const char *name)
 {
@@ -237,6 +263,34 @@ int main(int argc, char **argv)
     ui_tap(x, y, t);
     assert(ui_selected() == 2);
     snap("16-arene-3");
+
+    /* --- themes: the flows above ran in the default theme (booster, flat ground) */
+    ui_long_press(180, 180, t);
+    ui_tap(180, 232, t);      /* NOUVELLE PARTIE -> home; (180,180) and (180,3) are bare ground there */
+    assert(ui_screen() == UI_SCR_HOME);
+    shot_render();
+    assert(shot_pixel(180, 180) == ui_theme_booster.ground && shot_pixel(180, 3) == ui_theme_booster.ground);
+    assert(ui_ground_rim(0x18214A) == 0x060914); /* the contract's well */
+    for (int gi = 0; gi < UI_GROUND_COUNT; gi++) {
+        uint32_t c = ui_grounds[gi], rim = ui_ground_rim(c);
+        assert(contrast(ui_theme_lumineux.ink, c) >= 7.0);
+        ui_set_theme(UI_THEME_LUMINEUX, gi);
+        char name[32];
+        snprintf(name, sizeof(name), "17-lumineux-fond-%d", gi);
+        snap(name);
+        assert(near(shot_pixel(180, 180), c, 3));  /* centre of the well */
+        assert(near(shot_pixel(180, 3), rim, 4));  /* rim */
+        assert(near(shot_pixel(3, 180), rim, 4));  /* radial, not vertical */
+    }
+    ui_set_theme(UI_THEME_LUMINEUX, 0);
+    ui_tap(180, 200, t);
+    ui_knob(1, t);            /* 3 -> 4 */
+    ui_tap(100, 280, t);
+    assert(ui_game()->n_players == 4);
+    snap("18-lumineux-arene-4");
+    ui_set_theme(99, 99);     /* out of range: default theme */
+    shot_render();
+    assert(shot_pixel(180, 3) == ui_theme_booster.ground);
 
     printf("shots: all flows passed (%d saves, %d detents, %d commits, %d defeats)\n", saves,
            haptics[UI_HAPTIC_DETENT], haptics[UI_HAPTIC_COMMIT], haptics[UI_HAPTIC_DEFEAT]);

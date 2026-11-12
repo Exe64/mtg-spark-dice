@@ -9,6 +9,7 @@ description: >
   Nouvelle direction visuelle « lumineuse » pour toute l'interface (radiale, lueurs, fond bleu nuit, icônes, logo) ; le booster devient 2ᵉ thème.
 priority: high
 complexity: L
+enriched: 2026-11-13
 intent: null
 scope:
   modules:
@@ -30,7 +31,7 @@ Donner à SparkDice une direction visuelle lumineuse pour toute l'interface, dan
 
 ## Dépendances
 
-Aucune (plan #1 livré). Bloque #2 (ses écrans sont construits dans la nouvelle direction) ; le sélecteur de thème (lumineux / booster) est dans #3.
+Aucune (plan #1 livré). Bloque #6, #7 et #2 (leurs écrans sont construits dans la nouvelle direction) ; le sélecteur de thème (lumineux / booster) est dans #3.
 
 ## Périmètre
 
@@ -52,7 +53,7 @@ Aucune (plan #1 livré). Bloque #2 (ses écrans sont construits dans la nouvelle
 ## Étapes
 
 - [x] Étape 1 — Contrat de direction (impeccable, direction imposée) + PRODUCT.md (esprit de la référence autorisé, pas de copie) (S · reasoning → Opus)
-- [ ] Étape 2 — Système de thèmes : `ui_theme_t` étendu (fond dégradé, lueurs, icônes, rendu des sièges), couleur de fond paramétrable (dégradé dérivé d'une seule teinte, choix stocké hors partie), booster conservé tel quel (M · reasoning → Opus)
+- [x] Étape 2 — Système de thèmes : `ui_theme_t` étendu (fond dégradé, lueurs, icônes, rendu des sièges), couleur de fond paramétrable (dégradé dérivé d'une seule teinte, choix stocké hors partie), booster conservé tel quel (M · reasoning → Opus)
 - [ ] Étape 3 — Rendu « lueur » : générateur de halos/anneaux pré-calculés (script, images A8/ARGB), dégradés, boutons « verre », jeu d'icônes dessinées (L · reasoning → Opus)
 - [ ] Étape 4 — Écrans de partie dans le thème lumineux : Solo, Arène 1–4, moyeu, bande d'attente, pastille, marque de défaite (L · reasoning → Opus)
 - [ ] Étape 5 — Menus dans le thème lumineux : menu de partie, journal, fiche joueur, fin de partie (M · standard → Sonnet)
@@ -73,6 +74,11 @@ Aucune (plan #1 livré). Bloque #2 (ses écrans sont construits dans la nouvelle
 | Nom du produit | SparkDice provisoire, « DiceSpark » à l'étude ; une seule constante pour renommer | Opérateur indécis (2026-11-12) ; deux compteurs MTG « Spark » existent déjà |
 | Logo | `ui/assets/logo.svg` : trait blanc, fond transparent, molette 3/4 crantée, d20 enfoncé, rayons ; généré par `ui/assets/logo_gen.py` | Validé par l'opérateur 2026-11-12, dessiné ensemble (Gemini n'y arrivait pas) |
 | Contrat lumineux | « Puits de lumière » : moyeu = source, fond #18214A→#060914, encre blanche au trait, sièges = lumière (#FF7A45, #3FD8C0, #FFC94D, #A98BFF) sur verre, 3 rayons vers le joueur actif, siège vaincu éteint | Étape 1 ; contrat dans `.impeccable/surfaces/ui-ui-c.md` |
+| Fond radial | Dégradé radial natif de LVGL 9.2 (`LV_USE_DRAW_SW_COMPLEX_GRADIENTS`), pas de masque pré-calculé | Déjà dans LVGL ; à vérifier sur matériel : coût d'un plein écran et bandes visibles en RGB565 (repli : masque A8 pré-calculé) |
+| Teinte du bord | 27 % de chaque composante de la teinte du centre | Redonne exactement le couple du contrat (#18214A → #060914) |
+| Thème par défaut | Booster jusqu'à l'étape 4, puis Lumineux (`UI_THEME_DEFAULT`) | Les écrans lumineux n'existent pas avant l'étape 4 |
+| Stockage de l'apparence | Clés NVS `theme` et `ground`, hors sauvegarde de partie ; lues au démarrage, écrites par le sélecteur du plan #3 | Étape 2 |
+| Jetons de lueur, icônes, sièges | Ajoutés à `ui_theme_t` avec leur premier usage (étapes 3 et 4) | Pas de champ sans code qui le lit |
 
 ## Tests
 
@@ -84,20 +90,43 @@ Aucune (plan #1 livré). Bloque #2 (ses écrans sont construits dans la nouvelle
 # environnement du plan #1 (voir doc/roadmap/done/1-mvp-solo-arene.md § Prérequis) :
 # gcc, cmake, ninja-build, libasan/libubsan ; host/third_party/{cJSON,lvgl} ; ESP-IDF v5.4.2 dans ~/esp/esp-idf
 cd /srv/dev/mtg-dial
+# un sdkconfig généré avant l'étape 2 ignore la nouvelle valeur par défaut : l'activer une fois
+sed -i 's/^# CONFIG_LV_USE_DRAW_SW_COMPLEX_GRADIENTS is not set$/CONFIG_LV_USE_DRAW_SW_COMPLEX_GRADIENTS=y/' /srv/dev/mtg-dial/sdkconfig
 ```
 
 ### Procédure de test
 
 ```bash
-# à compléter
+# --- T2 Système de thèmes (étape 2)
+# T2.1 tests PC
+cmake -S /srv/dev/mtg-dial/host -B /srv/dev/mtg-dial/host/build -G Ninja >/dev/null && cmake --build /srv/dev/mtg-dial/host/build | tail -1 && ctest --test-dir /srv/dev/mtg-dial/host/build | tail -3
+# T2.2 mêmes tests sous ASan/UBSan
+cmake -S /srv/dev/mtg-dial/host -B /srv/dev/mtg-dial/host/build-asan -G Ninja -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all" >/dev/null && cmake --build /srv/dev/mtg-dial/host/build-asan | tail -1 && ctest --test-dir /srv/dev/mtg-dial/host/build-asan | tail -3
+# T2.3 booster inchangé : les 20 captures du plan #1 sont identiques à l'octet
+bash -c 'n=0; for f in /srv/dev/mtg-dial/.impeccable/review/[0-9]*.png; do cmp -s $f /srv/dev/mtg-dial/host/build/shots-out/$(basename $f) && n=$((n+1)); done; echo identiques=$n/20'
+# T2.4 captures du thème lumineux (6 fonds + Arène)
+ls /srv/dev/mtg-dial/host/build/shots-out | grep -c lumineux
+# T2.5 firmware
+bash -c '. ~/esp/esp-idf/export.sh >/dev/null 2>&1 && cd /srv/dev/mtg-dial && idf.py build >/tmp/claude-1000/t2-5.log 2>&1; echo build_exit=$?'
+grep -c "warning:" /tmp/claude-1000/t2-5.log
+grep -c '^CONFIG_LV_USE_DRAW_SW_COMPLEX_GRADIENTS=y' /srv/dev/mtg-dial/sdkconfig
 ```
 
-**Résultats attendus :** à compléter.
+**Résultats attendus :**
+- T2.1 et T2.2 : `100% tests passed, 0 tests failed out of 4`. Le test `ui_flows` vérifie pour chacun des 6 fonds : contraste de l'encre ≥ 7:1, pixel du centre = teinte choisie, pixels du bord (haut et gauche) = teinte dérivée ; `#18214A` donne le bord `#060914` ; une valeur de thème hors bornes retombe sur le thème par défaut.
+- T2.3 : `identiques=20/20`.
+- T2.4 : `7`.
+- T2.5 : `build_exit=0`, `0` avertissement, `1` ligne de configuration.
 
 ### Résultats joués et vérifiés
 
 | Date | Test | Attendu | Observé | Verdict |
 |------|------|---------|---------|---------|
+| 2026-11-13 | T2.1 tests PC | 4/4 tests passés | `100% tests passed, 0 tests failed out of 4` | ✅ PASS (vérificateur indépendant) |
+| 2026-11-13 | T2.2 ASan/UBSan | 4/4 tests passés | `100% tests passed, 0 tests failed out of 4` | ✅ PASS |
+| 2026-11-13 | T2.3 booster inchangé | `identiques=20/20` | `identiques=20/20` | ✅ PASS |
+| 2026-11-13 | T2.4 captures lumineuses | `7` | `7` | ✅ PASS |
+| 2026-11-13 | T2.5 firmware | `build_exit=0`, `0`, `1` | `build_exit=0`, `0`, `1` | ✅ PASS |
 
 ## Journal de session
 
@@ -108,3 +137,9 @@ cd /srv/dev/mtg-dial
 - ✅ Fait : logo dessiné et validé (`ui/assets/logo.svg`) ; étape 1 : contrat de direction lumineuse (brief impeccable, booster conservé en thème 2), PRODUCT.md (nom provisoire, logo, direction)
 - 🔄 Ajustement opérateur : couleur de fond au choix dans les réglages (moteur à l'étape 2, sélecteur dans #3)
 - 📋 Prochain : validation du contrat par l'opérateur, puis étape 2 (système de thèmes)
+
+### Session 2026-11-13
+- ✅ Fait : étape 2. Deux thèmes enregistrés (`UI_THEME_BOOSTER`, `UI_THEME_LUMINEUX`), `ui_set_theme(thème, fond)`, fond radial centre→bord, 6 teintes de fond avec bord dérivé, apparence lue en NVS au démarrage. Le booster rend les mêmes 20 captures qu'au plan #1.
+- 🔄 État du thème lumineux : mêmes écrans que le booster avec les couleurs et le fond du contrat ; les sièges en verre, lueurs et icônes viennent aux étapes 3 et 4.
+- 📋 Prochain : étape 3 (rendu « lueur », icônes)
+- 🚧 À vérifier sur matériel : coût du dégradé radial plein écran et bandes en RGB565

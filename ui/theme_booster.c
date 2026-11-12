@@ -7,6 +7,7 @@ extern const uint8_t _binary_BarlowCondensed_SemiBold_ttf_start[], _binary_Barlo
 
 const ui_theme_t ui_theme_booster = {
     .ground = 0x121014,
+    .ground_rim = 0x121014,
     .ink = 0xFFF6E8,
     .seat = {0xE4572E, 0x179C8E, 0xF2B134, 0x8A6CD0},
     .seat_ink = {0x121014, 0x121014, 0x121014, 0x121014},
