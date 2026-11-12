@@ -54,7 +54,7 @@ Aucune (plan #1 livré). Bloque #6, #7 et #2 (leurs écrans sont construits dans
 
 - [x] Étape 1 — Contrat de direction (impeccable, direction imposée) + PRODUCT.md (esprit de la référence autorisé, pas de copie) (S · reasoning → Opus)
 - [x] Étape 2 — Système de thèmes : `ui_theme_t` étendu (fond dégradé, lueurs, icônes, rendu des sièges), couleur de fond paramétrable (dégradé dérivé d'une seule teinte, choix stocké hors partie), booster conservé tel quel (M · reasoning → Opus)
-- [ ] Étape 3 — Rendu « lueur » : générateur de halos/anneaux pré-calculés (script, images A8/ARGB), dégradés, boutons « verre », jeu d'icônes dessinées (L · reasoning → Opus)
+- [x] Étape 3 — Rendu « lueur » : générateur de halos/anneaux pré-calculés (script, images A8/ARGB), dégradés, boutons « verre », jeu d'icônes dessinées (L · reasoning → Opus)
 - [ ] Étape 4 — Écrans de partie dans le thème lumineux : Solo, Arène 1–4, moyeu, bande d'attente, pastille, marque de défaite (L · reasoning → Opus)
 - [ ] Étape 5 — Menus dans le thème lumineux : menu de partie, journal, fiche joueur, fin de partie (M · standard → Sonnet)
 - [ ] Étape 6 — Logo : intégration (accueil provisoire + écran de démarrage), nom du produit centralisé (S · standard → Sonnet)
@@ -79,6 +79,8 @@ Aucune (plan #1 livré). Bloque #6, #7 et #2 (leurs écrans sont construits dans
 | Thème par défaut | Booster jusqu'à l'étape 4, puis Lumineux (`UI_THEME_DEFAULT`) | Les écrans lumineux n'existent pas avant l'étape 4 |
 | Stockage de l'apparence | Clés NVS `theme` et `ground`, hors sauvegarde de partie ; lues au démarrage, écrites par le sélecteur du plan #3 | Étape 2 |
 | Jetons de lueur, icônes, sièges | Ajoutés à `ui_theme_t` avec leur premier usage (étapes 3 et 4) | Pas de champ sans code qui le lit |
+| Primitives de lumière | `ui/fx.c` : halo, anneau, rayon, icône, bouton verre ; masques A8 générés par `ui/assets/glow_gen.py`, teintés au dessin | Contrat : pas de flou temps réel ; un appel = un tracé de masque |
+| Icônes | 8 icônes au trait de 40 px (réglages, joueurs, reprendre, type de jeu, annuler, tour, wifi, salon), dessinées par le script | Aucune source externe ; wifi et salon prêts pour les lots 2 et 3 |
 
 ## Tests
 
@@ -110,6 +112,20 @@ ls /srv/dev/mtg-dial/host/build/shots-out | grep -c lumineux
 bash -c '. ~/esp/esp-idf/export.sh >/dev/null 2>&1 && cd /srv/dev/mtg-dial && idf.py build >/tmp/claude-1000/t2-5.log 2>&1; echo build_exit=$?'
 grep -c "warning:" /tmp/claude-1000/t2-5.log
 grep -c '^CONFIG_LV_USE_DRAW_SW_COMPLEX_GRADIENTS=y' /srv/dev/mtg-dial/sdkconfig
+
+# --- T3 Rendu « lueur » et icônes (étape 3)
+# T3.1 le générateur redonne exactement le fichier commité
+python3 /srv/dev/mtg-dial/ui/assets/glow_gen.py /tmp/claude-1000/fx_a8.c && cmp /tmp/claude-1000/fx_a8.c /srv/dev/mtg-dial/ui/fx_a8.c && echo generateur_ok
+# T3.2 tests PC (5 tests, dont `fx`) et planche d'essai
+cmake -S /srv/dev/mtg-dial/host -B /srv/dev/mtg-dial/host/build -G Ninja >/dev/null && cmake --build /srv/dev/mtg-dial/host/build | tail -1 && ctest --test-dir /srv/dev/mtg-dial/host/build | tail -3
+ls /srv/dev/mtg-dial/host/build/shots-out/fx-specimen.png
+# T3.3 mêmes tests sous ASan/UBSan
+cmake -S /srv/dev/mtg-dial/host -B /srv/dev/mtg-dial/host/build-asan -G Ninja -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all" >/dev/null && cmake --build /srv/dev/mtg-dial/host/build-asan | tail -1 && ctest --test-dir /srv/dev/mtg-dial/host/build-asan | tail -3
+# T3.4 booster inchangé
+bash -c 'n=0; for f in /srv/dev/mtg-dial/.impeccable/review/[0-9]*.png; do cmp -s $f /srv/dev/mtg-dial/host/build/shots-out/$(basename $f) && n=$((n+1)); done; echo identiques=$n/20'
+# T3.5 firmware
+bash -c '. ~/esp/esp-idf/export.sh >/dev/null 2>&1 && cd /srv/dev/mtg-dial && idf.py build >/tmp/claude-1000/t3-5.log 2>&1; echo build_exit=$?'
+grep -c "warning:" /tmp/claude-1000/t3-5.log
 ```
 
 **Résultats attendus :**
@@ -117,6 +133,10 @@ grep -c '^CONFIG_LV_USE_DRAW_SW_COMPLEX_GRADIENTS=y' /srv/dev/mtg-dial/sdkconfig
 - T2.3 : `identiques=20/20`.
 - T2.4 : `7`.
 - T2.5 : `build_exit=0`, `0` avertissement, `1` ligne de configuration.
+- T3.1 : `generateur_ok`.
+- T3.2 et T3.3 : `100% tests passed, 0 tests failed out of 5`, et le fichier `fx-specimen.png` existe. Le test `fx` vérifie : halo le plus lumineux au centre et nul au-delà de son rayon ; anneau lumineux sur son cercle, sombre au centre ; rayons partant dans la direction demandée, de la longueur demandée ; seul le bouton en focus porte un halo ; chaque icône a de l'encre et une marge libre.
+- T3.4 : `identiques=20/20`.
+- T3.5 : `build_exit=0`, `0` avertissement.
 
 ### Résultats joués et vérifiés
 
@@ -127,6 +147,11 @@ grep -c '^CONFIG_LV_USE_DRAW_SW_COMPLEX_GRADIENTS=y' /srv/dev/mtg-dial/sdkconfig
 | 2026-11-13 | T2.3 booster inchangé | `identiques=20/20` | `identiques=20/20` | ✅ PASS |
 | 2026-11-13 | T2.4 captures lumineuses | `7` | `7` | ✅ PASS |
 | 2026-11-13 | T2.5 firmware | `build_exit=0`, `0`, `1` | `build_exit=0`, `0`, `1` | ✅ PASS |
+| 2026-11-13 | T3.1 générateur | `generateur_ok` | `generateur_ok` | ✅ PASS (vérificateur indépendant) |
+| 2026-11-13 | T3.2 tests PC + planche | 5/5, `fx-specimen.png` régénéré | 5/5, fichier écrit 2 s avant le contrôle | ✅ PASS |
+| 2026-11-13 | T3.3 ASan/UBSan | 5/5 | 5/5 | ✅ PASS |
+| 2026-11-13 | T3.4 booster inchangé | `identiques=20/20` | `identiques=20/20` | ✅ PASS |
+| 2026-11-13 | T3.5 firmware | `build_exit=0`, `0` | `build_exit=0`, `0` | ✅ PASS |
 
 ## Journal de session
 
@@ -143,3 +168,5 @@ grep -c '^CONFIG_LV_USE_DRAW_SW_COMPLEX_GRADIENTS=y' /srv/dev/mtg-dial/sdkconfig
 - 🔄 État du thème lumineux : mêmes écrans que le booster avec les couleurs et le fond du contrat ; les sièges en verre, lueurs et icônes viennent aux étapes 3 et 4.
 - 📋 Prochain : étape 3 (rendu « lueur », icônes)
 - 🚧 À vérifier sur matériel : coût du dégradé radial plein écran et bandes en RGB565
+- ✅ Fait : étape 3. Primitives de lumière et icônes (`ui/fx.c`, `ui/fx_a8.c`), planche d'essai `fx-specimen.png`. Pas encore utilisées par les écrans : c'est l'étape 4.
+- 📋 Prochain : étape 4 (écrans de partie dans le thème lumineux, qui devient le thème par défaut)
