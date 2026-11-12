@@ -1,5 +1,5 @@
 /* UI flow test + screenshots: drives the UI with scripted input, asserts state, writes one PNG per screen.
- *   shots <profiles_dir> <out_dir> */
+ *   shots <profiles_dir> <out_dir> [booster]     (default theme otherwise) */
 #undef NDEBUG
 #include <assert.h>
 #include <math.h>
@@ -70,7 +70,7 @@ static void seat_xy(int n, int i, int *x, int *y)
 
 int main(int argc, char **argv)
 {
-    assert(argc == 3);
+    assert(argc == 3 || argc == 4);
     out_dir = argv[2];
     char path[512];
     sd_profile_t prof[2];
@@ -82,6 +82,8 @@ int main(int argc, char **argv)
 
     shot_init();
     ui_hooks_t hooks = {.haptic = on_haptic, .save = on_save};
+    if (argc == 4)
+        ui_set_theme(UI_THEME_BOOSTER, 0);
     ui_init(&hooks, prof, 2, NULL);
 
     /* --- home: Commander, 4 players */
@@ -103,6 +105,10 @@ int main(int argc, char **argv)
     ui_tick(t);
     assert(ui_game()->has_pending && ui_game()->p[0].life == 40);
     snap("04-solo-delta-en-attente");
+    if (argc == 3) { /* luminous: half-way through the delay the light arc runs from 12 o'clock to 6 o'clock */
+        assert(near(shot_pixel(180 + 120, 180 - 120), ui_theme_lumineux.ink, 40));
+        assert(!near(shot_pixel(180 - 120, 180 - 120), ui_theme_lumineux.ink, 40));
+    }
     t += 400;
     ui_tick(t);
     assert(!ui_game()->has_pending && ui_game()->p[0].life == 37 && saves == 2);
@@ -264,10 +270,11 @@ int main(int argc, char **argv)
     assert(ui_selected() == 2);
     snap("16-arene-3");
 
-    /* --- themes: the flows above ran in the default theme (booster, flat ground) */
+    /* --- themes and grounds, on the home screen: (180,180), (180,3) and (3,180) are bare ground there */
     ui_long_press(180, 180, t);
-    ui_tap(180, 232, t);      /* NOUVELLE PARTIE -> home; (180,180) and (180,3) are bare ground there */
+    ui_tap(180, 232, t);      /* NOUVELLE PARTIE */
     assert(ui_screen() == UI_SCR_HOME);
+    ui_set_theme(UI_THEME_BOOSTER, 0); /* flat ground */
     shot_render();
     assert(shot_pixel(180, 180) == ui_theme_booster.ground && shot_pixel(180, 3) == ui_theme_booster.ground);
     assert(ui_ground_rim(0x18214A) == 0x060914); /* the contract's well */
@@ -282,15 +289,9 @@ int main(int argc, char **argv)
         assert(near(shot_pixel(180, 3), rim, 4));  /* rim */
         assert(near(shot_pixel(3, 180), rim, 4));  /* radial, not vertical */
     }
-    ui_set_theme(UI_THEME_LUMINEUX, 0);
-    ui_tap(180, 200, t);
-    ui_knob(1, t);            /* 3 -> 4 */
-    ui_tap(100, 280, t);
-    assert(ui_game()->n_players == 4);
-    snap("18-lumineux-arene-4");
-    ui_set_theme(99, 99);     /* out of range: default theme */
+    ui_set_theme(99, 99);     /* out of range: default theme, default ground */
     shot_render();
-    assert(shot_pixel(180, 3) == ui_theme_booster.ground);
+    assert(UI_THEME_DEFAULT == UI_THEME_LUMINEUX && near(shot_pixel(180, 180), ui_grounds[0], 3));
 
     printf("shots: all flows passed (%d saves, %d detents, %d commits, %d defeats)\n", saves,
            haptics[UI_HAPTIC_DETENT], haptics[UI_HAPTIC_COMMIT], haptics[UI_HAPTIC_DEFEAT]);

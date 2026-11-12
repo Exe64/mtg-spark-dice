@@ -66,7 +66,8 @@ add_test(NAME fx COMMAND test_fx ${CMAKE_CURRENT_BINARY_DIR}/shots-out/fx-specim
 
 add_executable(shots shots.c)
 target_link_libraries(shots sd_ui shot)
-file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/shots-out)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/shots-out/booster)
 add_test(NAME ui_flows COMMAND shots ${ROOT}/profiles/data ${CMAKE_CURRENT_BINARY_DIR}/shots-out)
+add_test(NAME ui_flows_booster COMMAND shots ${ROOT}/profiles/data ${CMAKE_CURRENT_BINARY_DIR}/shots-out/booster booster)
 add_custom_target(screenshots COMMAND ${CMAKE_COMMAND} -E make_directory ${ROOT}/shots
   COMMAND shots ${ROOT}/profiles/data ${ROOT}/shots DEPENDS shots)

@@ -55,7 +55,7 @@ Aucune (plan #1 livré). Bloque #6, #7 et #2 (leurs écrans sont construits dans
 - [x] Étape 1 — Contrat de direction (impeccable, direction imposée) + PRODUCT.md (esprit de la référence autorisé, pas de copie) (S · reasoning → Opus)
 - [x] Étape 2 — Système de thèmes : `ui_theme_t` étendu (fond dégradé, lueurs, icônes, rendu des sièges), couleur de fond paramétrable (dégradé dérivé d'une seule teinte, choix stocké hors partie), booster conservé tel quel (M · reasoning → Opus)
 - [x] Étape 3 — Rendu « lueur » : générateur de halos/anneaux pré-calculés (script, images A8/ARGB), dégradés, boutons « verre », jeu d'icônes dessinées (L · reasoning → Opus)
-- [ ] Étape 4 — Écrans de partie dans le thème lumineux : Solo, Arène 1–4, moyeu, bande d'attente, pastille, marque de défaite (L · reasoning → Opus)
+- [x] Étape 4 — Écrans de partie dans le thème lumineux : Solo, Arène 1–4, moyeu, bande d'attente, pastille, marque de défaite (L · reasoning → Opus)
 - [ ] Étape 5 — Menus dans le thème lumineux : menu de partie, journal, fiche joueur, fin de partie (M · standard → Sonnet)
 - [ ] Étape 6 — Logo : intégration (accueil provisoire + écran de démarrage), nom du produit centralisé (S · standard → Sonnet)
 - [ ] Étape 7 — Design : captures des 2 thèmes, revue de finition, DESIGN.md (thème lumineux principal + booster), mesure du temps de rendu (M · standard → Sonnet)
@@ -81,6 +81,10 @@ Aucune (plan #1 livré). Bloque #6, #7 et #2 (leurs écrans sont construits dans
 | Jetons de lueur, icônes, sièges | Ajoutés à `ui_theme_t` avec leur premier usage (étapes 3 et 4) | Pas de champ sans code qui le lit |
 | Primitives de lumière | `ui/fx.c` : halo, anneau, rayon, icône, bouton verre ; masques A8 générés par `ui/assets/glow_gen.py`, teintés au dessin | Contrat : pas de flou temps réel ; un appel = un tracé de masque |
 | Icônes | 8 icônes au trait de 40 px (réglages, joueurs, reprendre, type de jeu, annuler, tour, wifi, salon), dessinées par le script | Aucune source externe ; wifi et salon prêts pour les lots 2 et 3 |
+| Deux styles de dessin | Un commutateur `light` dans le thème ; Solo, Arène et moyeu ont une variante lumineuse, le booster garde son code | Le booster reste tel quel ; un 3ᵉ style justifierait des fonctions par thème |
+| Thème par défaut | Lumineux depuis l'étape 4 | Ses écrans de partie existent |
+| Arc d'attente | Les angles négatifs sont ramenés dans 0–360° avant le tracé, dans les deux thèmes | Défaut du plan #1 : LVGL 9.2 ignore les angles négatifs, l'arc partait de 3 h et restait invisible le premier quart du délai. Seule retouche du booster (captures 09, 10a, 10) |
+| Pastille d'annulation de l'Arène | Icône « annuler » + montant, sans le mot ANNULER | Lisible par les joueurs qui voient le moyeu à l'envers |
 
 ## Tests
 
@@ -126,6 +130,19 @@ bash -c 'n=0; for f in /srv/dev/mtg-dial/.impeccable/review/[0-9]*.png; do cmp -
 # T3.5 firmware
 bash -c '. ~/esp/esp-idf/export.sh >/dev/null 2>&1 && cd /srv/dev/mtg-dial && idf.py build >/tmp/claude-1000/t3-5.log 2>&1; echo build_exit=$?'
 grep -c "warning:" /tmp/claude-1000/t3-5.log
+
+# --- T4 Écrans de partie lumineux (étape 4)
+# T4.1 tests PC : 6 tests, les parcours d'écrans tournent dans les deux thèmes (ui_flows = lumineux, ui_flows_booster)
+cmake -S /srv/dev/mtg-dial/host -B /srv/dev/mtg-dial/host/build -G Ninja >/dev/null && cmake --build /srv/dev/mtg-dial/host/build | tail -1 && ctest --test-dir /srv/dev/mtg-dial/host/build | tail -3
+# T4.2 mêmes tests sous ASan/UBSan
+cmake -S /srv/dev/mtg-dial/host -B /srv/dev/mtg-dial/host/build-asan -G Ninja -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all" >/dev/null && cmake --build /srv/dev/mtg-dial/host/build-asan | tail -1 && ctest --test-dir /srv/dev/mtg-dial/host/build-asan | tail -3
+# T4.3 booster : ses 20 captures sont identiques à la référence
+bash -c 'n=0; for f in /srv/dev/mtg-dial/.impeccable/review/[0-9]*.png; do cmp -s $f /srv/dev/mtg-dial/host/build/shots-out/booster/$(basename $f) && n=$((n+1)); done; echo identiques=$n/20'
+# T4.4 le thème par défaut est le lumineux : ses captures de partie diffèrent toutes de celles du booster
+bash -c 'n=0; for f in 03-solo 04-solo-delta-en-attente 05-solo-valide 08-arene-4 08b-arene-pastille-annuler 08c-arene-tour-j2 09-arene-delta-en-attente 10a-arene-attaque 10-arene-degats-commandant 13-arene-joueur-vaincu 15-arene-2-standard 16-arene-3; do cmp -s /srv/dev/mtg-dial/host/build/shots-out/$f.png /srv/dev/mtg-dial/host/build/shots-out/booster/$f.png || n=$((n+1)); done; echo differentes=$n/12'
+# T4.5 firmware
+bash -c '. ~/esp/esp-idf/export.sh >/dev/null 2>&1 && cd /srv/dev/mtg-dial && idf.py build >/tmp/claude-1000/t4-5.log 2>&1; echo build_exit=$?'
+grep -c "warning:" /tmp/claude-1000/t4-5.log
 ```
 
 **Résultats attendus :**
@@ -137,6 +154,10 @@ grep -c "warning:" /tmp/claude-1000/t3-5.log
 - T3.2 et T3.3 : `100% tests passed, 0 tests failed out of 5`, et le fichier `fx-specimen.png` existe. Le test `fx` vérifie : halo le plus lumineux au centre et nul au-delà de son rayon ; anneau lumineux sur son cercle, sombre au centre ; rayons partant dans la direction demandée, de la longueur demandée ; seul le bouton en focus porte un halo ; chaque icône a de l'encre et une marge libre.
 - T3.4 : `identiques=20/20`.
 - T3.5 : `build_exit=0`, `0` avertissement.
+- T4.1 et T4.2 : `100% tests passed, 0 tests failed out of 6`. `ui_flows` vérifie en plus qu'à mi-délai l'arc de lumière du Solo va de midi à 6 h.
+- T4.3 : `identiques=20/20`. La référence `.impeccable/review/` a été mise à jour pour 3 captures (09, 10a, 10) : voir la décision « Arc d'attente ».
+- T4.4 : `differentes=12/12`.
+- T4.5 : `build_exit=0`, `0` avertissement.
 
 ### Résultats joués et vérifiés
 
@@ -152,6 +173,11 @@ grep -c "warning:" /tmp/claude-1000/t3-5.log
 | 2026-11-13 | T3.3 ASan/UBSan | 5/5 | 5/5 | ✅ PASS |
 | 2026-11-13 | T3.4 booster inchangé | `identiques=20/20` | `identiques=20/20` | ✅ PASS |
 | 2026-11-13 | T3.5 firmware | `build_exit=0`, `0` | `build_exit=0`, `0` | ✅ PASS |
+| 2026-11-13 | T4.1 tests PC, deux thèmes | 6/6, captures régénérées | 6/6, captures écrites 1 à 4 s avant le contrôle | ✅ PASS (vérificateur indépendant) |
+| 2026-11-13 | T4.2 ASan/UBSan | 6/6 | 6/6 | ✅ PASS |
+| 2026-11-13 | T4.3 booster = référence | `identiques=20/20` | `identiques=20/20` | ✅ PASS |
+| 2026-11-13 | T4.4 lumineux ≠ booster | `differentes=12/12` | `differentes=12/12` | ✅ PASS |
+| 2026-11-13 | T4.5 firmware | `build_exit=0`, `0` | `build_exit=0`, `0` | ✅ PASS |
 
 ## Journal de session
 
@@ -170,3 +196,6 @@ grep -c "warning:" /tmp/claude-1000/t3-5.log
 - 🚧 À vérifier sur matériel : coût du dégradé radial plein écran et bandes en RGB565
 - ✅ Fait : étape 3. Primitives de lumière et icônes (`ui/fx.c`, `ui/fx_a8.c`), planche d'essai `fx-specimen.png`. Pas encore utilisées par les écrans : c'est l'étape 4.
 - 📋 Prochain : étape 4 (écrans de partie dans le thème lumineux, qui devient le thème par défaut)
+- ✅ Fait : étape 4. Solo, Arène 1–4, moyeu, attente, pastille et marque de défaite dans le thème lumineux, qui devient le thème par défaut. Les parcours de test tournent dans les deux thèmes (captures du booster dans `shots-out/booster/`).
+- 🔧 Corrigé en passant : l'arc d'attente partait de 3 h au lieu de midi (les deux thèmes).
+- 📋 Prochain : étape 5 (menu de partie, journal, fiche joueur, fin de partie)

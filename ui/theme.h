@@ -1,12 +1,14 @@
 /* Visual tokens. Two themes share one layout and one set of gestures: Booster (plan #1, kept as shipped) and
  * Lumineux (plan #5). The selector lives in the settings (plan #3).
- * ponytail: tokens only; halo, icon and seat-drawing tokens arrive with their first consumer (plan #5 steps 3-4) */
+ * ponytail: tokens plus one `light` switch between the two drawing styles; make it per-screen draw functions in the
+ * theme if a third style ever lands */
 #pragma once
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 typedef struct {
+    bool light;           /* seats are light on glass (halos, rays, glass hub) instead of painted fields */
     uint32_t ground;      /* ground colour at the centre of the dial */
     uint32_t ground_rim;  /* ground colour at the rim (radial gradient); equal to `ground` = flat */
     bool ground_pick;     /* the user picks the ground among ui_grounds[]; the rim is derived from the hue */
@@ -21,8 +23,7 @@ typedef struct {
 
 /* Stored as numbers outside the game save: keep the order. */
 typedef enum { UI_THEME_BOOSTER, UI_THEME_LUMINEUX, UI_THEME_COUNT } ui_theme_id_t;
-/* ponytail: booster stays the default until the luminous screens exist (plan #5 step 4 flips it) */
-#define UI_THEME_DEFAULT UI_THEME_BOOSTER
+#define UI_THEME_DEFAULT UI_THEME_LUMINEUX
 
 extern const ui_theme_t ui_theme_booster, ui_theme_lumineux;
 

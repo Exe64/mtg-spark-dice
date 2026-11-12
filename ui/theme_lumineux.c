@@ -4,8 +4,9 @@ extern const uint8_t _binary_BarlowCondensed_ExtraBold_ttf_start[], _binary_Barl
 extern const uint8_t _binary_BarlowCondensed_SemiBold_ttf_start[], _binary_BarlowCondensed_SemiBold_ttf_end[];
 
 /* Direction contract: .impeccable/surfaces/ui-ui-c.md ("well of light").
- * Until plan #5 step 4 draws seats as glass, seat hues are still painted fields, hence the dark seat ink. */
+ * seat_ink and the foil tokens only serve the screens still drawn as painted fields (menus: plan #5 step 5). */
 const ui_theme_t ui_theme_lumineux = {
+    .light = true,
     .ground = 0x18214A,
     .ground_rim = 0x060914,
     .ground_pick = true,

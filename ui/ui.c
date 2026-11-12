@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "fx.h"
 #include "lvgl.h"
 #include "strings_fr.h"
 #include "theme.h"
@@ -24,7 +25,7 @@ enum { MENU_UNDO, MENU_LOG, MENU_SHEET, MENU_NEW, MENU_BACK };
 static const ui_theme_t *const THEMES[UI_THEME_COUNT] = {[UI_THEME_BOOSTER] = &ui_theme_booster,
                                                          [UI_THEME_LUMINEUX] = &ui_theme_lumineux};
 static ui_theme_t TH; /* active theme, with the user's ground applied */
-static const ui_theme_t *T = &ui_theme_booster; /* == *THEMES[UI_THEME_DEFAULT] until ui_set_theme() */
+static const ui_theme_t *T = &ui_theme_lumineux; /* == *THEMES[UI_THEME_DEFAULT] until ui_set_theme() */
 
 static struct {
     ui_hooks_t hooks;
@@ -144,6 +145,10 @@ static void ring(lv_layer_t *l, int r, float a0, float a1, uint32_t color)
 {
     if (a1 <= a0)
         return;
+    if (a0 < 0) { /* LVGL 9.2 does not normalise negative angles */
+        a0 += 360.f;
+        a1 += 360.f;
+    }
     lv_draw_arc_dsc_t d;
     lv_draw_arc_dsc_init(&d);
     d.color = C(color);
@@ -245,7 +250,8 @@ static void redraw_hub(void)
         redraw();
         return;
     }
-    lv_area_t a = {CX - HUB_R - 6, CY - HUB_R - 6, CX + HUB_R + 6, CY + HUB_R + 6};
+    const int m = T->light ? 18 : 6; /* the luminous hub glows past its edge */
+    lv_area_t a = {CX - HUB_R - m, CY - HUB_R - m, CX + HUB_R + m, CY + HUB_R + m};
     lv_obj_invalidate_area(U.dial, &a);
 }
 
@@ -383,7 +389,7 @@ static void band(lv_layer_t *l, int y1, int y2, const char *txt)
 /* Defeated seat: the skull mark (ui/assets/dead.svg -> A8 mask, ui/skull_a8.c) tinted with the seat hue replaces
  * the total; `s` is its drawn size. */
 extern const lv_image_dsc_t ui_skull_a8;
-static void skull(lv_layer_t *l, int cx, int cy, int s, uint32_t color)
+static void skull(lv_layer_t *l, int cx, int cy, int s, uint32_t color, lv_opa_t opa)
 {
     const int n = (int)ui_skull_a8.header.w;
     lv_draw_image_dsc_t d;
@@ -391,6 +397,7 @@ static void skull(lv_layer_t *l, int cx, int cy, int s, uint32_t color)
     d.src = &ui_skull_a8;
     d.recolor = C(color);
     d.recolor_opa = LV_OPA_COVER;
+    d.opa = opa;
     d.scale_x = d.scale_y = (int32_t)(256 * s / n);
     d.pivot.x = n / 2;
     d.pivot.y = n / 2;
@@ -484,7 +491,7 @@ static void draw_solo(lv_layer_t *l)
     text(l, U.f_label, ink, LV_OPA_COVER, CX, 62, buf);
     snprintf(buf, sizeof(buf), "%d", p->life);
     if (lost)
-        skull(l, CX, 158, 150, ink);
+        skull(l, CX, 158, 150, ink, LV_OPA_COVER);
     else
         text(l, U.f_solo, ink, LV_OPA_COVER, CX, 158, buf);
     if (!lost)
@@ -548,7 +555,7 @@ static void draw_arena(lv_layer_t *l)
         char buf[40], cnt[24];
         snprintf(buf, sizeof(buf), "%d", g->p[i].life);
         if (lost) /* defeat: a skull replaces the total, in full hue (the total stays in the log, undo restores it) */
-            skull(ly, nx, ny - 14, lh * 84 / 100, ink);
+            skull(ly, nx, ny - 14, lh * 84 / 100, ink, LV_OPA_COVER);
         else
             text(ly, U.f_arena[n], ink, LV_OPA_COVER, nx, ny - 8, buf);
         if (sel && !lost)
@@ -572,6 +579,208 @@ static void draw_arena(lv_layer_t *l)
         }
     }
     draw_hub(l);
+}
+
+/* ---------- luminous theme: game screens (contract: .impeccable/surfaces/ui-ui-c.md) ---------- */
+
+static void arc(lv_layer_t *l, int r, float a0, float a1, int w, uint32_t color, lv_opa_t opa)
+{
+    if (a1 <= a0)
+        return;
+    if (a0 < 0) { /* LVGL 9.2 does not normalise negative angles */
+        a0 += 360.f;
+        a1 += 360.f;
+    }
+    lv_draw_arc_dsc_t d;
+    lv_draw_arc_dsc_init(&d);
+    d.color = C(color);
+    d.opa = opa;
+    d.width = w;
+    d.center.x = CX;
+    d.center.y = CY;
+    d.radius = r;
+    d.start_angle = a0;
+    d.end_angle = a1;
+    lv_draw_arc(l, &d);
+}
+
+/* Glass pill; `lit` = it is the thing to tap right now. */
+static void pill(lv_layer_t *l, int x1, int y1, int x2, int y2, bool lit)
+{
+    lv_draw_rect_dsc_t d;
+    lv_draw_rect_dsc_init(&d);
+    d.bg_color = C(T->ground_rim);
+    d.bg_opa = 215;
+    d.radius = LV_RADIUS_CIRCLE;
+    d.border_color = C(T->ink);
+    d.border_opa = lit ? LV_OPA_80 : LV_OPA_30;
+    d.border_width = lit ? 2 : 1;
+    lv_area_t a = {x1, y1, x2, y2};
+    lv_draw_rect(l, &d, &a);
+}
+
+/* The knob's knurl: a thin circle near the rim with 16 detent ticks. */
+#define KNOB_R (R - 10)
+static void knob_ring(lv_layer_t *l)
+{
+    arc(l, KNOB_R, 0.f, 360.f, 1, T->ink, LV_OPA_40);
+    for (int i = 0; i < 16; i++) {
+        float a = i * 22.5f * (float)M_PI / 180.f;
+        line(l, CX + KNOB_R * cosf(a), CY + KNOB_R * sinf(a), CX + (R - 3) * cosf(a), CY + (R - 3) * sinf(a), T->ink,
+             LV_OPA_40);
+    }
+}
+
+static void draw_hub_light(lv_layer_t *l)
+{
+    const sd_game_t *g = &U.g;
+    char t[16];
+    if (!g->has_pending && undo_pill()) { /* quick undo of the last commit: the hub lights up white */
+        const sd_action_t *a = &g->log[g->log_len - 1];
+        if (a->automatic && g->log_len > 1) /* an automatic pass is undone with the hit that caused it */
+            a--;
+        fx_glass(l, CX, CY, HUB_R, T->ground_rim, true);
+        fx_icon(l, FX_ICON_UNDO, CX, CY - 17, T->ink, LV_OPA_COVER);
+        if (a->kind == SD_TURN) /* the hand-off it reverses */
+            snprintf(t, sizeof(t), "J%d" S_SEP "J%d", a->player + 1, a->src + 1);
+        else
+            fmt_signed(t, sizeof(t), a->kind == SD_CMD ? -a->amount : a->amount);
+        text(l, U.f_row, T->ink, LV_OPA_COVER, CX, CY + 20, t);
+        return;
+    }
+    /* the hub is the light source: a glass disc inside its own glow */
+    fx_ring(l, CX, CY, HUB_R, T->ink, g->has_pending ? LV_OPA_30 : LV_OPA_70);
+    fill(l, CX - HUB_R, CY - HUB_R, CX + HUB_R, CY + HUB_R, T->ground_rim, LV_RADIUS_CIRCLE);
+    if (!g->has_pending) { /* at rest: whose turn it is; tap = next turn */
+        snprintf(t, sizeof(t), S_TURN_FMT, g->turn);
+        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, CY - 20, t);
+        snprintf(t, sizeof(t), S_SEAT_FMT, g->active + 1);
+        text(l, U.f_hub, T->seat[g->active], LV_OPA_COVER, CX, CY + 8, t);
+        return;
+    }
+    char d[12], sub[24];
+    fmt_signed(d, sizeof(d), g->pending.kind == SD_CMD ? -g->pending.amount : g->pending.amount); /* effect on life */
+    text(l, U.f_hub, T->ink, LV_OPA_COVER, CX, CY - 8, d);
+    if (g->pending.kind == SD_CMD)
+        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, CY - 36, S_CMD);
+    if (g->pending.src != g->pending.player) { /* source seat, drawn pointer, target seat: each in its own light */
+        snprintf(sub, sizeof(sub), S_SEAT_FMT, g->pending.src + 1);
+        text(l, U.f_small, T->seat[g->pending.src], LV_OPA_COVER, CX - 17, CY + 26, sub);
+        snprintf(sub, sizeof(sub), S_SEAT_FMT, g->pending.player + 1);
+        text(l, U.f_small, T->seat[g->pending.player], LV_OPA_COVER, CX + 17, CY + 26, sub);
+        tri(l, CX - 4, CY + 21, CX - 4, CY + 31, CX + 4, CY + 26, T->ink);
+    } else {
+        snprintf(sub, sizeof(sub), "= %d", sd_game_view(g, g->pending.player).life);
+        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, CY + 26, sub);
+    }
+    /* the light ring closes clockwise over exactly SD_COMMIT_MS */
+    arc(l, HUB_R, -90.f, -90.f + 360.f * pending_progress(), 4, T->ink, LV_OPA_COVER);
+}
+
+static void draw_solo_light(lv_layer_t *l)
+{
+    const sd_game_t *g = &U.g;
+    const sd_player_t *p = &g->p[0];
+    bool lost = sd_player_lost(g, 0);
+    lv_opa_t opa = lost ? LV_OPA_50 : LV_OPA_COVER; /* a defeated seat goes dark */
+    char buf[64];
+    ground(l);
+    knob_ring(l);
+    if (!lost)
+        fx_halo(l, CX, 160, 150, T->seat[0], LV_OPA_60);
+    snprintf(buf, sizeof(buf), S_SEAT_PROFILE_FMT, 1, U.profile_name);
+    text(l, U.f_label, lost ? T->ink : T->seat[0], opa, CX, 62, buf);
+    snprintf(buf, sizeof(buf), "%d", p->life);
+    if (lost) {
+        skull(l, CX, 158, 150, T->ink, opa);
+        text(l, U.f_label, T->ink, opa, CX, 262, S_DEFEATED);
+    } else {
+        text(l, U.f_solo, T->ink, LV_OPA_COVER, CX, 158, buf);
+        pm_marks(l, CX, 162, 136, T->ink);
+    }
+    char cnt[24];
+    fmt_counters(cnt, sizeof(cnt), p);
+    text(l, U.f_label, T->ink, opa, CX, 326, cnt);
+    if (undo_pill()) {
+        const sd_action_t *a = &g->log[g->log_len - 1];
+        char d[12];
+        fmt_signed(d, sizeof(d), a->amount);
+        snprintf(buf, sizeof(buf), S_MENU_UNDO "  %s", d);
+        pill(l, 100, 282, 260, 318, true);
+        text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 300, buf);
+    }
+    if (!g->has_pending)
+        return;
+    /* pending: the delta waits in a glass pill while a light arc runs once around the knob ring */
+    char d[12];
+    fmt_signed(d, sizeof(d), g->pending.amount);
+    snprintf(buf, sizeof(buf), "%s  = %d", d, sd_game_view(g, 0).life);
+    pill(l, 96, 252, 264, 296, false);
+    text(l, U.f_row, T->ink, LV_OPA_COVER, CX, 274, buf);
+    arc(l, KNOB_R + 2, -90.f, -90.f + 360.f * pending_progress(), 5, T->ink, LV_OPA_COVER);
+}
+
+static void draw_arena_light(lv_layer_t *l)
+{
+    const sd_game_t *g = &U.g;
+    int n = g->n_players;
+    float span = seat_span();
+    const float gap = 1.5f; /* degrees trimmed on each side: seats are parted by ground, not by rules */
+    const int r_out = R - 2, r_in = HUB_R + 8;
+    ground(l);
+    for (int i = 0; i < n; i++) { /* glass sectors, tinted by the seat's light */
+        if (sd_player_lost(g, (uint8_t)i))
+            continue; /* a defeated seat is switched off */
+        float a = seat_angle(i);
+        arc(l, r_out, a - span / 2 + gap, a + span / 2 - gap, r_out - r_in, T->seat[i], i == U.sel ? 82 : 36);
+    }
+    if (!sd_player_lost(g, U.sel)) { /* the selected seat carries its halo */
+        float a = seat_angle(U.sel) * (float)M_PI / 180.f;
+        fx_halo(l, CX + (int)(R_NUM[n] * cosf(a)), CY + (int)(R_NUM[n] * sinf(a)), n == 2 ? 120 : 84, T->seat[U.sel],
+                LV_OPA_60);
+    }
+    /* signature: the light points at the active seat, three rays from the hub */
+    float side = span / 4 > 20.f ? 20.f : span / 4;
+    for (int k = -1; k <= 1; k++)
+        fx_ray(l, CX, CY, seat_angle(g->active) + k * side, R - 6, T->ink, k ? LV_OPA_40 : LV_OPA_60);
+    for (int i = 0; i < n; i++) {
+        bool sel = i == U.sel, lost = sd_player_lost(g, (uint8_t)i);
+        lv_opa_t opa = lost ? LV_OPA_40 : LV_OPA_COVER;
+        float a = seat_angle(i) * (float)M_PI / 180.f, rot = seat_rot(i);
+        int nx = CX + (int)(R_NUM[n] * cosf(a)), ny = CY + (int)(R_NUM[n] * sinf(a));
+        int lh = lv_font_get_line_height(U.f_arena[n]);
+        /* each seat is drawn upright in its own layer, then turned to face its player */
+        const int bw = n == 2 ? 300 : 190, bh = lh + 44;
+        lv_area_t box = {nx - bw / 2, ny - bh / 2, nx - bw / 2 + bw - 1, ny - bh / 2 + bh - 1};
+        bool turn = fabsf(rot) > 0.5f;
+        lv_layer_t *ly = turn ? lv_draw_layer_create(l, LV_COLOR_FORMAT_ARGB8888, &box) : l;
+        char buf[40], cnt[24];
+        snprintf(buf, sizeof(buf), "%d", g->p[i].life);
+        if (lost) /* the skull replaces the total, in dimmed ink (the total stays in the log, undo restores it) */
+            skull(ly, nx, ny - 14, lh * 84 / 100, T->ink, opa);
+        else
+            text(ly, U.f_arena[n], T->ink, LV_OPA_COVER, nx, ny - 8, buf);
+        if (sel && !lost)
+            pm_marks(ly, nx, ny - 6, n == 2 ? 110 : 64, T->ink);
+        fmt_counters(cnt, sizeof(cnt), &g->p[i]);
+        if (lost)
+            snprintf(buf, sizeof(buf), S_SEAT_FMT "  " S_DEFEATED, i + 1);
+        else if (cnt[0])
+            snprintf(buf, sizeof(buf), S_SEAT_FMT "  %s", i + 1, cnt);
+        else
+            snprintf(buf, sizeof(buf), S_SEAT_FMT, i + 1);
+        text(ly, U.f_label, lost ? T->ink : T->seat[i], opa, nx, ny + lh / 2 - 8, buf);
+        if (turn) {
+            lv_draw_image_dsc_t d;
+            lv_draw_image_dsc_init(&d);
+            d.src = ly;
+            d.rotation = (int32_t)lroundf(rot * 10.f);
+            d.pivot.x = bw / 2;
+            d.pivot.y = bh / 2;
+            lv_draw_layer(l, &d, &box);
+        }
+    }
+    draw_hub_light(l);
 }
 
 static void draw_home(lv_layer_t *l)
@@ -752,7 +961,12 @@ static void draw_cb(lv_event_t *e)
     lv_layer_t *l = lv_event_get_layer(e);
     switch (U.scr) {
     case UI_SCR_HOME: draw_home(l); break;
-    case UI_SCR_GAME: U.g.n_players == 1 ? draw_solo(l) : draw_arena(l); break;
+    case UI_SCR_GAME:
+        if (U.g.n_players == 1)
+            T->light ? draw_solo_light(l) : draw_solo(l);
+        else
+            T->light ? draw_arena_light(l) : draw_arena(l);
+        break;
     case UI_SCR_MENU: draw_menu(l); break;
     case UI_SCR_LOG: draw_log(l); break;
     case UI_SCR_SHEET: draw_sheet(l); break;
