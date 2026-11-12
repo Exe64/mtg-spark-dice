@@ -56,7 +56,7 @@ Aucune (plan #1 livré). Bloque #6, #7 et #2 (leurs écrans sont construits dans
 - [x] Étape 2 — Système de thèmes : `ui_theme_t` étendu (fond dégradé, lueurs, icônes, rendu des sièges), couleur de fond paramétrable (dégradé dérivé d'une seule teinte, choix stocké hors partie), booster conservé tel quel (M · reasoning → Opus)
 - [x] Étape 3 — Rendu « lueur » : générateur de halos/anneaux pré-calculés (script, images A8/ARGB), dégradés, boutons « verre », jeu d'icônes dessinées (L · reasoning → Opus)
 - [x] Étape 4 — Écrans de partie dans le thème lumineux : Solo, Arène 1–4, moyeu, bande d'attente, pastille, marque de défaite (L · reasoning → Opus)
-- [ ] Étape 5 — Menus dans le thème lumineux : menu de partie, journal, fiche joueur, fin de partie (M · standard → Sonnet)
+- [x] Étape 5 — Menus dans le thème lumineux : menu de partie, journal, fiche joueur, fin de partie (M · standard → Sonnet)
 - [ ] Étape 6 — Logo : intégration (accueil provisoire + écran de démarrage), nom du produit centralisé (S · standard → Sonnet)
 - [ ] Étape 7 — Design : captures des 2 thèmes, revue de finition, DESIGN.md (thème lumineux principal + booster), mesure du temps de rendu (M · standard → Sonnet)
 - [ ] 🧪 Tests — Rédiger et exécuter la procédure de test (avant-dernière étape, obligatoire)
@@ -143,6 +143,18 @@ bash -c 'n=0; for f in 03-solo 04-solo-delta-en-attente 05-solo-valide 08-arene-
 # T4.5 firmware
 bash -c '. ~/esp/esp-idf/export.sh >/dev/null 2>&1 && cd /srv/dev/mtg-dial && idf.py build >/tmp/claude-1000/t4-5.log 2>&1; echo build_exit=$?'
 grep -c "warning:" /tmp/claude-1000/t4-5.log
+
+# --- T5 Menus lumineux (étape 5)
+# T5.1 tests PC et ASan/UBSan (les parcours passent par le menu, le journal, la fiche joueur et la fin de partie)
+cmake --build /srv/dev/mtg-dial/host/build | tail -1 && ctest --test-dir /srv/dev/mtg-dial/host/build | tail -3
+cmake --build /srv/dev/mtg-dial/host/build-asan | tail -1 && ctest --test-dir /srv/dev/mtg-dial/host/build-asan | tail -3
+# T5.2 booster identique à la référence
+bash -c 'n=0; for f in /srv/dev/mtg-dial/.impeccable/review/[0-9]*.png; do cmp -s $f /srv/dev/mtg-dial/host/build/shots-out/booster/$(basename $f) && n=$((n+1)); done; echo identiques=$n/20'
+# T5.3 les 4 écrans de menu du thème lumineux diffèrent de ceux du booster
+bash -c 'n=0; for f in 06-menu 11-fiche-joueur 12-journal 14-fin-de-partie; do cmp -s /srv/dev/mtg-dial/host/build/shots-out/$f.png /srv/dev/mtg-dial/host/build/shots-out/booster/$f.png || n=$((n+1)); done; echo differentes=$n/4'
+# T5.4 firmware
+bash -c '. ~/esp/esp-idf/export.sh >/dev/null 2>&1 && cd /srv/dev/mtg-dial && idf.py build >/tmp/claude-1000/t5-4.log 2>&1; echo build_exit=$?'
+grep -c "warning:" /tmp/claude-1000/t5-4.log
 ```
 
 **Résultats attendus :**
@@ -158,6 +170,10 @@ grep -c "warning:" /tmp/claude-1000/t4-5.log
 - T4.3 : `identiques=20/20`. La référence `.impeccable/review/` a été mise à jour pour 3 captures (09, 10a, 10) : voir la décision « Arc d'attente ».
 - T4.4 : `differentes=12/12`.
 - T4.5 : `build_exit=0`, `0` avertissement.
+- T5.1 : deux fois `100% tests passed, 0 tests failed out of 6`.
+- T5.2 : `identiques=20/20`.
+- T5.3 : `differentes=4/4`.
+- T5.4 : `build_exit=0`, `0` avertissement.
 
 ### Résultats joués et vérifiés
 
@@ -178,6 +194,10 @@ grep -c "warning:" /tmp/claude-1000/t4-5.log
 | 2026-11-13 | T4.3 booster = référence | `identiques=20/20` | `identiques=20/20` | ✅ PASS |
 | 2026-11-13 | T4.4 lumineux ≠ booster | `differentes=12/12` | `differentes=12/12` | ✅ PASS |
 | 2026-11-13 | T4.5 firmware | `build_exit=0`, `0` | `build_exit=0`, `0` | ✅ PASS |
+| 2026-11-13 | T5.1 tests PC + ASan/UBSan | 6/6 deux fois, captures régénérées | 6/6 deux fois, captures écrites 1 à 4 s avant le contrôle | ✅ PASS (vérificateur indépendant) |
+| 2026-11-13 | T5.2 booster = référence | `identiques=20/20` | `identiques=20/20` | ✅ PASS |
+| 2026-11-13 | T5.3 menus lumineux ≠ booster | `differentes=4/4` | `differentes=4/4` | ✅ PASS |
+| 2026-11-13 | T5.4 firmware | `build_exit=0`, `0` | `build_exit=0`, `0` | ✅ PASS |
 
 ## Journal de session
 
@@ -199,3 +219,5 @@ grep -c "warning:" /tmp/claude-1000/t4-5.log
 - ✅ Fait : étape 4. Solo, Arène 1–4, moyeu, attente, pastille et marque de défaite dans le thème lumineux, qui devient le thème par défaut. Les parcours de test tournent dans les deux thèmes (captures du booster dans `shots-out/booster/`).
 - 🔧 Corrigé en passant : l'arc d'attente partait de 3 h au lieu de midi (les deux thèmes).
 - 📋 Prochain : étape 5 (menu de partie, journal, fiche joueur, fin de partie)
+- ✅ Fait : étape 5. Menu de partie, journal, fiche joueur et fin de partie dans le thème lumineux (pastilles de verre, halo du siège, arc d'attente sur l'anneau pour le poison). Le texte des lignes de menu et de journal est partagé par les deux thèmes.
+- 📋 Prochain : étape 6 (logo : accueil provisoire et écran de démarrage, nom du produit centralisé)

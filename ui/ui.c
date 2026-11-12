@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "fx.h"
@@ -830,29 +831,38 @@ static void draw_home(lv_layer_t *l)
 
 static int menu_row_y(int i) { return 76 + i * 52; }
 
+/* Text of menu row `i` (the undo row previews what it would undo). */
+static const char *menu_label(int i, char *buf, size_t n)
+{
+    char act[40];
+    switch (i) {
+    case MENU_UNDO:
+        if (!U.g.log_len)
+            return S_NOTHING_TO_UNDO;
+        {
+            const sd_action_t *last = &U.g.log[U.g.log_len - 1];
+            if (last->automatic && U.g.log_len > 1) /* undone together with the hit that caused it */
+                last--;
+            fmt_action(act, sizeof(act), last);
+            snprintf(buf, n, S_MENU_UNDO "  %s", act);
+        }
+        return buf;
+    case MENU_LOG: return S_MENU_LOG;
+    case MENU_SHEET:
+        snprintf(buf, n, S_MENU_SHEET_FMT, U.sel + 1);
+        return buf;
+    case MENU_NEW: return S_MENU_NEW;
+    default: return S_MENU_BACK;
+    }
+}
+
 static void draw_menu(lv_layer_t *l)
 {
-    char buf[64], act[40];
+    char buf[64];
     ground(l);
     for (int i = 0; i < MENU_ROWS; i++) {
         int y = menu_row_y(i);
-        const char *s = buf;
-        switch (i) {
-        case MENU_UNDO:
-            if (U.g.log_len) {
-                const sd_action_t *last = &U.g.log[U.g.log_len - 1];
-                if (last->automatic && U.g.log_len > 1) /* undone together with the hit that caused it */
-                    last--;
-                fmt_action(act, sizeof(act), last);
-                snprintf(buf, sizeof(buf), S_MENU_UNDO "  %s", act);
-            } else
-                s = S_NOTHING_TO_UNDO;
-            break;
-        case MENU_LOG: s = S_MENU_LOG; break;
-        case MENU_SHEET: snprintf(buf, sizeof(buf), S_MENU_SHEET_FMT, U.sel + 1); break;
-        case MENU_NEW: s = S_MENU_NEW; break;
-        default: s = S_MENU_BACK; break;
-        }
+        const char *s = menu_label(i, buf, sizeof(buf));
         bool f = i == U.menu_focus;
         if (f)
             fill(l, 36, y - 24, UI_W - 37, y + 23, T->ink, 0);
@@ -860,9 +870,28 @@ static void draw_menu(lv_layer_t *l)
     }
 }
 
+/* One left-aligned journal line at height y. */
+static void log_row(lv_layer_t *l, const sd_action_t *a, int y)
+{
+    char buf[64], act[48];
+    fmt_action(act, sizeof(act), a);
+    if (a->kind == SD_TURN)
+        snprintf(buf, sizeof(buf), "%s", act);
+    else
+        snprintf(buf, sizeof(buf), "T%d  %s", a->turn, act);
+    lv_draw_label_dsc_t d;
+    lv_draw_label_dsc_init(&d);
+    d.font = U.f_label;
+    d.color = C(T->ink);
+    d.text = buf;
+    d.text_local = 1;
+    int h = lv_font_get_line_height(U.f_label);
+    lv_area_t ar = {96, y - h / 2, 310, y + h / 2};
+    lv_draw_label(l, &d, &ar);
+}
+
 static void draw_log(lv_layer_t *l)
 {
-    char buf[64];
     ground(l);
     text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 48, S_MENU_LOG);
     line(l, 120, 70, 240, 70, T->ink, LV_OPA_COVER);
@@ -875,21 +904,7 @@ static void draw_log(lv_layer_t *l)
         const sd_action_t *a = &U.g.log[idx];
         int y = 104 + k * 44;
         fill(l, 70, y - 7, 84, y + 7, T->seat[a->player], 0);
-        char act[48];
-        fmt_action(act, sizeof(act), a);
-        if (a->kind == SD_TURN)
-            snprintf(buf, sizeof(buf), "%s", act);
-        else
-            snprintf(buf, sizeof(buf), "T%d  %s", a->turn, act);
-        lv_draw_label_dsc_t d;
-        lv_draw_label_dsc_init(&d);
-        d.font = U.f_label;
-        d.color = C(T->ink);
-        d.text = buf;
-        d.text_local = 1;
-        int h = lv_font_get_line_height(U.f_label);
-        lv_area_t ar = {96, y - h / 2, 310, y + h / 2};
-        lv_draw_label(l, &d, &ar);
+        log_row(l, a, y);
     }
     text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 326, S_TAP_BACK);
 }
@@ -956,6 +971,104 @@ static void draw_over(lv_layer_t *l)
     text(l, U.f_row, field, LV_OPA_COVER, CX, 281, S_MENU_NEW);
 }
 
+/* ---------- luminous theme: menus ---------- */
+
+static void draw_menu_light(lv_layer_t *l)
+{
+    char buf[64];
+    ground(l);
+    for (int i = 0; i < MENU_ROWS; i++) {
+        int y = menu_row_y(i);
+        if (i == U.menu_focus) { /* focus = a lit glass pill, kept inside the round dial */
+            int dy = abs(y - CY) + 24, hw = (int)sqrtf((float)(R * R - dy * dy)) - 8;
+            hw = hw > 144 ? 144 : hw;
+            pill(l, CX - hw, y - 24, CX + hw, y + 23, true);
+        }
+        text(l, U.f_row, T->ink, i == U.menu_focus ? LV_OPA_COVER : LV_OPA_70, CX, y, menu_label(i, buf, sizeof(buf)));
+    }
+}
+
+static void draw_log_light(lv_layer_t *l)
+{
+    ground(l);
+    text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 48, S_MENU_LOG);
+    line(l, 120, 70, 240, 70, T->ink, LV_OPA_40);
+    if (!U.g.log_len)
+        text(l, U.f_row, T->ink, LV_OPA_70, CX, CY, S_LOG_EMPTY);
+    for (int k = 0; k < LOG_ROWS; k++) {
+        int idx = U.g.log_len - 1 - U.log_scroll - k;
+        if (idx < 0)
+            break;
+        const sd_action_t *a = &U.g.log[idx];
+        int y = 104 + k * 44;
+        fx_halo(l, 77, y, 14, T->seat[a->player], LV_OPA_COVER); /* a point of the seat's light; the text names it */
+        log_row(l, a, y);
+    }
+    text(l, U.f_small, T->ink, LV_OPA_70, CX, 326, S_TAP_BACK);
+}
+
+static void draw_sheet_light(lv_layer_t *l)
+{
+    const sd_game_t *g = &U.g;
+    const sd_player_t *p = &g->p[U.sel];
+    char buf[48];
+    ground(l);
+    knob_ring(l);
+    fx_halo(l, CX, 84, 96, T->seat[U.sel], LV_OPA_60);
+    snprintf(buf, sizeof(buf), S_SEAT_FMT, U.sel + 1);
+    text(l, U.f_title, T->ink, LV_OPA_COVER, CX, 84, buf);
+    text(l, U.f_label, T->seat[U.sel], LV_OPA_COVER, CX, 152, S_POISON);
+    if (g->rules.poison_lethal)
+        snprintf(buf, sizeof(buf), S_SHEET_POISON_FMT, p->poison, g->rules.poison_lethal);
+    else
+        snprintf(buf, sizeof(buf), "%d", p->poison);
+    text(l, U.f_hub, T->ink, LV_OPA_COVER, CX, 182, buf);
+    if (g->n_players > 1 && g->rules.cmd_lethal) {
+        /* one column per source seat: seat label in its hue over the tally; "/ 21" once within 5 of lethal */
+        text(l, U.f_label, T->seat[U.sel], LV_OPA_COVER, CX, 268, S_CMD);
+        int cols = g->n_players - 1, k = 0;
+        for (int s = 0; s < g->n_players; s++) {
+            if (s == U.sel)
+                continue;
+            int x = CX + (k++ - (cols - 1) / 2.f) * 78;
+            snprintf(buf, sizeof(buf), S_SEAT_FMT, s + 1);
+            text(l, U.f_small, T->seat[s], LV_OPA_COVER, x, 290, buf);
+            if (p->cmd[s] + 5 >= g->rules.cmd_lethal)
+                snprintf(buf, sizeof(buf), "%d / %d", p->cmd[s], g->rules.cmd_lethal);
+            else
+                snprintf(buf, sizeof(buf), "%d", p->cmd[s]);
+            text(l, U.f_row, T->ink, LV_OPA_COVER, x, 314, buf);
+        }
+    }
+    if (g->has_pending && g->pending.player == U.sel && g->pending.kind == SD_POISON) {
+        char d[12];
+        fmt_signed(d, sizeof(d), g->pending.amount);
+        snprintf(buf, sizeof(buf), "%s  = %d", d, sd_game_view(g, U.sel).poison);
+        pill(l, 106, 208, 254, 246, false);
+        text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 227, buf);
+        arc(l, KNOB_R + 2, -90.f, -90.f + 360.f * pending_progress(), 5, T->ink, LV_OPA_COVER);
+    }
+}
+
+static void draw_over_light(lv_layer_t *l)
+{
+    int w = sd_game_winner(&U.g);
+    char buf[24];
+    ground(l);
+    knob_ring(l);
+    if (w >= 0) { /* the winner's light fills the well */
+        fx_halo(l, CX, 120, 170, T->seat[w], LV_OPA_70);
+        snprintf(buf, sizeof(buf), S_WINS_FMT, w + 1);
+    } else
+        snprintf(buf, sizeof(buf), S_DEFEAT);
+    text(l, U.f_title, T->ink, w >= 0 ? LV_OPA_COVER : LV_OPA_60, CX, 112, buf);
+    text(l, U.f_label, w >= 0 ? T->seat[w] : T->ink, LV_OPA_COVER, CX, 158, S_GAME_OVER);
+    pill(l, 70, 200, 290, 246, false);
+    text(l, U.f_row, T->ink, LV_OPA_COVER, CX, 223, S_MENU_UNDO);
+    pill(l, 70, 258, 290, 304, true);
+    text(l, U.f_row, T->ink, LV_OPA_COVER, CX, 281, S_MENU_NEW);
+}
+
 static void draw_cb(lv_event_t *e)
 {
     lv_layer_t *l = lv_event_get_layer(e);
@@ -967,10 +1080,10 @@ static void draw_cb(lv_event_t *e)
         else
             T->light ? draw_arena_light(l) : draw_arena(l);
         break;
-    case UI_SCR_MENU: draw_menu(l); break;
-    case UI_SCR_LOG: draw_log(l); break;
-    case UI_SCR_SHEET: draw_sheet(l); break;
-    case UI_SCR_OVER: draw_over(l); break;
+    case UI_SCR_MENU: T->light ? draw_menu_light(l) : draw_menu(l); break;
+    case UI_SCR_LOG: T->light ? draw_log_light(l) : draw_log(l); break;
+    case UI_SCR_SHEET: T->light ? draw_sheet_light(l) : draw_sheet(l); break;
+    case UI_SCR_OVER: T->light ? draw_over_light(l) : draw_over(l); break;
     }
 }
 
