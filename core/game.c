@@ -2,7 +2,7 @@
 
 #include <string.h>
 
-#define SAVE_MAGIC 0x53444731u /* "SDG1" */
+#define SAVE_MAGIC 0x53444732u /* "SDG2": turns + per-action turn */
 #define PERSIST_SIZE offsetof(sd_game_t, pending)
 
 typedef struct {
@@ -27,6 +27,8 @@ static int16_t apply(sd_player_t *p, const sd_action_t *a)
         after = clampi(before + a->amount, 0, SD_COUNTER_MAX);
         p->poison = (uint8_t)after;
         return (int16_t)(after - before);
+    case SD_TURN:
+        return a->amount;
     case SD_CMD:
         before = p->cmd[a->src];
         after = clampi(before + a->amount, 0, SD_COUNTER_MAX);
@@ -44,6 +46,17 @@ void sd_game_new(sd_game_t *g, const sd_rules_t *r, uint8_t n_players)
     g->n_players = (uint8_t)clampi(n_players, 1, SD_MAX_PLAYERS);
     for (int i = 0; i < g->n_players; i++)
         g->p[i].life = r->start_life;
+    g->turn = 1;
+}
+
+static void log_push(sd_game_t *g, sd_action_t a)
+{
+    a.turn = g->turn;
+    if (g->log_len == SD_LOG_MAX) { /* ponytail: drop oldest by memmove, ring buffer if log grows large */
+        memmove(g->log, g->log + 1, sizeof(g->log[0]) * (SD_LOG_MAX - 1));
+        g->log_len--;
+    }
+    g->log[g->log_len++] = a;
 }
 
 bool sd_game_flush(sd_game_t *g)
@@ -55,17 +68,17 @@ bool sd_game_flush(sd_game_t *g)
     a.amount = apply(&g->p[a.player], &a);
     if (a.amount == 0)
         return false;
-    if (g->log_len == SD_LOG_MAX) { /* ponytail: drop oldest by memmove, ring buffer if log grows large */
-        memmove(g->log, g->log + 1, sizeof(g->log[0]) * (SD_LOG_MAX - 1));
-        g->log_len--;
+    log_push(g, a);
+    if (g->n_players > 1 && sd_player_lost(g, g->active) && !sd_game_over(g)) {
+        sd_game_next_turn(g);
+        g->log[g->log_len - 1].automatic = 1;
     }
-    g->log[g->log_len++] = a;
     return true;
 }
 
 bool sd_game_adjust(sd_game_t *g, uint8_t player, sd_kind_t kind, uint8_t src, int16_t step, uint32_t now_ms)
 {
-    if (player >= g->n_players || src >= g->n_players)
+    if (player >= g->n_players || src >= g->n_players || kind > SD_CMD)
         return false;
     bool committed = false;
     sd_action_t *pa = &g->pending;
@@ -78,6 +91,40 @@ bool sd_game_adjust(sd_game_t *g, uint8_t player, sd_kind_t kind, uint8_t src, i
     pa->amount = (int16_t)clampi(pa->amount + step, -999, 999);
     g->pending_since = now_ms;
     return committed;
+}
+
+bool sd_game_next_turn(sd_game_t *g)
+{
+    sd_game_flush(g);
+    int from = g->active, to = -1;
+    for (int k = 1; k <= g->n_players; k++) {
+        int j = (from + k) % g->n_players;
+        if (!sd_player_lost(g, (uint8_t)j)) {
+            to = j;
+            break;
+        }
+    }
+    if (to < 0)
+        return false;
+    sd_action_t a = {.player = (uint8_t)from, .kind = SD_TURN, .src = (uint8_t)to, .amount = to <= from ? 1 : 0};
+    log_push(g, a); /* logged under the turn it ends */
+    g->active = (uint8_t)to;
+    g->turn = (uint16_t)(g->turn + a.amount);
+    return true;
+}
+
+bool sd_game_pending_toggle_cmd(sd_game_t *g)
+{
+    sd_action_t *a = &g->pending;
+    if (!g->has_pending || !g->rules.cmd_lethal || a->src == a->player)
+        return false;
+    if (a->kind == SD_LIFE)
+        *a = (sd_action_t){.player = a->player, .kind = SD_CMD, .src = a->src, .amount = (int16_t)-a->amount};
+    else if (a->kind == SD_CMD)
+        *a = (sd_action_t){.player = a->player, .kind = SD_LIFE, .src = a->src, .amount = (int16_t)-a->amount};
+    else
+        return false;
+    return true;
 }
 
 bool sd_game_tick(sd_game_t *g, uint32_t now_ms)
@@ -93,6 +140,11 @@ bool sd_game_undo(sd_game_t *g)
     if (g->log_len == 0)
         return false;
     sd_action_t a = g->log[--g->log_len];
+    if (a.kind == SD_TURN) {
+        g->active = a.player;
+        g->turn = (uint16_t)(g->turn - a.amount);
+        return a.automatic && g->log_len ? sd_game_undo(g) : true; /* take back its cause too */
+    }
     a.amount = (int16_t)-a.amount;
     apply(&g->p[a.player], &a);
     return true;
@@ -101,7 +153,7 @@ bool sd_game_undo(sd_game_t *g)
 sd_player_t sd_game_view(const sd_game_t *g, uint8_t i)
 {
     sd_player_t p = g->p[i];
-    if (g->has_pending && g->pending.player == i)
+    if (g->has_pending && g->pending.player == i && g->pending.kind != SD_TURN)
         apply(&p, &g->pending);
     return p;
 }
@@ -168,10 +220,11 @@ bool sd_game_load(sd_game_t *g, const void *buf, size_t len)
     sd_game_t tmp;
     memset(&tmp, 0, sizeof(tmp));
     memcpy(&tmp, (const uint8_t *)buf + sizeof(h), PERSIST_SIZE);
-    if (tmp.n_players < 1 || tmp.n_players > SD_MAX_PLAYERS || tmp.log_len > SD_LOG_MAX)
+    if (tmp.n_players < 1 || tmp.n_players > SD_MAX_PLAYERS || tmp.log_len > SD_LOG_MAX || tmp.turn < 1 ||
+        tmp.active >= tmp.n_players)
         return false;
     for (int i = 0; i < tmp.log_len; i++)
-        if (tmp.log[i].player >= tmp.n_players || tmp.log[i].src >= tmp.n_players || tmp.log[i].kind > SD_CMD)
+        if (tmp.log[i].player >= tmp.n_players || tmp.log[i].src >= tmp.n_players || tmp.log[i].kind > SD_TURN)
             return false;
     *g = tmp;
     return true;

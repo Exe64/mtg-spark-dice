@@ -11,7 +11,12 @@
 #define SD_LIFE_MAX 999
 #define SD_COUNTER_MAX 99
 
-typedef enum { SD_LIFE, SD_POISON, SD_CMD } sd_kind_t;
+typedef enum {
+    SD_LIFE,   /* src == player: own change; src != player: combat damage dealt by src */
+    SD_POISON,
+    SD_CMD,    /* commander damage from src, also life loss */
+    SD_TURN,   /* turn passed: player = previous active, src = new active, amount = turn increment (0/1) */
+} sd_kind_t;
 
 typedef struct {
     int16_t start_life;
@@ -29,8 +34,10 @@ typedef struct {
 typedef struct {
     uint8_t player;
     uint8_t kind; /* sd_kind_t */
-    uint8_t src;  /* source player for SD_CMD, else 0 */
+    uint8_t src;  /* see sd_kind_t */
+    uint8_t automatic; /* SD_TURN only: passed because the active player was just defeated (undone with its cause) */
     int16_t amount;
+    uint16_t turn; /* turn during which the action happened */
 } sd_action_t;
 
 typedef struct {
@@ -38,6 +45,8 @@ typedef struct {
     sd_rules_t rules;
     uint8_t n_players;
     sd_player_t p[SD_MAX_PLAYERS];
+    uint16_t turn;  /* starts at 1 */
+    uint8_t active; /* player whose turn it is */
     uint16_t log_len;
     sd_action_t log[SD_LOG_MAX]; /* undo stack + action journal, oldest first */
     /* volatile part — must stay last */
@@ -55,8 +64,17 @@ bool sd_game_adjust(sd_game_t *g, uint8_t player, sd_kind_t kind, uint8_t src, i
 /* Commit the pending delta once SD_COMMIT_MS elapsed since the last adjust. True if committed. */
 bool sd_game_tick(sd_game_t *g, uint32_t now_ms);
 
-/* Commit the pending delta now. True if something was committed. */
+/* Commit the pending delta now. True if something was committed. If the commit defeats the active player (and the
+ * game goes on), the turn passes automatically; undo reverts both at once. */
 bool sd_game_flush(sd_game_t *g);
+
+/* Pass the turn clockwise to the next player still in the game (defeated players are skipped). The turn number
+ * increments when play wraps around to a lower seat. Flushes any pending delta first; logged, so undoable. */
+bool sd_game_next_turn(sd_game_t *g);
+
+/* Switch the pending delta between combat damage (SD_LIFE from another player) and commander damage (SD_CMD),
+ * keeping its magnitude. False if nothing switchable is pending or commander damage is disabled. */
+bool sd_game_pending_toggle_cmd(sd_game_t *g);
 
 /* Revert the last committed delta (pending delta is discarded first). True if something was undone. */
 bool sd_game_undo(sd_game_t *g);
