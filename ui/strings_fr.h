@@ -1,0 +1,28 @@
+/* All user-facing strings (French). Keep every UI string here so another language is one file. */
+#pragma once
+
+#define S_PLAY "JOUER"
+#define S_RESUME "REPRENDRE"
+#define S_PLAYERS_FMT "%d JOUEUR%s"   /* count, plural suffix */
+#define S_PROFILE_SUB_FMT "%d PV · CMDT %s · POISON %s"
+#define S_OFF "—"
+#define S_SEAT_FMT "J%d"
+#define S_SEAT_PROFILE_FMT "J%d · %s"
+#define S_POISON "POISON"
+#define S_CMD "CMDT"
+#define S_DEFEATED "VAINCU"
+#define S_MENU_UNDO "ANNULER"
+#define S_MENU_LOG "JOURNAL"
+#define S_MENU_SHEET_FMT "FICHE J%d"
+#define S_MENU_NEW "NOUVELLE PARTIE"
+#define S_MENU_BACK "RETOUR"
+#define S_NOTHING_TO_UNDO "RIEN À ANNULER"
+#define S_LOG_EMPTY "AUCUNE ACTION"
+#define S_LOG_LIFE_FMT "J%d  PV %+d"
+#define S_LOG_POISON_FMT "J%d  POISON %+d"
+#define S_LOG_CMD_FMT "J%d  CMDT J%d %+d"
+#define S_SHEET_POISON_FMT "%d / %d"
+#define S_WINS_FMT "J%d GAGNE"
+#define S_DEFEAT "DÉFAITE"
+#define S_GAME_OVER "PARTIE TERMINÉE"
+#define S_TAP_BACK "TOUCHER POUR REVENIR"

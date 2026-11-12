@@ -1,0 +1,340 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-12T12:19:16+00:00",
+  "title": "Design System: SparkDice",
+  "extensions": {
+    "colorMeta": {
+      "wrapper-black": {
+        "role": "neutral",
+        "displayName": "Wrapper Black",
+        "canonical": "#121014",
+        "tonalRamp": [
+          "#0C0A0E",
+          "#262428",
+          "#434145",
+          "#626064",
+          "#838185",
+          "#A6A4A8",
+          "#CAC8CB",
+          "#EFEEF0"
+        ]
+      },
+      "wrapper-ink": {
+        "role": "neutral",
+        "displayName": "Wrapper Ink",
+        "canonical": "#FFF6E8",
+        "tonalRamp": [
+          "#0D0B07",
+          "#28241F",
+          "#46413A",
+          "#666058",
+          "#888178",
+          "#ABA499",
+          "#D0C8BC",
+          "#F6EDE0"
+        ]
+      },
+      "seat-vermilion": {
+        "role": "primary",
+        "displayName": "Seat Vermilion (J1)",
+        "canonical": "#E4572E",
+        "tonalRamp": [
+          "#280000",
+          "#500000",
+          "#7B1700",
+          "#A8330D",
+          "#D74F28",
+          "#FC7854",
+          "#FFA482",
+          "#FFCFB1"
+        ]
+      },
+      "seat-teal": {
+        "role": "primary",
+        "displayName": "Seat Teal (J2)",
+        "canonical": "#179C8E",
+        "tonalRamp": [
+          "#00120E",
+          "#002F29",
+          "#004F46",
+          "#007267",
+          "#119689",
+          "#54B9AB",
+          "#87DCCF",
+          "#B7FFF3"
+        ]
+      },
+      "seat-gold": {
+        "role": "primary",
+        "displayName": "Seat Gold (J3)",
+        "canonical": "#F2B134",
+        "tonalRamp": [
+          "#1B0400",
+          "#3C1D00",
+          "#5F3900",
+          "#845700",
+          "#AB7700",
+          "#D4991F",
+          "#FCBD48",
+          "#FFE480"
+        ]
+      },
+      "seat-violet": {
+        "role": "primary",
+        "displayName": "Seat Violet (J4)",
+        "canonical": "#8A6CD0",
+        "tonalRamp": [
+          "#100029",
+          "#2A164E",
+          "#483177",
+          "#684EA3",
+          "#8B6DD1",
+          "#AC93EE",
+          "#CFBAFF",
+          "#F3E2FF"
+        ]
+      },
+      "foil-silver": {
+        "role": "secondary",
+        "displayName": "Foil Silver",
+        "canonical": "#B9BEC6",
+        "tonalRamp": [
+          "#0A0B0E",
+          "#232529",
+          "#3F4247",
+          "#5E6167",
+          "#7F8389",
+          "#A1A5AD",
+          "#C4C9D1",
+          "#EAEFF6"
+        ]
+      },
+      "foil-shine": {
+        "role": "secondary",
+        "displayName": "Foil Shine",
+        "canonical": "#F3F4F6",
+        "tonalRamp": [
+          "#0B0B0C",
+          "#252526",
+          "#414243",
+          "#616162",
+          "#828284",
+          "#A4A5A6",
+          "#C8C9CB",
+          "#EDEEF0"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display-solo": {
+        "displayName": "Display Solo",
+        "purpose": "Single life total in Solo."
+      },
+      "display-arena-2": {
+        "displayName": "Display Arena 2",
+        "purpose": "Seat totals, 2 players."
+      },
+      "display-arena-3": {
+        "displayName": "Display Arena 3",
+        "purpose": "Seat totals, 3 players."
+      },
+      "display-arena-4": {
+        "displayName": "Display Arena 4",
+        "purpose": "Seat totals, 4 players."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Profile name, Fiche seat, winner line."
+      },
+      "headline-hub": {
+        "displayName": "Headline Hub",
+        "purpose": "Pending delta in hub; Fiche poison tally."
+      },
+      "row": {
+        "displayName": "Row",
+        "purpose": "Menu rows, buttons, foil text, log rows, CMDT tallies."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Seat/profile lines, section labels, secondary buttons."
+      },
+      "label-small": {
+        "displayName": "Label Small",
+        "purpose": "Sub-lines, chip numbers, hub sub-line, hints."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "commit-seal",
+        "value": "800ms linear",
+        "purpose": "Crimp length = elapsed share of SD_COMMIT_MS; closing completes the commit (foil band left to right, hub clockwise from 12 o'clock)."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "dial",
+        "value": "360px (round, 360×360)"
+      }
+    ],
+    "crimp": [
+      {
+        "name": "line-crimp",
+        "value": "2px zigzag, tooth 8px, amplitude 4px",
+        "purpose": "Horizontal seals, focus underline, defeat strike."
+      },
+      {
+        "name": "toothed-seam",
+        "value": "2px line + filled triangles, tooth 10px, depth 5px",
+        "purpose": "Radial arena seams (zigzag aliases at 45°)."
+      },
+      {
+        "name": "arc-crimp",
+        "value": "2px zigzag, step 7°, amplitude 4px outward",
+        "purpose": "Hub seal at radius 48."
+      }
+    ],
+    "geometry": {
+      "center": "180,180",
+      "radius": "180px",
+      "hubRadius": "48px",
+      "seatOrder": "J1 at bottom (90°), then clockwise; sector = 360/n",
+      "arenaNumeralRadius": {
+        "2": "96px",
+        "3": "104px",
+        "4": "108px"
+      },
+      "labelRotation": "none (dial faces its owner)"
+    },
+    "platform": "LVGL 9 draw calls; tokens are ui_theme_t constants in ui/theme_booster.c; fonts via lv_tiny_ttf, kerning off"
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ink-inverse action bar (JOUER, REPRENDRE); knob focus is a crimp underline, not a hover.",
+      "html": "<button class=\"ds-btn-primary\">JOUER</button>",
+      "css": ".ds-btn-primary{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;font-size:30px;background:#FFF6E8;color:#121014;height:46px;padding:0 24px;border:none;border-radius:0;} .ds-btn-primary:focus-visible{outline:2px solid #FFF6E8;outline-offset:4px;} .ds-btn-primary:active{background:#121014;color:#FFF6E8;box-shadow:inset 0 0 0 2px #FFF6E8;}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "2 px ink outline on ground; JOUER when a saved game makes REPRENDRE primary.",
+      "html": "<button class=\"ds-btn-secondary\">JOUER</button>",
+      "css": ".ds-btn-secondary{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;font-size:24px;background:#121014;color:#FFF6E8;height:46px;padding:0 24px;border:2px solid #FFF6E8;border-radius:0;} .ds-btn-secondary:focus-visible{outline:2px solid #FFF6E8;outline-offset:4px;} .ds-btn-secondary:active{background:#FFF6E8;color:#121014;}"
+    },
+    {
+      "name": "Menu",
+      "kind": "nav",
+      "refersTo": "menu-row-focus",
+      "description": "Five centred rows at 52 px pitch; focused row is an ink-inverse bar.",
+      "html": "<nav class=\"ds-menu\"><div class=\"ds-menu-row ds-on\">ANNULER  J1  PV −3</div><div class=\"ds-menu-row\">JOURNAL</div><div class=\"ds-menu-row\">FICHE J1</div><div class=\"ds-menu-row\">NOUVELLE PARTIE</div><div class=\"ds-menu-row\">RETOUR</div></nav>",
+      "css": ".ds-menu{background:#121014;width:288px;padding:8px 0;} .ds-menu-row{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;font-size:30px;color:#FFF6E8;height:52px;line-height:52px;text-align:center;white-space:pre;} .ds-menu-row.ds-on,.ds-menu-row:hover{background:#FFF6E8;color:#121014;}"
+    },
+    {
+      "name": "Seat Chips",
+      "kind": "chip",
+      "refersTo": "seat-chip-on",
+      "description": "Home player count: in-game seats filled in hue with black J#, unused seats outlined in hue.",
+      "html": "<div class=\"ds-chips\"><span class=\"ds-chip\" style=\"background:#E4572E\">J1</span><span class=\"ds-chip\" style=\"background:#179C8E\">J2</span><span class=\"ds-chip ds-off\" style=\"color:#F2B134;border-color:#F2B134\">J3</span><span class=\"ds-chip ds-off\" style=\"color:#8A6CD0;border-color:#8A6CD0\">J4</span></div>",
+      "css": ".ds-chips{display:flex;gap:8px;background:#121014;padding:12px;} .ds-chip{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;font-size:20px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:#121014;box-sizing:border-box;} .ds-chip.ds-off{background:transparent;border:2px solid;}"
+    },
+    {
+      "name": "Pending Band",
+      "kind": "custom",
+      "refersTo": "pending-band",
+      "description": "Foil band carrying the pending delta; crimp edges close left to right over 800 ms (the commit).",
+      "html": "<div class=\"ds-foil\"><span>−3  = 37</span></div>",
+      "css": ".ds-foil{position:relative;width:360px;height:46px;display:flex;align-items:center;justify-content:center;background:linear-gradient(90deg,#B9BEC6 0%,#F3F4F6 59%,#B9BEC6 100%);font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;font-size:30px;color:#121014;white-space:pre;} .ds-foil::before,.ds-foil::after{content:'';position:absolute;left:0;height:8px;width:0;background:repeating-linear-gradient(135deg,transparent 0 3px,#121014 3px 5px,transparent 5px 8px);animation:ds-seal 800ms linear forwards;} .ds-foil::before{top:-4px;} .ds-foil::after{bottom:-4px;} @keyframes ds-seal{to{width:100%;}}"
+    },
+    {
+      "name": "Seat Field",
+      "kind": "card",
+      "refersTo": "seat-chip-on",
+      "description": "Selected seat: hue field with black numeral and label; unselected: hue numeral on ground; defeated: hue numeral crimped shut in ink.",
+      "html": "<div class=\"ds-seats\"><div class=\"ds-seat ds-sel\"><b>40</b><small>J1</small></div><div class=\"ds-seat\" style=\"color:#179C8E\"><small>J2  POISON 3</small><b>34</b></div><div class=\"ds-seat ds-lost\" style=\"color:#8A6CD0\"><small>J4  VAINCU</small><b>0</b></div></div>",
+      "css": ".ds-seats{display:flex;gap:2px;background:#121014;} .ds-seat{width:140px;height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#121014;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;white-space:pre;} .ds-seat b{font-weight:800;font-size:80px;line-height:1;} .ds-seat small{font-weight:600;font-size:24px;} .ds-seat.ds-sel{background:#E4572E;color:#121014;} .ds-seat.ds-lost b{position:relative;} .ds-seat.ds-lost b::after{content:'';position:absolute;left:50%;top:50%;width:88px;height:8px;margin:-4px 0 0 -44px;background:repeating-linear-gradient(135deg,transparent 0 3px,#FFF6E8 3px 5px,transparent 5px 8px);}"
+    },
+    {
+      "name": "Hub Seal",
+      "kind": "custom",
+      "refersTo": "hub-pending",
+      "description": "Radius-48 hub: sealed crimp ring at rest; foil with delta while pending, crimp sweeping clockwise over 800 ms; tap commits.",
+      "html": "<div class=\"ds-hub\"><b>−6</b><small>= 34</small></div>",
+      "css": ".ds-hub{width:96px;height:96px;border-radius:50%;background:linear-gradient(90deg,#B9BEC6 0%,#F3F4F6 59%,#B9BEC6 100%);box-shadow:0 0 0 2px #FFF6E8;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;color:#121014;} .ds-hub b{font-weight:800;font-size:48px;line-height:.9;} .ds-hub small{font-weight:600;font-size:20px;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Sealed Booster",
+    "overview": "The dial is a booster wrapper. Each seat is a saturated wrapper field on a wrapper-interior black ground. A pending change rides a foil band, and a crimp closes over it in exactly 800 ms; when the crimp is closed, the change is committed. This one metaphor governs every surface: colour fields, a single foil, and the crimped seal as the only ornament and the only progress indicator.\n\nDensity is low and the type is loud. Every screen has one huge condensed numeral or title, a single line of uppercase labels, and nothing else. Hierarchy comes from size and field fill, not from tints, shadows or opacity. The build is drawn in code (LVGL 9 draw calls into one full-screen object), so the system consists of flat fills, 2 px lines, filled triangles, one horizontal gradient and two TTF faces. The dial is round (360×360) and every layout is centred on (180, 180).\n\nRejected (from the contract): the default life-counter look of a black dial, a white number, a thin progress ring and rainbow quadrants. Also rejected by the product record: any copy of Soul Dial branding, and any Wizards of the Coast logos, mana symbols or card art.",
+    "keyCharacteristics": [
+      "A strict tonal set: ground, ink, four seat hues, foil. No tints, no alpha fades.",
+      "The crimp (a zigzag or toothed seal) marks every seam, commit, focus and defeat.",
+      "One rule weight (2 px) for every line, outline, crimp and arc.",
+      "Condensed ExtraBold numerals and SemiBold uppercase labels, kerning off.",
+      "The foil gradient appears only while something is pending.",
+      "A seat is never identified by hue alone: every seat carries its J1–J4 label."
+    ],
+    "rules": [
+      {
+        "name": "The Seat Owns Its Hue Rule",
+        "body": "Seat hues mark seats only: fields, numerals, the J-labels, home seat chips and the 14 px seat swatch in the log. Chrome (buttons, menu focus, focus marks) is never drawn in a seat hue.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Foil Rule",
+        "body": "The foil is the only gradient in the system, and it shows only while a delta is pending: the Solo and Fiche bands and the pending hub. When nothing is pending, no foil is on screen.",
+        "section": "colors"
+      },
+      {
+        "name": "The No Fade Rule",
+        "body": "Everything is drawn at full opacity. Defeat, inactivity and secondary state are shown by dropping the field fill, or with a crimp, never by lowering alpha.",
+        "section": "colors"
+      },
+      {
+        "name": "The Real Minus Rule",
+        "body": "Negative deltas use U+2212 (−), not a hyphen. Positive deltas always show \"+\".",
+        "section": "typography"
+      },
+      {
+        "name": "The All Caps Rule",
+        "body": "Every label and row is uppercase French, taken from ui/strings_fr.h. Numerals are the only non-letter display text.",
+        "section": "typography"
+      },
+      {
+        "name": "The Face The Owner Rule",
+        "body": "Numerals and labels are never rotated per seat. (Open question below.)",
+        "section": "layout"
+      },
+      {
+        "name": "The Crimp Not Shadow Rule",
+        "body": "Separate planes with a crimped seam in the rule weight. Never use a drop shadow or an offset.",
+        "section": "elevation"
+      },
+      {
+        "name": "The One Rule Weight Rule",
+        "body": "2 px everywhere. No hairlines and no heavier strokes.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do fill the selected seat, and only the selected seat, with its hue. Draw all other totals in their hue on Wrapper Black.",
+      "Do draw every edge, seam, focus mark, seal and defeat strike as a crimp in the 2 px rule weight.",
+      "Do show pending state on foil, with the crimp length equal to the remaining time to commit (800 ms, linear).",
+      "Do pair every seat hue with its J1–J4 label.",
+      "Do use ink-inverse fills (or the field's own text colour on a seat field) for primary actions and focus.",
+      "Do take every user-facing string from ui/strings_fr.h, in uppercase."
+    ],
+    "donts": [
+      "Don't use a seat hue for chrome, buttons or menu focus.",
+      "Don't add a second gradient, or show foil when nothing is pending.",
+      "Don't fade, dim or lower the opacity of a defeated or inactive seat. Crimp it.",
+      "Don't add shadows, glows or offset depth.",
+      "Don't use strokes other than 2 px.",
+      "Don't use a hyphen for minus.",
+      "Don't fall back to the category default (black dial, white number, thin progress ring, rainbow quadrants), and don't copy Soul Dial branding or use WotC marks, mana symbols or card art."
+    ]
+  }
+}

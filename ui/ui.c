@@ -1,0 +1,836 @@
+#include "ui.h"
+
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "lvgl.h"
+#include "strings_fr.h"
+#include "theme.h"
+
+#define CX 180
+#define CY 180
+#define R 180
+#define HUB_R 48
+#define MINUS "\xE2\x88\x92" /* U+2212 */
+#define MENU_ROWS 5
+#define LOG_ROWS 5
+
+enum { HOME_PROFILE, HOME_PLAYERS };
+enum { MENU_UNDO, MENU_LOG, MENU_SHEET, MENU_NEW, MENU_BACK };
+
+static const ui_theme_t *T = &ui_theme_booster;
+
+static struct {
+    ui_hooks_t hooks;
+    const sd_profile_t *profiles;
+    int n_profiles;
+    int profile, players, home_focus;
+    bool has_resume;
+    sd_game_t resume;
+    sd_game_t g;
+    char profile_name[24];
+    uint8_t sel;
+    ui_screen_t scr;
+    int menu_focus, log_scroll;
+    uint32_t now;
+    lv_obj_t *dial;
+    lv_font_t *f_solo, *f_arena[SD_MAX_PLAYERS + 1], *f_hub, *f_title, *f_row, *f_label, *f_small;
+} U;
+
+/* ---------- drawing helpers ---------- */
+
+static lv_color_t C(uint32_t hex) { return lv_color_hex(hex); }
+
+static void fill(lv_layer_t *l, int x1, int y1, int x2, int y2, uint32_t color, int radius)
+{
+    lv_draw_rect_dsc_t d;
+    lv_draw_rect_dsc_init(&d);
+    d.bg_color = C(color);
+    d.radius = radius;
+    lv_area_t a = {x1, y1, x2, y2};
+    lv_draw_rect(l, &d, &a);
+}
+
+static void outline(lv_layer_t *l, int x1, int y1, int x2, int y2, uint32_t color)
+{
+    lv_draw_rect_dsc_t d;
+    lv_draw_rect_dsc_init(&d);
+    d.bg_opa = LV_OPA_TRANSP;
+    d.border_color = C(color);
+    d.border_width = T->rule_w;
+    lv_area_t a = {x1, y1, x2, y2};
+    lv_draw_rect(l, &d, &a);
+}
+
+static void foil(lv_layer_t *l, int x1, int y1, int x2, int y2, int radius)
+{
+    lv_draw_rect_dsc_t d;
+    lv_draw_rect_dsc_init(&d);
+    d.radius = radius;
+    d.bg_grad.dir = LV_GRAD_DIR_HOR;
+    d.bg_grad.stops_count = 3;
+    d.bg_grad.stops[0] = (lv_gradient_stop_t){.color = C(T->foil_a), .opa = LV_OPA_COVER, .frac = 0};
+    d.bg_grad.stops[1] = (lv_gradient_stop_t){.color = C(T->foil_b), .opa = LV_OPA_COVER, .frac = 150};
+    d.bg_grad.stops[2] = (lv_gradient_stop_t){.color = C(T->foil_a), .opa = LV_OPA_COVER, .frac = 255};
+    lv_area_t a = {x1, y1, x2, y2};
+    lv_draw_rect(l, &d, &a);
+}
+
+static void text(lv_layer_t *l, const lv_font_t *f, uint32_t color, lv_opa_t opa, int cx, int cy, const char *s)
+{
+    lv_draw_label_dsc_t d;
+    lv_draw_label_dsc_init(&d);
+    d.font = f;
+    d.color = C(color);
+    d.opa = opa;
+    d.align = LV_TEXT_ALIGN_CENTER;
+    d.text = s;
+    d.text_local = 1;
+    int h = lv_font_get_line_height(f);
+    lv_area_t a = {cx - R, cy - h / 2, cx + R, cy + h / 2};
+    lv_draw_label(l, &d, &a);
+}
+
+static void line(lv_layer_t *l, float x0, float y0, float x1, float y1, uint32_t color, lv_opa_t opa)
+{
+    lv_draw_line_dsc_t d;
+    lv_draw_line_dsc_init(&d);
+    d.color = C(color);
+    d.opa = opa;
+    d.width = T->rule_w;
+    d.p1.x = x0;
+    d.p1.y = y0;
+    d.p2.x = x1;
+    d.p2.y = y1;
+    lv_draw_line(l, &d);
+}
+
+/* Crimp: zigzag teeth along a segment, the wrapper's sealed edge. */
+static void crimp(lv_layer_t *l, float x0, float y0, float x1, float y1, uint32_t color, lv_opa_t opa)
+{
+    const float tooth = 8.f, amp = 4.f;
+    float dx = x1 - x0, dy = y1 - y0, len = sqrtf(dx * dx + dy * dy);
+    int n = (int)(len / tooth);
+    if (n < 1) {
+        line(l, x0, y0, x1, y1, color, opa);
+        return;
+    }
+    float ux = dx / len, uy = dy / len, px = -uy * amp, py = ux * amp, step = len / n;
+    float ax = x0, ay = y0;
+    for (int i = 1; i <= n; i++) {
+        float s = (i == n) ? 0.f : ((i & 1) ? 1.f : -1.f);
+        float bx = x0 + ux * step * i + px * s, by = y0 + uy * step * i + py * s;
+        line(l, ax, ay, bx, by, color, opa);
+        ax = bx;
+        ay = by;
+    }
+}
+
+static void tri(lv_layer_t *l, float ax, float ay, float bx, float by, float cx, float cy, uint32_t color)
+{
+    lv_draw_triangle_dsc_t d;
+    lv_draw_triangle_dsc_init(&d);
+    d.bg_color = C(color);
+    d.p[0].x = ax;
+    d.p[0].y = ay;
+    d.p[1].x = bx;
+    d.p[1].y = by;
+    d.p[2].x = cx;
+    d.p[2].y = cy;
+    lv_draw_triangle(l, &d);
+}
+
+/* Crimp as filled teeth: reads as a seal at any angle (a 2 px zigzag aliases into a staircase on 45° seams). */
+static void crimp_teeth(lv_layer_t *l, float x0, float y0, float x1, float y1, uint32_t color)
+{
+    const float tooth = 10.f, depth = 5.f;
+    float dx = x1 - x0, dy = y1 - y0, len = sqrtf(dx * dx + dy * dy);
+    float ux = dx / len, uy = dy / len;
+    line(l, x0, y0, x1, y1, color, LV_OPA_COVER);
+    for (float t = 0; t + tooth <= len; t += tooth) {
+        float ax = x0 + ux * t, ay = y0 + uy * t, bx = ax + ux * tooth, by = ay + uy * tooth;
+        float mx = (ax + bx) / 2 - uy * depth, my = (ay + by) / 2 + ux * depth;
+        tri(l, ax, ay, bx, by, mx, my, color);
+    }
+}
+
+/* Crimp along a circle from a0 to a1 (degrees, 0 = right, clockwise). */
+static void crimp_arc(lv_layer_t *l, float r, float a0, float a1, uint32_t color, lv_opa_t opa)
+{
+    const float step_deg = 7.f, amp = 4.f;
+    int n = (int)((a1 - a0) / step_deg);
+    float px = CX + r * cosf(a0 * (float)M_PI / 180.f), py = CY + r * sinf(a0 * (float)M_PI / 180.f);
+    for (int i = 1; i <= n; i++) {
+        float a = (a0 + step_deg * i) * (float)M_PI / 180.f, rr = r + ((i & 1) ? amp : 0.f);
+        float qx = CX + rr * cosf(a), qy = CY + rr * sinf(a);
+        line(l, px, py, qx, qy, color, opa);
+        px = qx;
+        py = qy;
+    }
+}
+
+static void ring(lv_layer_t *l, int r, float a0, float a1, uint32_t color)
+{
+    if (a1 <= a0)
+        return;
+    lv_draw_arc_dsc_t d;
+    lv_draw_arc_dsc_init(&d);
+    d.color = C(color);
+    d.width = T->rule_w;
+    d.center.x = CX;
+    d.center.y = CY;
+    d.radius = r;
+    d.start_angle = a0;
+    d.end_angle = a1;
+    lv_draw_arc(l, &d);
+}
+
+static void wedge(lv_layer_t *l, float a0, float a1, uint32_t color)
+{
+    lv_draw_arc_dsc_t d;
+    lv_draw_arc_dsc_init(&d);
+    d.color = C(color);
+    d.width = R;
+    d.center.x = CX;
+    d.center.y = CY;
+    d.radius = R;
+    d.start_angle = a0;
+    d.end_angle = a1;
+    lv_draw_arc(l, &d);
+}
+
+/* ---------- formatting ---------- */
+
+static void fmt_signed(char *buf, size_t n, int v)
+{
+    if (v < 0)
+        snprintf(buf, n, MINUS "%d", -v);
+    else
+        snprintf(buf, n, "+%d", v);
+}
+
+static void fmt_action(char *buf, size_t n, const sd_action_t *a)
+{
+    char d[12];
+    fmt_signed(d, sizeof(d), a->amount);
+    if (a->kind == SD_LIFE)
+        snprintf(buf, n, "J%d  PV %s", a->player + 1, d);
+    else if (a->kind == SD_POISON)
+        snprintf(buf, n, "J%d  " S_POISON " %s", a->player + 1, d);
+    else
+        snprintf(buf, n, "J%d  " S_CMD " J%d %s", a->player + 1, a->src + 1, d);
+}
+
+static float pending_progress(void)
+{
+    uint32_t el = U.now - U.g.pending_since;
+    return el >= SD_COMMIT_MS ? 1.f : (float)el / SD_COMMIT_MS;
+}
+
+/* ---------- geometry ---------- */
+
+static float seat_span(void) { return 360.f / U.g.n_players; }
+static float seat_angle(int i) { return 90.f + i * seat_span(); } /* J1 sits at the bottom, then clockwise */
+
+static int seat_at(int x, int y)
+{
+    if (U.g.n_players == 1)
+        return 0;
+    float dx = x - CX, dy = y - CY;
+    if (dx * dx + dy * dy < HUB_R * HUB_R || dx * dx + dy * dy > R * R)
+        return -1;
+    float a = atan2f(dy, dx) * 180.f / (float)M_PI;
+    float rel = fmodf(a - 90.f + seat_span() / 2 + 720.f, 360.f);
+    return (int)(rel / seat_span()) % U.g.n_players;
+}
+
+static bool in_hub(int x, int y) { return (x - CX) * (x - CX) + (y - CY) * (y - CY) <= HUB_R * HUB_R; }
+
+/* ---------- game actions ---------- */
+
+static void haptic(ui_haptic_t p)
+{
+    if (U.hooks.haptic)
+        U.hooks.haptic(p);
+}
+
+static void save(void)
+{
+    if (U.hooks.save)
+        U.hooks.save(&U.g);
+}
+
+static void redraw(void) { lv_obj_invalidate(U.dial); }
+
+/* Called after any commit: persist, haptics, defeat and game-over detection. */
+static void committed(bool was_lost[SD_MAX_PLAYERS])
+{
+    save();
+    bool new_loss = false;
+    for (int i = 0; i < U.g.n_players; i++)
+        new_loss |= !was_lost[i] && sd_player_lost(&U.g, (uint8_t)i);
+    haptic(new_loss ? UI_HAPTIC_DEFEAT : UI_HAPTIC_COMMIT);
+    if (sd_game_over(&U.g))
+        U.scr = UI_SCR_OVER;
+}
+
+static void snapshot_lost(bool out[SD_MAX_PLAYERS])
+{
+    for (int i = 0; i < SD_MAX_PLAYERS; i++)
+        out[i] = i < U.g.n_players && sd_player_lost(&U.g, (uint8_t)i);
+}
+
+static void flush(void)
+{
+    bool lost[SD_MAX_PLAYERS];
+    snapshot_lost(lost);
+    if (sd_game_flush(&U.g))
+        committed(lost);
+}
+
+static void adjust(uint8_t player, sd_kind_t kind, uint8_t src, int step)
+{
+    bool lost[SD_MAX_PLAYERS];
+    snapshot_lost(lost);
+    if (sd_game_adjust(&U.g, player, kind, src, (int16_t)step, U.now))
+        committed(lost);
+    haptic(UI_HAPTIC_DETENT);
+}
+
+static void upper(char *s)
+{
+    for (; *s; s++)
+        if (*s >= 'a' && *s <= 'z')
+            *s = (char)(*s - 32);
+}
+
+static void start_game(const sd_game_t *resume)
+{
+    if (resume) {
+        U.g = *resume;
+        U.profile_name[0] = '\0';
+    } else {
+        const sd_profile_t *p = &U.profiles[U.profile];
+        sd_game_new(&U.g, &p->rules, (uint8_t)U.players);
+        snprintf(U.profile_name, sizeof(U.profile_name), "%s", p->name);
+        save();
+    }
+    /* recover the profile name for a resumed game from its rules */
+    for (int i = 0; resume && i < U.n_profiles; i++)
+        if (!memcmp(&U.profiles[i].rules, &U.g.rules, sizeof(sd_rules_t)))
+            snprintf(U.profile_name, sizeof(U.profile_name), "%s", U.profiles[i].name);
+    upper(U.profile_name);
+    U.sel = 0;
+    U.has_resume = false;
+    U.scr = sd_game_over(&U.g) ? UI_SCR_OVER : UI_SCR_GAME;
+}
+
+static void go_home(void)
+{
+    flush();
+    U.resume = U.g; /* "Nouvelle partie" never destroys the game: it stays resumable */
+    U.has_resume = true;
+    U.home_focus = HOME_PROFILE;
+    U.scr = UI_SCR_HOME;
+}
+
+/* ---------- screens: drawing ---------- */
+
+static void draw_hub(lv_layer_t *l)
+{
+    const sd_game_t *g = &U.g;
+    if (!g->has_pending) {
+        /* at rest the hub is sealed: everything committed */
+        fill(l, CX - HUB_R, CY - HUB_R, CX + HUB_R, CY + HUB_R, T->ground, LV_RADIUS_CIRCLE);
+        crimp_arc(l, HUB_R, -90.f, 270.f, T->ink, LV_OPA_COVER);
+        return;
+    }
+    char d[12], sub[24];
+    fmt_signed(d, sizeof(d), g->pending.amount);
+    foil(l, CX - HUB_R, CY - HUB_R, CX + HUB_R, CY + HUB_R, LV_RADIUS_CIRCLE);
+    text(l, U.f_hub, T->foil_ink, LV_OPA_COVER, CX, CY - 8, d);
+    if (g->pending.kind == SD_CMD) { /* source seat, drawn pointer, target seat */
+        snprintf(sub, sizeof(sub), S_SEAT_FMT, g->pending.src + 1);
+        text(l, U.f_small, T->foil_ink, LV_OPA_COVER, CX - 17, CY + 26, sub);
+        snprintf(sub, sizeof(sub), S_SEAT_FMT, g->pending.player + 1);
+        text(l, U.f_small, T->foil_ink, LV_OPA_COVER, CX + 17, CY + 26, sub);
+        tri(l, CX - 4, CY + 21, CX - 4, CY + 31, CX + 4, CY + 26, T->foil_ink);
+    } else {
+        snprintf(sub, sizeof(sub), "= %d", sd_game_view(g, g->pending.player).life);
+        text(l, U.f_small, T->foil_ink, LV_OPA_COVER, CX, CY + 26, sub);
+    }
+    /* the seal: crimp teeth close clockwise over exactly SD_COMMIT_MS */
+    float sweep = 360.f * pending_progress();
+    crimp_arc(l, HUB_R, -90.f, -90.f + sweep, T->ink, LV_OPA_COVER);
+    ring(l, HUB_R, -90.f + sweep, 270.f, T->ink);
+}
+
+/* "P3  C12" style counters; empty when none */
+static void fmt_counters(char *buf, size_t n, const sd_player_t *p)
+{
+    int cmd = 0;
+    for (int s = 0; s < U.g.n_players; s++)
+        cmd = p->cmd[s] > cmd ? p->cmd[s] : cmd;
+    buf[0] = '\0';
+    if (p->poison && cmd)
+        snprintf(buf, n, "P%d  C%d", p->poison, cmd);
+    else if (p->poison)
+        snprintf(buf, n, S_POISON " %d", p->poison);
+    else if (cmd)
+        snprintf(buf, n, S_CMD " %d", cmd);
+}
+
+static void draw_solo(lv_layer_t *l)
+{
+    const sd_game_t *g = &U.g;
+    const sd_player_t *p = &g->p[0];
+    bool lost = sd_player_lost(g, 0);
+    uint32_t field = lost ? T->ground : T->seat[0], ink = lost ? T->seat[0] : T->seat_ink[0];
+    char buf[64];
+    fill(l, 0, 0, UI_W - 1, UI_H - 1, field, 0);
+    snprintf(buf, sizeof(buf), S_SEAT_PROFILE_FMT, 1, U.profile_name);
+    text(l, U.f_label, ink, LV_OPA_COVER, CX, 62, buf);
+    snprintf(buf, sizeof(buf), "%d", p->life);
+    text(l, U.f_solo, ink, LV_OPA_COVER, CX, 158, buf);
+    char cnt[24];
+    fmt_counters(cnt, sizeof(cnt), p);
+    text(l, U.f_label, ink, LV_OPA_COVER, CX, 324, cnt);
+    if (!g->has_pending)
+        return;
+    /* foil band with its crimp sealing left to right */
+    const int y1 = 250, y2 = 296;
+    char d[12];
+    fmt_signed(d, sizeof(d), g->pending.amount);
+    snprintf(buf, sizeof(buf), "%s  = %d", d, sd_game_view(g, 0).life);
+    foil(l, 0, y1, UI_W - 1, y2, 0);
+    text(l, U.f_row, T->foil_ink, LV_OPA_COVER, CX, (y1 + y2) / 2, buf);
+    float xs = UI_W * pending_progress();
+    crimp(l, 0, y1, xs, y1, T->foil_ink, LV_OPA_COVER);
+    crimp(l, 0, y2, xs, y2, T->foil_ink, LV_OPA_COVER);
+    line(l, xs, y1, UI_W, y1, T->foil_ink, LV_OPA_COVER);
+    line(l, xs, y2, UI_W, y2, T->foil_ink, LV_OPA_COVER);
+}
+
+static void draw_arena(lv_layer_t *l)
+{
+    const sd_game_t *g = &U.g;
+    int n = g->n_players;
+    float span = seat_span();
+    const float r_num[] = {0, 0, 96, 104, 108};
+    fill(l, 0, 0, UI_W - 1, UI_H - 1, T->ground, 0);
+    if (!sd_player_lost(g, U.sel))
+        wedge(l, seat_angle(U.sel) - span / 2, seat_angle(U.sel) + span / 2, T->seat[U.sel]);
+    for (int i = 0; i < n; i++) { /* crimped seams between seats */
+        float a = (seat_angle(i) - span / 2) * (float)M_PI / 180.f;
+        crimp_teeth(l, CX + HUB_R * cosf(a), CY + HUB_R * sinf(a), CX + R * cosf(a), CY + R * sinf(a), T->ink);
+    }
+    for (int i = 0; i < n; i++) {
+        bool sel = i == U.sel, lost = sd_player_lost(g, (uint8_t)i);
+        uint32_t ink = (sel && !lost) ? T->seat_ink[i] : T->seat[i];
+        lv_opa_t opa = LV_OPA_COVER;
+        float a = seat_angle(i) * (float)M_PI / 180.f;
+        int nx = CX + (int)(r_num[n] * cosf(a)), ny = CY + (int)(r_num[n] * sinf(a));
+        int lh = lv_font_get_line_height(U.f_arena[n]);
+        char buf[40], cnt[24];
+        snprintf(buf, sizeof(buf), "%d", g->p[i].life);
+        text(l, U.f_arena[n], ink, opa, nx, ny, buf);
+        if (lost) /* defeat: the total is crimped shut, never faded */
+            crimp(l, nx - 44, ny, nx + 44, ny, T->ink, LV_OPA_COVER);
+        /* one label line: seat + counters, on the rim side (above the number for side seats) */
+        fmt_counters(cnt, sizeof(cnt), &g->p[i]);
+        if (lost)
+            snprintf(buf, sizeof(buf), S_SEAT_FMT "  " S_DEFEATED, i + 1);
+        else if (cnt[0])
+            snprintf(buf, sizeof(buf), S_SEAT_FMT "  %s", i + 1, cnt);
+        else
+            snprintf(buf, sizeof(buf), S_SEAT_FMT, i + 1);
+        float sy = sinf(a);
+        int dir = sy > 0.3f ? 1 : -1;
+        text(l, U.f_label, ink, opa, nx, ny + dir * (lh / 2 - 4), buf);
+    }
+    draw_hub(l);
+}
+
+static void draw_home(lv_layer_t *l)
+{
+    const sd_profile_t *p = &U.profiles[U.profile];
+    char buf[48];
+    fill(l, 0, 0, UI_W - 1, UI_H - 1, T->ground, 0);
+    /* profile */
+    char cmd[8], poison[8];
+    snprintf(cmd, sizeof(cmd), "%d", p->rules.cmd_lethal);
+    snprintf(poison, sizeof(poison), "%d", p->rules.poison_lethal);
+    char name[24];
+    snprintf(name, sizeof(name), "%s", p->name);
+    upper(name);
+    text(l, U.f_title, T->ink, LV_OPA_COVER, CX, 104, name);
+    snprintf(buf, sizeof(buf), S_PROFILE_SUB_FMT, p->rules.start_life, p->rules.cmd_lethal ? cmd : S_OFF,
+             p->rules.poison_lethal ? poison : S_OFF);
+    text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 146, buf);
+    /* players */
+    for (int i = 0; i < SD_MAX_PLAYERS; i++) {
+        int x = CX - 86 + i * 44, y = 172;
+        if (i < U.players)
+            fill(l, x, y, x + 36, y + 36, T->seat[i], 0);
+        else
+            outline(l, x, y, x + 36, y + 36, T->seat[i]);
+        snprintf(buf, sizeof(buf), S_SEAT_FMT, i + 1);
+        text(l, U.f_small, i < U.players ? T->seat_ink[i] : T->seat[i], LV_OPA_COVER, x + 18, y + 18, buf);
+    }
+    snprintf(buf, sizeof(buf), S_PLAYERS_FMT, U.players, U.players > 1 ? "S" : "");
+    text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 226, buf);
+    /* focus: a crimp under the row the knob drives */
+    int fy = U.home_focus == HOME_PROFILE ? 162 : 242;
+    crimp(l, CX - 70, fy, CX + 70, fy, T->ink, LV_OPA_COVER);
+    /* actions */
+    int y1 = 258, y2 = 304;
+    /* primary = ink-inverse fill. With a saved game, REPRENDRE is primary: JOUER would replace it. */
+    if (U.has_resume) {
+        outline(l, 52, y1, 174, y2, T->ink);
+        text(l, U.f_label, T->ink, LV_OPA_COVER, 113, (y1 + y2) / 2, S_PLAY);
+        fill(l, 186, y1, 308, y2, T->ink, 0);
+        text(l, U.f_label, T->ground, LV_OPA_COVER, 247, (y1 + y2) / 2, S_RESUME);
+    } else {
+        fill(l, 110, y1, 250, y2, T->ink, 0);
+        text(l, U.f_row, T->ground, LV_OPA_COVER, CX, (y1 + y2) / 2, S_PLAY);
+    }
+}
+
+static int menu_row_y(int i) { return 76 + i * 52; }
+
+static void draw_menu(lv_layer_t *l)
+{
+    char buf[64], act[40];
+    fill(l, 0, 0, UI_W - 1, UI_H - 1, T->ground, 0);
+    for (int i = 0; i < MENU_ROWS; i++) {
+        int y = menu_row_y(i);
+        const char *s = buf;
+        switch (i) {
+        case MENU_UNDO:
+            if (U.g.log_len) {
+                fmt_action(act, sizeof(act), &U.g.log[U.g.log_len - 1]);
+                snprintf(buf, sizeof(buf), S_MENU_UNDO "  %s", act);
+            } else
+                s = S_NOTHING_TO_UNDO;
+            break;
+        case MENU_LOG: s = S_MENU_LOG; break;
+        case MENU_SHEET: snprintf(buf, sizeof(buf), S_MENU_SHEET_FMT, U.sel + 1); break;
+        case MENU_NEW: s = S_MENU_NEW; break;
+        default: s = S_MENU_BACK; break;
+        }
+        bool f = i == U.menu_focus;
+        if (f)
+            fill(l, 36, y - 24, UI_W - 37, y + 23, T->ink, 0);
+        text(l, U.f_row, f ? T->ground : T->ink, LV_OPA_COVER, CX, y, s);
+    }
+}
+
+static void draw_log(lv_layer_t *l)
+{
+    char buf[64];
+    fill(l, 0, 0, UI_W - 1, UI_H - 1, T->ground, 0);
+    text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 48, S_MENU_LOG);
+    crimp(l, 120, 70, 240, 70, T->ink, LV_OPA_COVER);
+    if (!U.g.log_len)
+        text(l, U.f_row, T->ink, LV_OPA_COVER, CX, CY, S_LOG_EMPTY);
+    for (int k = 0; k < LOG_ROWS; k++) {
+        int idx = U.g.log_len - 1 - U.log_scroll - k;
+        if (idx < 0)
+            break;
+        const sd_action_t *a = &U.g.log[idx];
+        int y = 104 + k * 44;
+        fill(l, 70, y - 7, 84, y + 7, T->seat[a->player], 0);
+        fmt_action(buf, sizeof(buf), a);
+        lv_draw_label_dsc_t d;
+        lv_draw_label_dsc_init(&d);
+        d.font = U.f_row;
+        d.color = C(T->ink);
+        d.text = buf;
+        d.text_local = 1;
+        int h = lv_font_get_line_height(U.f_row);
+        lv_area_t ar = {96, y - h / 2, 300, y + h / 2};
+        lv_draw_label(l, &d, &ar);
+    }
+    text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 326, S_TAP_BACK);
+}
+
+static void draw_sheet(lv_layer_t *l)
+{
+    const sd_game_t *g = &U.g;
+    const sd_player_t *p = &g->p[U.sel];
+    char buf[48];
+    fill(l, 0, 0, UI_W - 1, UI_H - 1, T->ground, 0);
+    fill(l, 0, 0, UI_W - 1, 132, T->seat[U.sel], 0);
+    crimp(l, 0, 132, UI_W, 132, T->seat_ink[U.sel], LV_OPA_COVER);
+    snprintf(buf, sizeof(buf), S_SEAT_FMT, U.sel + 1);
+    text(l, U.f_title, T->seat_ink[U.sel], LV_OPA_COVER, CX, 84, buf);
+    text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 152, S_POISON);
+    if (g->rules.poison_lethal)
+        snprintf(buf, sizeof(buf), S_SHEET_POISON_FMT, p->poison, g->rules.poison_lethal);
+    else
+        snprintf(buf, sizeof(buf), "%d", p->poison);
+    text(l, U.f_hub, T->ink, LV_OPA_COVER, CX, 182, buf);
+    if (g->n_players > 1 && g->rules.cmd_lethal) {
+        /* one column per source seat: seat label in its hue over the tally; "/ 21" once within 5 of lethal */
+        text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 272, S_CMD);
+        int cols = g->n_players - 1, k = 0;
+        for (int s = 0; s < g->n_players; s++) {
+            if (s == U.sel)
+                continue;
+            int x = CX + (k++ - (cols - 1) / 2.f) * 84;
+            snprintf(buf, sizeof(buf), S_SEAT_FMT, s + 1);
+            text(l, U.f_small, T->seat[s], LV_OPA_COVER, x, 294, buf);
+            if (p->cmd[s] + 5 >= g->rules.cmd_lethal)
+                snprintf(buf, sizeof(buf), "%d / %d", p->cmd[s], g->rules.cmd_lethal);
+            else
+                snprintf(buf, sizeof(buf), "%d", p->cmd[s]);
+            text(l, U.f_row, T->ink, LV_OPA_COVER, x, 320, buf);
+        }
+    }
+    if (g->has_pending && g->pending.player == U.sel && g->pending.kind == SD_POISON) {
+        const int y1 = 212, y2 = 244;
+        char d[12];
+        fmt_signed(d, sizeof(d), g->pending.amount);
+        snprintf(buf, sizeof(buf), "%s  = %d", d, sd_game_view(g, U.sel).poison);
+        foil(l, 0, y1, UI_W - 1, y2, 0);
+        text(l, U.f_row, T->foil_ink, LV_OPA_COVER, CX, (y1 + y2) / 2, buf);
+        float xs = UI_W * pending_progress();
+        crimp(l, 0, y1, xs, y1, T->foil_ink, LV_OPA_COVER);
+        crimp(l, 0, y2, xs, y2, T->foil_ink, LV_OPA_COVER);
+        line(l, xs, y1, UI_W, y1, T->foil_ink, LV_OPA_COVER);
+        line(l, xs, y2, UI_W, y2, T->foil_ink, LV_OPA_COVER);
+    }
+}
+
+static void draw_over(lv_layer_t *l)
+{
+    int w = sd_game_winner(&U.g);
+    uint32_t field = w >= 0 ? T->seat[w] : T->ground, ink = w >= 0 ? T->seat_ink[w] : T->ink;
+    char buf[24];
+    fill(l, 0, 0, UI_W - 1, UI_H - 1, field, 0);
+    if (w >= 0)
+        snprintf(buf, sizeof(buf), S_WINS_FMT, w + 1);
+    else
+        snprintf(buf, sizeof(buf), S_DEFEAT);
+    text(l, U.f_title, ink, LV_OPA_COVER, CX, 112, buf);
+    text(l, U.f_label, ink, LV_OPA_COVER, CX, 158, S_GAME_OVER);
+    outline(l, 70, 200, 290, 246, ink);
+    text(l, U.f_row, ink, LV_OPA_COVER, CX, 223, S_MENU_UNDO);
+    fill(l, 70, 258, 290, 304, ink, 0);
+    crimp(l, 70, 258, 290, 258, field, LV_OPA_COVER);
+    crimp(l, 70, 304, 290, 304, field, LV_OPA_COVER);
+    text(l, U.f_row, field, LV_OPA_COVER, CX, 281, S_MENU_NEW);
+}
+
+static void draw_cb(lv_event_t *e)
+{
+    lv_layer_t *l = lv_event_get_layer(e);
+    switch (U.scr) {
+    case UI_SCR_HOME: draw_home(l); break;
+    case UI_SCR_GAME: U.g.n_players == 1 ? draw_solo(l) : draw_arena(l); break;
+    case UI_SCR_MENU: draw_menu(l); break;
+    case UI_SCR_LOG: draw_log(l); break;
+    case UI_SCR_SHEET: draw_sheet(l); break;
+    case UI_SCR_OVER: draw_over(l); break;
+    }
+}
+
+/* ---------- public API ---------- */
+
+void ui_init(const ui_hooks_t *hooks, const sd_profile_t *profiles, int n_profiles, const sd_game_t *resume)
+{
+    memset(&U, 0, sizeof(U));
+    if (hooks)
+        U.hooks = *hooks;
+    U.profiles = profiles;
+    U.n_profiles = n_profiles;
+    U.players = n_profiles ? profiles[0].players : 1;
+    if (resume) {
+        U.resume = *resume;
+        U.has_resume = true;
+    }
+    /* kerning off: GPOS is hidden from stb (ui/assets/strip_gpos.py), and Barlow has no kern table */
+#define TTF(data, len, px) lv_tiny_ttf_create_data_ex(data, len, px, LV_FONT_KERNING_NONE, 64)
+    const uint8_t *dsp = T->display_ttf, *lbl = T->label_ttf;
+    size_t dl = (size_t)(T->display_ttf_end - dsp), ll = (size_t)(T->label_ttf_end - lbl);
+    U.f_solo = TTF(dsp, dl, 200);
+    U.f_arena[2] = TTF(dsp, dl, 112);
+    U.f_arena[3] = TTF(dsp, dl, 92);
+    U.f_arena[4] = TTF(dsp, dl, 80);
+    U.f_hub = TTF(dsp, dl, 48);
+    U.f_title = TTF(dsp, dl, 64);
+    U.f_row = TTF(lbl, ll, 30);
+    U.f_label = TTF(lbl, ll, 24);
+    U.f_small = TTF(lbl, ll, 20);
+
+    lv_obj_t *scr = lv_screen_active();
+    lv_obj_set_style_bg_color(scr, C(T->ground), 0);
+    U.dial = lv_obj_create(scr);
+    lv_obj_remove_style_all(U.dial);
+    lv_obj_set_size(U.dial, UI_W, UI_H);
+    lv_obj_add_event_cb(U.dial, draw_cb, LV_EVENT_DRAW_MAIN, NULL);
+    U.scr = UI_SCR_HOME;
+    redraw();
+}
+
+void ui_knob(int detents, uint32_t now)
+{
+    U.now = now;
+    if (!detents)
+        return;
+    switch (U.scr) {
+    case UI_SCR_HOME:
+        if (U.home_focus == HOME_PROFILE && U.n_profiles) {
+            U.profile = ((U.profile + detents) % U.n_profiles + U.n_profiles) % U.n_profiles;
+            U.players = U.profiles[U.profile].players;
+        } else if (U.home_focus == HOME_PLAYERS) {
+            U.players = ((U.players - 1 + detents) % SD_MAX_PLAYERS + SD_MAX_PLAYERS) % SD_MAX_PLAYERS + 1;
+        }
+        haptic(UI_HAPTIC_DETENT);
+        break;
+    case UI_SCR_GAME:
+        /* the knob keeps feeding the pending delta on the selected seat (commander damage included) */
+        if (U.g.has_pending && U.g.pending.player == U.sel)
+            adjust(U.sel, (sd_kind_t)U.g.pending.kind, U.g.pending.src, detents);
+        else
+            adjust(U.sel, SD_LIFE, 0, detents);
+        break;
+    case UI_SCR_SHEET: adjust(U.sel, SD_POISON, 0, detents); break;
+    case UI_SCR_MENU:
+        U.menu_focus = ((U.menu_focus + detents) % MENU_ROWS + MENU_ROWS) % MENU_ROWS;
+        haptic(UI_HAPTIC_DETENT);
+        break;
+    case UI_SCR_LOG: {
+        int max = U.g.log_len > LOG_ROWS ? U.g.log_len - LOG_ROWS : 0;
+        U.log_scroll += detents;
+        U.log_scroll = U.log_scroll < 0 ? 0 : U.log_scroll > max ? max : U.log_scroll;
+        haptic(UI_HAPTIC_DETENT);
+        break;
+    }
+    case UI_SCR_OVER: break;
+    }
+    redraw();
+}
+
+static void menu_activate(int row)
+{
+    switch (row) {
+    case MENU_UNDO:
+        if (sd_game_undo(&U.g)) {
+            save();
+            haptic(UI_HAPTIC_COMMIT);
+        }
+        U.scr = UI_SCR_GAME;
+        break;
+    case MENU_LOG:
+        U.log_scroll = 0;
+        U.scr = UI_SCR_LOG;
+        break;
+    case MENU_SHEET: U.scr = UI_SCR_SHEET; break;
+    case MENU_NEW: go_home(); break;
+    default: U.scr = UI_SCR_GAME; break;
+    }
+}
+
+void ui_tap(int x, int y, uint32_t now)
+{
+    U.now = now;
+    switch (U.scr) {
+    case UI_SCR_HOME:
+        if (y >= 70 && y < 166) {
+            if (U.home_focus == HOME_PROFILE)
+                ui_knob(1, now);
+            U.home_focus = HOME_PROFILE;
+        } else if (y >= 166 && y < 250) {
+            if (U.home_focus == HOME_PLAYERS)
+                ui_knob(1, now);
+            U.home_focus = HOME_PLAYERS;
+        } else if (y >= 250 && y < 316 && U.n_profiles) {
+            if (U.has_resume && x >= CX)
+                start_game(&U.resume);
+            else
+                start_game(NULL);
+        }
+        break;
+    case UI_SCR_GAME:
+        if (in_hub(x, y) && U.g.n_players > 1)
+            flush(); /* tapping the seal commits now */
+        else {
+            int s = seat_at(x, y);
+            if (s >= 0 && s != U.sel) {
+                flush();
+                U.sel = (uint8_t)s;
+            }
+        }
+        break;
+    case UI_SCR_MENU:
+        for (int i = 0; i < MENU_ROWS; i++)
+            if (y >= menu_row_y(i) - 26 && y < menu_row_y(i) + 26) {
+                U.menu_focus = i;
+                menu_activate(i);
+            }
+        break;
+    case UI_SCR_LOG: U.scr = UI_SCR_MENU; break;
+    case UI_SCR_SHEET:
+        flush();
+        if (U.scr == UI_SCR_SHEET)
+            U.scr = UI_SCR_GAME;
+        break;
+    case UI_SCR_OVER:
+        if (y >= 196 && y < 252) {
+            if (sd_game_undo(&U.g)) {
+                save();
+                haptic(UI_HAPTIC_COMMIT);
+            }
+            U.scr = sd_game_over(&U.g) ? UI_SCR_OVER : UI_SCR_GAME;
+        } else if (y >= 252 && y < 310)
+            go_home();
+        break;
+    }
+    redraw();
+}
+
+void ui_long_press(int x, int y, uint32_t now)
+{
+    (void)x;
+    (void)y;
+    U.now = now;
+    if (U.scr != UI_SCR_GAME)
+        return;
+    flush();
+    if (U.scr == UI_SCR_GAME) {
+        U.menu_focus = MENU_UNDO;
+        U.scr = UI_SCR_MENU;
+    }
+    redraw();
+}
+
+void ui_drag(int x0, int y0, int x1, int y1, uint32_t now)
+{
+    U.now = now;
+    if (U.scr != UI_SCR_GAME || U.g.n_players < 2 || !U.g.rules.cmd_lethal)
+        return;
+    int a = seat_at(x0, y0), b = seat_at(x1, y1);
+    if (a < 0 || b < 0 || a == b)
+        return;
+    U.sel = (uint8_t)b; /* commander of A deals damage to B; the knob then sets the amount */
+    adjust((uint8_t)b, SD_CMD, (uint8_t)a, 1);
+    redraw();
+}
+
+void ui_tick(uint32_t now)
+{
+    U.now = now;
+    if (!U.g.has_pending)
+        return;
+    bool lost[SD_MAX_PLAYERS];
+    snapshot_lost(lost);
+    if (sd_game_tick(&U.g, now))
+        committed(lost);
+    redraw();
+}
+
+ui_screen_t ui_screen(void) { return U.scr; }
+const sd_game_t *ui_game(void) { return &U.g; }
+int ui_selected(void) { return U.sel; }
