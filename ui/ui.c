@@ -108,27 +108,6 @@ static void line(lv_layer_t *l, float x0, float y0, float x1, float y1, uint32_t
     lv_draw_line(l, &d);
 }
 
-/* Crimp: zigzag teeth along a segment, the wrapper's sealed edge. */
-static void crimp(lv_layer_t *l, float x0, float y0, float x1, float y1, uint32_t color, lv_opa_t opa)
-{
-    const float tooth = 8.f, amp = 4.f;
-    float dx = x1 - x0, dy = y1 - y0, len = sqrtf(dx * dx + dy * dy);
-    int n = (int)(len / tooth);
-    if (n < 1) {
-        line(l, x0, y0, x1, y1, color, opa);
-        return;
-    }
-    float ux = dx / len, uy = dy / len, px = -uy * amp, py = ux * amp, step = len / n;
-    float ax = x0, ay = y0;
-    for (int i = 1; i <= n; i++) {
-        float s = (i == n) ? 0.f : ((i & 1) ? 1.f : -1.f);
-        float bx = x0 + ux * step * i + px * s, by = y0 + uy * step * i + py * s;
-        line(l, ax, ay, bx, by, color, opa);
-        ax = bx;
-        ay = by;
-    }
-}
-
 static void tri(lv_layer_t *l, float ax, float ay, float bx, float by, float cx, float cy, uint32_t color)
 {
     lv_draw_triangle_dsc_t d;
@@ -141,35 +120,6 @@ static void tri(lv_layer_t *l, float ax, float ay, float bx, float by, float cx,
     d.p[2].x = cx;
     d.p[2].y = cy;
     lv_draw_triangle(l, &d);
-}
-
-/* Crimp as filled teeth: reads as a seal at any angle (a 2 px zigzag aliases into a staircase on 45° seams). */
-static void crimp_teeth(lv_layer_t *l, float x0, float y0, float x1, float y1, uint32_t color)
-{
-    const float tooth = 10.f, depth = 5.f;
-    float dx = x1 - x0, dy = y1 - y0, len = sqrtf(dx * dx + dy * dy);
-    float ux = dx / len, uy = dy / len;
-    line(l, x0, y0, x1, y1, color, LV_OPA_COVER);
-    for (float t = 0; t + tooth <= len; t += tooth) {
-        float ax = x0 + ux * t, ay = y0 + uy * t, bx = ax + ux * tooth, by = ay + uy * tooth;
-        float mx = (ax + bx) / 2 - uy * depth, my = (ay + by) / 2 + ux * depth;
-        tri(l, ax, ay, bx, by, mx, my, color);
-    }
-}
-
-/* Crimp along a circle from a0 to a1 (degrees, 0 = right, clockwise). */
-static void crimp_arc(lv_layer_t *l, float r, float a0, float a1, uint32_t color, lv_opa_t opa)
-{
-    const float step_deg = 7.f, amp = 4.f;
-    int n = (int)((a1 - a0) / step_deg);
-    float px = CX + r * cosf(a0 * (float)M_PI / 180.f), py = CY + r * sinf(a0 * (float)M_PI / 180.f);
-    for (int i = 1; i <= n; i++) {
-        float a = (a0 + step_deg * i) * (float)M_PI / 180.f, rr = r + ((i & 1) ? amp : 0.f);
-        float qx = CX + rr * cosf(a), qy = CY + rr * sinf(a);
-        line(l, px, py, qx, qy, color, opa);
-        px = qx;
-        py = qy;
-    }
 }
 
 static void ring(lv_layer_t *l, int r, float a0, float a1, uint32_t color)
@@ -391,6 +341,45 @@ static void go_home(void)
 
 /* ---------- screens: drawing ---------- */
 
+/* Pending band: dull silver that the foil sheen fills from left to right over SD_COMMIT_MS (the seal).
+ * The bright leading edge is the timer; the edges are always complete. */
+static void band(lv_layer_t *l, int y1, int y2, const char *txt)
+{
+    fill(l, 0, y1, UI_W - 1, y2, T->foil_a, 0);
+    int xs = (int)(UI_W * pending_progress());
+    if (xs > 1) {
+        lv_draw_rect_dsc_t d;
+        lv_draw_rect_dsc_init(&d);
+        d.bg_grad.dir = LV_GRAD_DIR_HOR;
+        d.bg_grad.stops_count = 2;
+        d.bg_grad.stops[0] = (lv_gradient_stop_t){.color = C(T->foil_a), .opa = LV_OPA_COVER, .frac = 0};
+        d.bg_grad.stops[1] = (lv_gradient_stop_t){.color = C(T->foil_b), .opa = LV_OPA_COVER, .frac = 255};
+        lv_area_t a = {0, y1, xs - 1, y2};
+        lv_draw_rect(l, &d, &a);
+    }
+    line(l, 0, y1, UI_W, y1, T->foil_ink, LV_OPA_COVER);
+    line(l, 0, y2, UI_W, y2, T->foil_ink, LV_OPA_COVER);
+    text(l, U.f_row, T->foil_ink, LV_OPA_COVER, CX, (y1 + y2) / 2, txt);
+}
+
+/* Defeated seat: the skull mark (ui/assets/dead.svg -> A8 mask, ui/skull_a8.c) tinted with the seat hue replaces
+ * the total; `s` is its drawn size. */
+extern const lv_image_dsc_t ui_skull_a8;
+static void skull(lv_layer_t *l, int cx, int cy, int s, uint32_t color)
+{
+    const int n = (int)ui_skull_a8.header.w;
+    lv_draw_image_dsc_t d;
+    lv_draw_image_dsc_init(&d);
+    d.src = &ui_skull_a8;
+    d.recolor = C(color);
+    d.recolor_opa = LV_OPA_COVER;
+    d.scale_x = d.scale_y = (int32_t)(256 * s / n);
+    d.pivot.x = n / 2;
+    d.pivot.y = n / 2;
+    lv_area_t a = {cx - n / 2, cy - n / 2, cx - n / 2 + n - 1, cy - n / 2 + n - 1};
+    lv_draw_image(l, &d, &a);
+}
+
 /* drawn + and - marks (no glyphs), one rule weight */
 static void pm_marks(lv_layer_t *l, int cx, int cy, int dx, uint32_t color)
 {
@@ -420,7 +409,7 @@ static void draw_hub(lv_layer_t *l)
         }
         /* at rest the hub is sealed (everything committed) and shows whose turn it is; tap = next turn */
         fill(l, CX - HUB_R, CY - HUB_R, CX + HUB_R, CY + HUB_R, T->ground, LV_RADIUS_CIRCLE);
-        crimp_arc(l, HUB_R, -90.f, 270.f, T->ink, LV_OPA_COVER);
+        ring(l, HUB_R, 0.f, 360.f, T->ink);
         snprintf(t, sizeof(t), S_TURN_FMT, g->turn);
         text(l, U.f_small, T->ink, LV_OPA_COVER, CX, CY - 20, t);
         snprintf(t, sizeof(t), S_SEAT_FMT, g->active + 1);
@@ -443,10 +432,8 @@ static void draw_hub(lv_layer_t *l)
         snprintf(sub, sizeof(sub), "= %d", sd_game_view(g, g->pending.player).life);
         text(l, U.f_small, T->foil_ink, LV_OPA_COVER, CX, CY + 26, sub);
     }
-    /* the seal: crimp teeth close clockwise over exactly SD_COMMIT_MS */
-    float sweep = 360.f * pending_progress();
-    crimp_arc(l, HUB_R, -90.f, -90.f + sweep, T->ink, LV_OPA_COVER);
-    ring(l, HUB_R, -90.f + sweep, 270.f, T->ink);
+    /* the seal: the ring closes clockwise over exactly SD_COMMIT_MS */
+    ring(l, HUB_R, -90.f, -90.f + 360.f * pending_progress(), T->ink);
 }
 
 /* "P3  C12" style counters; empty when none */
@@ -475,8 +462,12 @@ static void draw_solo(lv_layer_t *l)
     snprintf(buf, sizeof(buf), S_SEAT_PROFILE_FMT, 1, U.profile_name);
     text(l, U.f_label, ink, LV_OPA_COVER, CX, 62, buf);
     snprintf(buf, sizeof(buf), "%d", p->life);
-    text(l, U.f_solo, ink, LV_OPA_COVER, CX, 158, buf);
-    pm_marks(l, CX, 162, 136, ink);
+    if (lost)
+        skull(l, CX, 158, 150, ink);
+    else
+        text(l, U.f_solo, ink, LV_OPA_COVER, CX, 158, buf);
+    if (!lost)
+        pm_marks(l, CX, 162, 136, ink);
     char cnt[24];
     fmt_counters(cnt, sizeof(cnt), p);
     text(l, U.f_label, ink, LV_OPA_COVER, CX, 334, cnt);
@@ -490,18 +481,12 @@ static void draw_solo(lv_layer_t *l)
     }
     if (!g->has_pending)
         return;
-    /* foil band with its crimp sealing left to right */
+    /* pending band; the foil sheen fills it over the 800 ms */
     const int y1 = 250, y2 = 296;
     char d[12];
     fmt_signed(d, sizeof(d), g->pending.amount);
     snprintf(buf, sizeof(buf), "%s  = %d", d, sd_game_view(g, 0).life);
-    foil(l, 0, y1, UI_W - 1, y2, 0);
-    text(l, U.f_row, T->foil_ink, LV_OPA_COVER, CX, (y1 + y2) / 2, buf);
-    float xs = UI_W * pending_progress();
-    crimp(l, 0, y1, xs, y1, T->foil_ink, LV_OPA_COVER);
-    crimp(l, 0, y2, xs, y2, T->foil_ink, LV_OPA_COVER);
-    line(l, xs, y1, UI_W, y1, T->foil_ink, LV_OPA_COVER);
-    line(l, xs, y2, UI_W, y2, T->foil_ink, LV_OPA_COVER);
+    band(l, y1, y2, buf);
 }
 
 static void draw_arena(lv_layer_t *l)
@@ -512,18 +497,22 @@ static void draw_arena(lv_layer_t *l)
     fill(l, 0, 0, UI_W - 1, UI_H - 1, T->ground, 0);
     if (!sd_player_lost(g, U.sel))
         wedge(l, seat_angle(U.sel) - span / 2, seat_angle(U.sel) + span / 2, T->seat[U.sel]);
-    for (int i = 0; i < n; i++) { /* crimped seams between seats */
+    for (int i = 0; i < n; i++) { /* straight seams between seats */
         float a = (seat_angle(i) - span / 2) * (float)M_PI / 180.f;
-        crimp_teeth(l, CX + HUB_R * cosf(a), CY + HUB_R * sinf(a), CX + R * cosf(a), CY + R * sinf(a), T->ink);
+        line(l, CX + HUB_R * cosf(a), CY + HUB_R * sinf(a), CX + R * cosf(a), CY + R * sinf(a), T->ink, LV_OPA_COVER);
     }
-    /* active seat: a crimped crest along its rim */
+    /* active seat: a solid band along its rim */
     float aa = seat_angle(g->active);
-    uint32_t crest = (g->active == U.sel && !sd_player_lost(g, g->active)) ? T->seat_ink[g->active] : T->ink;
-    for (float t = aa - span / 2 + 6; t + 6 <= aa + span / 2 - 6; t += 6) { /* filled teeth pointing inward */
-        float a0 = t * (float)M_PI / 180.f, a1 = (t + 6) * (float)M_PI / 180.f, am = (a0 + a1) / 2;
-        tri(l, CX + (R - 4) * cosf(a0), CY + (R - 4) * sinf(a0), CX + (R - 4) * cosf(a1), CY + (R - 4) * sinf(a1),
-            CX + (R - 10) * cosf(am), CY + (R - 10) * sinf(am), crest);
-    }
+    lv_draw_arc_dsc_t crest;
+    lv_draw_arc_dsc_init(&crest);
+    crest.color = C((g->active == U.sel && !sd_player_lost(g, g->active)) ? T->seat_ink[g->active] : T->ink);
+    crest.width = 6;
+    crest.center.x = CX;
+    crest.center.y = CY;
+    crest.radius = R - 4;
+    crest.start_angle = aa - span / 2 + 6;
+    crest.end_angle = aa + span / 2 - 6;
+    lv_draw_arc(l, &crest);
     for (int i = 0; i < n; i++) {
         bool sel = i == U.sel, lost = sd_player_lost(g, (uint8_t)i);
         uint32_t ink = (sel && !lost) ? T->seat_ink[i] : T->seat[i];
@@ -537,9 +526,10 @@ static void draw_arena(lv_layer_t *l)
         lv_layer_t *ly = turn ? lv_draw_layer_create(l, LV_COLOR_FORMAT_ARGB8888, &box) : l;
         char buf[40], cnt[24];
         snprintf(buf, sizeof(buf), "%d", g->p[i].life);
-        text(ly, U.f_arena[n], ink, LV_OPA_COVER, nx, ny - 8, buf);
-        if (lost) /* defeat: the total is crimped shut, never faded */
-            crimp(ly, nx - 44, ny - 8, nx + 44, ny - 8, T->ink, LV_OPA_COVER);
+        if (lost) /* defeat: a skull replaces the total, in full hue (the total stays in the log, undo restores it) */
+            skull(ly, nx, ny - 14, lh * 84 / 100, ink);
+        else
+            text(ly, U.f_arena[n], ink, LV_OPA_COVER, nx, ny - 8, buf);
         if (sel && !lost)
             pm_marks(ly, nx, ny - 6, n == 2 ? 110 : 64, ink);
         fmt_counters(cnt, sizeof(cnt), &g->p[i]);
@@ -591,9 +581,9 @@ static void draw_home(lv_layer_t *l)
     }
     snprintf(buf, sizeof(buf), S_PLAYERS_FMT, U.players, U.players > 1 ? "S" : "");
     text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 226, buf);
-    /* focus: a crimp under the row the knob drives */
+    /* focus: a rule under the row the knob drives */
     int fy = U.home_focus == HOME_PROFILE ? 162 : 242;
-    crimp(l, CX - 70, fy, CX + 70, fy, T->ink, LV_OPA_COVER);
+    line(l, CX - 70, fy, CX + 70, fy, T->ink, LV_OPA_COVER);
     /* actions */
     int y1 = 258, y2 = 304;
     /* primary = ink-inverse fill. With a saved game, REPRENDRE is primary: JOUER would replace it. */
@@ -645,7 +635,7 @@ static void draw_log(lv_layer_t *l)
     char buf[64];
     fill(l, 0, 0, UI_W - 1, UI_H - 1, T->ground, 0);
     text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 48, S_MENU_LOG);
-    crimp(l, 120, 70, 240, 70, T->ink, LV_OPA_COVER);
+    line(l, 120, 70, 240, 70, T->ink, LV_OPA_COVER);
     if (!U.g.log_len)
         text(l, U.f_row, T->ink, LV_OPA_COVER, CX, CY, S_LOG_EMPTY);
     for (int k = 0; k < LOG_ROWS; k++) {
@@ -681,7 +671,6 @@ static void draw_sheet(lv_layer_t *l)
     char buf[48];
     fill(l, 0, 0, UI_W - 1, UI_H - 1, T->ground, 0);
     fill(l, 0, 0, UI_W - 1, 132, T->seat[U.sel], 0);
-    crimp(l, 0, 132, UI_W, 132, T->seat_ink[U.sel], LV_OPA_COVER);
     snprintf(buf, sizeof(buf), S_SEAT_FMT, U.sel + 1);
     text(l, U.f_title, T->seat_ink[U.sel], LV_OPA_COVER, CX, 84, buf);
     text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 152, S_POISON);
@@ -712,13 +701,7 @@ static void draw_sheet(lv_layer_t *l)
         char d[12];
         fmt_signed(d, sizeof(d), g->pending.amount);
         snprintf(buf, sizeof(buf), "%s  = %d", d, sd_game_view(g, U.sel).poison);
-        foil(l, 0, y1, UI_W - 1, y2, 0);
-        text(l, U.f_row, T->foil_ink, LV_OPA_COVER, CX, (y1 + y2) / 2, buf);
-        float xs = UI_W * pending_progress();
-        crimp(l, 0, y1, xs, y1, T->foil_ink, LV_OPA_COVER);
-        crimp(l, 0, y2, xs, y2, T->foil_ink, LV_OPA_COVER);
-        line(l, xs, y1, UI_W, y1, T->foil_ink, LV_OPA_COVER);
-        line(l, xs, y2, UI_W, y2, T->foil_ink, LV_OPA_COVER);
+        band(l, y1, y2, buf);
     }
 }
 
@@ -737,8 +720,6 @@ static void draw_over(lv_layer_t *l)
     outline(l, 70, 200, 290, 246, ink);
     text(l, U.f_row, ink, LV_OPA_COVER, CX, 223, S_MENU_UNDO);
     fill(l, 70, 258, 290, 304, ink, 0);
-    crimp(l, 70, 258, 290, 258, field, LV_OPA_COVER);
-    crimp(l, 70, 304, 290, 304, field, LV_OPA_COVER);
     text(l, U.f_row, field, LV_OPA_COVER, CX, 281, S_MENU_NEW);
 }
 

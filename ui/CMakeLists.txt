@@ -1,4 +1,4 @@
-idf_component_register(SRCS "ui.c" "theme_booster.c"
+idf_component_register(SRCS "ui.c" "theme_booster.c" "skull_a8.c"
                        INCLUDE_DIRS "."
                        REQUIRES core profiles lvgl
                        EMBED_FILES "assets/BarlowCondensed-ExtraBold.ttf" "assets/BarlowCondensed-SemiBold.ttf")

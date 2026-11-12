@@ -55,7 +55,7 @@ foreach(f ${FONTS})
     DEPENDS ${ROOT}/ui/assets/${f}.ttf)
   list(APPEND FONT_OBJS ${obj})
 endforeach()
-add_library(sd_ui ${ROOT}/ui/ui.c ${ROOT}/ui/theme_booster.c ${FONT_OBJS})
+add_library(sd_ui ${ROOT}/ui/ui.c ${ROOT}/ui/theme_booster.c ${ROOT}/ui/skull_a8.c ${FONT_OBJS})
 target_include_directories(sd_ui PUBLIC ${ROOT}/ui)
 target_link_libraries(sd_ui PUBLIC sd_profiles lvgl m)
 
