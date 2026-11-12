@@ -1,0 +1,7 @@
+{
+  "name": "Standard",
+  "start_life": 20,
+  "players": 2,
+  "commander_damage": 0,
+  "poison": 10
+}
