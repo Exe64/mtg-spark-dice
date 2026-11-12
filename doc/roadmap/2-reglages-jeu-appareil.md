@@ -9,7 +9,7 @@ description: >
   Nouvel accueil, écran Réglages (6 sections), sections Jeu et Appareil complètes, langues FR/EN, PIN, mise en route au premier démarrage.
 priority: high
 complexity: L
-enriched: 2026-11-12
+enriched: 2026-11-13
 intent: null
 scope:
   modules:
@@ -30,7 +30,7 @@ Donner à SparkDice un écran Réglages structuré en 6 sections (Jeu, Joueurs, 
 
 ## Dépendances
 
-Dépend de #5 (direction visuelle lumineuse : l'accueil radial, les réglages et la mise en route sont construits dans ce style). Bloque #3 et #4 (cadre Réglages).
+Dépend de #5 (direction visuelle lumineuse : l'accueil radial, les réglages et la mise en route sont construits dans ce style). Bloque #3 et #4 (cadre Réglages). Passe après #6 et #7 (ordre décidé le 2026-11-13) ; l'entrée Réglages du menu de partie est posée par #7.
 
 ## Périmètre
 
@@ -81,6 +81,7 @@ Dépend de #5 (direction visuelle lumineuse : l'accueil radial, les réglages et
 | Molette sur l'accueil | Déplace le focus entre les actions ; tap/appui lance | Choix opérateur (itération 2) : utilisable sans toucher l'écran |
 | Nouvelle partie | Nombre de joueurs + écran de jeu Solo/Arène au lancement | Choix opérateur (itération 2) |
 | Découpage | 3 plans : #2 (ce plan), #3 Affichage et veille, #4 Joueurs, tours et minuteur | Choix opérateur 2026-11-12 |
+| Ordre | #5 → #6 → #7 → #2 → #4 → #3 | Choix opérateur 2026-11-13 : la parité en partie (marqueurs, outils) passe avant les réglages d'appareil |
 
 ## Tests
 
@@ -122,3 +123,7 @@ cd /srv/dev/mtg-dial
 ### Session 2026-11-12 (itération 2 : accueil)
 - ✅ Fait : refonte de l'accueil ajoutée (nouvelle étape 3) ; plan à 9 étapes
 
+
+### Session 2026-11-13
+- ✅ Fait : ordre revu, ce plan passe après #6 (marqueurs, cœur 6 joueurs) et #7 (outils de partie)
+- 📋 Prochain : étape 1, après #7

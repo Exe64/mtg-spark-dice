@@ -1,13 +1,14 @@
 # Roadmap SparkDice
 
 > Backlog actif. L'historique détaillé est archivé dans `_archives/`.
-> Dernière mise à jour : 2026-11-12.
+> Dernière mise à jour : 2026-11-13.
 
 ## Contexte
 
 Backlog consolidé : plans nommés d'après leur issue GitHub (voir `doc/roadmap/`).
 - « À faire » : travaux restants, triés par priorité.
 - « Fait » : ce qui a été livré et validé.
+- Ordre d'exécution (décidé le 2026-11-13) : #5 → #6 → #7 → #2 → #4 → #3.
 
 ---
 
@@ -17,7 +18,7 @@ Backlog consolidé : plans nommés d'après leur issue GitHub (voir `doc/roadmap
 
 Plan : [`5-direction-lumineuse.md`](5-direction-lumineuse.md)
 
-Style lumineux pour toute l'interface (radial, lueurs, fond bleu nuit, icônes, logo) ; le booster devient 2ᵉ thème. À faire avant #2.
+Style lumineux pour toute l'interface (radial, lueurs, fond bleu nuit, icônes, logo) ; le booster devient 2ᵉ thème. À faire en premier ; bloque #6, #7 et #2.
 
 ---
 
@@ -25,7 +26,23 @@ Style lumineux pour toute l'interface (radial, lueurs, fond bleu nuit, icônes, 
 
 Plan : [`2-reglages-jeu-appareil.md`](2-reglages-jeu-appareil.md)
 
-Nouvel accueil, Réglages en 6 sections, Jeu et Appareil, langues FR/EN, PIN, mise en route. Dépend de #5 ; bloque #3 et #4.
+Nouvel accueil, Réglages en 6 sections, Jeu et Appareil, langues FR/EN, PIN, mise en route. Dépend de #5 ; passe après #6 et #7 ; bloque #3 et #4.
+
+---
+
+### [Issue: #6] Marqueurs et cœur 6 joueurs [PRIORITÉ: HAUTE] [Complexité: L] 🟢
+
+Plan : [`6-marqueurs-coeur-6-joueurs.md`](6-marqueurs-coeur-6-joueurs.md)
+
+Marqueurs Magic (énergie, expérience, Trésor, Nourriture, tempête, radiation, Ascension, monarque, initiative, Jour/Nuit) avec accès direct ; cœur à 6 joueurs et commandant partenaire, un seul nouveau format de sauvegarde. Dépend de #5 ; bloque #7 et #4.
+
+---
+
+### [Issue: #7] Outils de partie [PRIORITÉ: HAUTE] [Complexité: L] 🟢
+
+Plan : [`7-outils-de-partie.md`](7-outils-de-partie.md)
+
+Dés, tirage du premier joueur, menu de partie à 6 entrées, fin de partie (vainqueur, égalité, revanche), historique avec courbe de PV. Dépend de #6 et #5.
 
 ---
 
@@ -41,7 +58,7 @@ Luminosité, rotation de l'écran, veille (assombrir, éteindre, réveil), optio
 
 Plan : [`4-joueurs-tours-minuteur.md`](4-joueurs-tours-minuteur.md)
 
-1 à 6 joueurs, identité et commandant partenaire, bibliothèques joueurs/decks, suivi des tours, minuteur avec pause et alertes. Dépend de #2.
+1 à 6 joueurs, identité et commandant partenaire, bibliothèques joueurs/decks, suivi des tours, minuteur avec pause et alertes. Dépend de #2 et de #6 (cœur à 6 joueurs).
 
 ---
 
