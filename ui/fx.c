@@ -48,6 +48,11 @@ void fx_ray(lv_layer_t *l, int cx, int cy, float angle_deg, int len, uint32_t co
          (int)lroundf((angle_deg - 90.f) * 10.f), color, opa);
 }
 
+void fx_image(lv_layer_t *l, const lv_image_dsc_t *a8, int cx, int cy, uint32_t color, lv_opa_t opa)
+{
+    centred(l, a8, cx, cy, 256, color, opa);
+}
+
 void fx_icon(lv_layer_t *l, fx_icon_t icon, int cx, int cy, uint32_t color, lv_opa_t opa)
 {
     centred(l, &fx_icons_a8[icon], cx, cy, 256, color, opa);

@@ -57,7 +57,7 @@ Aucune (plan #1 livré). Bloque #6, #7 et #2 (leurs écrans sont construits dans
 - [x] Étape 3 — Rendu « lueur » : générateur de halos/anneaux pré-calculés (script, images A8/ARGB), dégradés, boutons « verre », jeu d'icônes dessinées (L · reasoning → Opus)
 - [x] Étape 4 — Écrans de partie dans le thème lumineux : Solo, Arène 1–4, moyeu, bande d'attente, pastille, marque de défaite (L · reasoning → Opus)
 - [x] Étape 5 — Menus dans le thème lumineux : menu de partie, journal, fiche joueur, fin de partie (M · standard → Sonnet)
-- [ ] Étape 6 — Logo : intégration (accueil provisoire + écran de démarrage), nom du produit centralisé (S · standard → Sonnet)
+- [x] Étape 6 — Logo : intégration (accueil provisoire + écran de démarrage), nom du produit centralisé (S · standard → Sonnet)
 - [ ] Étape 7 — Design : captures des 2 thèmes, revue de finition, DESIGN.md (thème lumineux principal + booster), mesure du temps de rendu (M · standard → Sonnet)
 - [ ] 🧪 Tests — Rédiger et exécuter la procédure de test (avant-dernière étape, obligatoire)
 - [ ] ✅ Validation — Vérifier les résultats des tests et clôturer (dernière étape, obligatoire)
@@ -85,6 +85,10 @@ Aucune (plan #1 livré). Bloque #6, #7 et #2 (leurs écrans sont construits dans
 | Thème par défaut | Lumineux depuis l'étape 4 | Ses écrans de partie existent |
 | Arc d'attente | Les angles négatifs sont ramenés dans 0–360° avant le tracé, dans les deux thèmes | Défaut du plan #1 : LVGL 9.2 ignore les angles négatifs, l'arc partait de 3 h et restait invisible le premier quart du délai. Seule retouche du booster (captures 09, 10a, 10) |
 | Pastille d'annulation de l'Arène | Icône « annuler » + montant, sans le mot ANNULER | Lisible par les joueurs qui voient le moyeu à l'envers |
+| Conversion du logo | `ui/assets/logo2a8.py` : rendu par GdkPixbuf + librsvg, deux masques A8 recadrés (237×195 démarrage, 72×60 accueil) | Le logo a des flous, masques et du texte que `svg2a8.py` ne sait pas tracer ; ces bibliothèques sont déjà sur la machine |
+| Écran de démarrage | Logo + nom pendant 1,5 s (`UI_BOOT_MS`), dans les deux thèmes ; un tap ou un cran de molette le passe | Étape 6 |
+| Accueil lumineux | Provisoire : mêmes lignes et zones de tap que l'accueil du plan #1, logo en haut, pastilles de verre | La refonte de l'accueil est dans le plan #2 |
+| Nom du produit | `UI_PRODUCT_NAME` dans `ui/ui.h`, seule occurrence | PRODUCT.md : le nom vit dans une constante |
 
 ## Tests
 
@@ -155,6 +159,21 @@ bash -c 'n=0; for f in 06-menu 11-fiche-joueur 12-journal 14-fin-de-partie; do c
 # T5.4 firmware
 bash -c '. ~/esp/esp-idf/export.sh >/dev/null 2>&1 && cd /srv/dev/mtg-dial && idf.py build >/tmp/claude-1000/t5-4.log 2>&1; echo build_exit=$?'
 grep -c "warning:" /tmp/claude-1000/t5-4.log
+
+# --- T6 Logo (étape 6)
+# T6.1 le convertisseur redonne exactement le fichier commité (demande python3-gobject, gdk-pixbuf2, librsvg2)
+python3 /srv/dev/mtg-dial/ui/assets/logo2a8.py /tmp/claude-1000/logo_a8.c && cmp /tmp/claude-1000/logo_a8.c /srv/dev/mtg-dial/ui/logo_a8.c && echo logo_ok
+# T6.2 tests PC et ASan/UBSan (écran de démarrage : logo et nom dessinés, passage à l'accueil après UI_BOOT_MS)
+cmake -S /srv/dev/mtg-dial/host -B /srv/dev/mtg-dial/host/build -G Ninja >/dev/null && cmake --build /srv/dev/mtg-dial/host/build | tail -1 && ctest --test-dir /srv/dev/mtg-dial/host/build | tail -3
+cmake -S /srv/dev/mtg-dial/host -B /srv/dev/mtg-dial/host/build-asan -G Ninja -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all" >/dev/null && cmake --build /srv/dev/mtg-dial/host/build-asan | tail -1 && ctest --test-dir /srv/dev/mtg-dial/host/build-asan | tail -3
+ls /srv/dev/mtg-dial/host/build/shots-out/00-demarrage.png /srv/dev/mtg-dial/host/build/shots-out/booster/00-demarrage.png | wc -l
+# T6.3 booster identique à la référence (son accueil n'a pas changé)
+bash -c 'n=0; for f in /srv/dev/mtg-dial/.impeccable/review/[0-9]*.png; do cmp -s $f /srv/dev/mtg-dial/host/build/shots-out/booster/$(basename $f) && n=$((n+1)); done; echo identiques=$n/20'
+# T6.4 le nom du produit n'est écrit qu'une fois dans le code compilé
+grep -rn '"SPARKDICE"\|"SparkDice"' --include=*.c --include=*.h /srv/dev/mtg-dial/ui /srv/dev/mtg-dial/core /srv/dev/mtg-dial/profiles /srv/dev/mtg-dial/main | wc -l
+# T6.5 firmware
+bash -c '. ~/esp/esp-idf/export.sh >/dev/null 2>&1 && cd /srv/dev/mtg-dial && idf.py build >/tmp/claude-1000/t6-5.log 2>&1; echo build_exit=$?'
+grep -c "warning:" /tmp/claude-1000/t6-5.log
 ```
 
 **Résultats attendus :**
@@ -174,6 +193,11 @@ grep -c "warning:" /tmp/claude-1000/t5-4.log
 - T5.2 : `identiques=20/20`.
 - T5.3 : `differentes=4/4`.
 - T5.4 : `build_exit=0`, `0` avertissement.
+- T6.1 : `logo_ok`.
+- T6.2 : deux fois `100% tests passed, 0 tests failed out of 6`, puis `2`.
+- T6.3 : `identiques=20/20`.
+- T6.4 : `1`.
+- T6.5 : `build_exit=0`, `0` avertissement.
 
 ### Résultats joués et vérifiés
 
@@ -198,6 +222,11 @@ grep -c "warning:" /tmp/claude-1000/t5-4.log
 | 2026-11-13 | T5.2 booster = référence | `identiques=20/20` | `identiques=20/20` | ✅ PASS |
 | 2026-11-13 | T5.3 menus lumineux ≠ booster | `differentes=4/4` | `differentes=4/4` | ✅ PASS |
 | 2026-11-13 | T5.4 firmware | `build_exit=0`, `0` | `build_exit=0`, `0` | ✅ PASS |
+| 2026-11-13 | T6.1 convertisseur du logo | `logo_ok` | `logo_ok` | ✅ PASS (vérificateur indépendant) |
+| 2026-11-13 | T6.2 tests PC + ASan/UBSan | 6/6 deux fois, `2`, capture régénérée | 6/6 deux fois, `2`, capture écrite 19 s avant le contrôle | ✅ PASS |
+| 2026-11-13 | T6.3 booster = référence | `identiques=20/20` | `identiques=20/20` | ✅ PASS |
+| 2026-11-13 | T6.4 nom du produit | `1` | `1` | ✅ PASS |
+| 2026-11-13 | T6.5 firmware | `build_exit=0`, `0` | `build_exit=0`, `0` | ✅ PASS |
 
 ## Journal de session
 
@@ -221,3 +250,5 @@ grep -c "warning:" /tmp/claude-1000/t5-4.log
 - 📋 Prochain : étape 5 (menu de partie, journal, fiche joueur, fin de partie)
 - ✅ Fait : étape 5. Menu de partie, journal, fiche joueur et fin de partie dans le thème lumineux (pastilles de verre, halo du siège, arc d'attente sur l'anneau pour le poison). Le texte des lignes de menu et de journal est partagé par les deux thèmes.
 - 📋 Prochain : étape 6 (logo : accueil provisoire et écran de démarrage, nom du produit centralisé)
+- ✅ Fait : étape 6. Écran de démarrage avec le logo et le nom, accueil lumineux provisoire avec le logo, nom du produit en une constante.
+- 📋 Prochain : étape 7 (captures des deux thèmes, revue de finition, DESIGN.md, mesure du temps de rendu)

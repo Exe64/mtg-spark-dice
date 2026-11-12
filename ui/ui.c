@@ -40,7 +40,7 @@ static struct {
     uint8_t sel;
     ui_screen_t scr;
     int menu_focus, log_scroll;
-    uint32_t now, undo_until;
+    uint32_t now, undo_until, boot_until;
     lv_obj_t *dial;
     lv_font_t *f_solo, *f_arena[SD_MAX_PLAYERS + 1], *f_hub, *f_title, *f_row, *f_label, *f_small;
 } U;
@@ -1069,11 +1069,74 @@ static void draw_over_light(lv_layer_t *l)
     text(l, U.f_row, T->ink, LV_OPA_COVER, CX, 281, S_MENU_NEW);
 }
 
+/* ---------- logo: boot screen (both themes) and the luminous home ---------- */
+
+extern const lv_image_dsc_t ui_logo_a8, ui_logo_small_a8; /* ui/assets/logo2a8.py */
+
+static void draw_boot(lv_layer_t *l)
+{
+    ground(l);
+    if (T->light)
+        fx_halo(l, CX, 150, 150, T->ink, LV_OPA_20); /* the well of light the logo rises from */
+    fx_image(l, &ui_logo_a8, CX, 142, T->ink, LV_OPA_COVER);
+    text(l, U.f_hub, T->ink, LV_OPA_COVER, CX, 290, UI_PRODUCT_NAME);
+}
+
+/* Interim home in the luminous style: same rows and tap zones as draw_home (plan #2 rebuilds this screen). */
+static void draw_home_light(lv_layer_t *l)
+{
+    const sd_profile_t *p = &U.profiles[U.profile];
+    char buf[48], cmd[8], poison[8], name[24];
+    ground(l);
+    fx_image(l, &ui_logo_small_a8, CX, 40, T->ink, LV_OPA_COVER);
+    snprintf(cmd, sizeof(cmd), "%d", p->rules.cmd_lethal);
+    snprintf(poison, sizeof(poison), "%d", p->rules.poison_lethal);
+    snprintf(name, sizeof(name), "%s", p->name);
+    upper(name);
+    text(l, U.f_title, T->ink, LV_OPA_COVER, CX, 108, name);
+    snprintf(buf, sizeof(buf), S_PROFILE_SUB_FMT, p->rules.start_life, p->rules.cmd_lethal ? cmd : S_OFF,
+             p->rules.poison_lethal ? poison : S_OFF);
+    text(l, U.f_small, T->ink, LV_OPA_80, CX, 148, buf);
+    for (int i = 0; i < SD_MAX_PLAYERS; i++) { /* seats in play are lit, the others are empty glass */
+        int x = CX - 66 + i * 44, y = 190;
+        bool on = i < U.players;
+        lv_draw_rect_dsc_t d;
+        lv_draw_rect_dsc_init(&d);
+        d.radius = LV_RADIUS_CIRCLE;
+        d.bg_color = C(T->seat[i]);
+        d.bg_opa = on ? 90 : LV_OPA_TRANSP;
+        d.border_color = C(on ? T->seat[i] : T->ink);
+        d.border_opa = on ? LV_OPA_COVER : LV_OPA_30;
+        d.border_width = 2;
+        lv_area_t a = {x - 18, y - 18, x + 18, y + 18};
+        if (on)
+            fx_halo(l, x, y, 30, T->seat[i], LV_OPA_50);
+        lv_draw_rect(l, &d, &a);
+        snprintf(buf, sizeof(buf), S_SEAT_FMT, i + 1);
+        text(l, U.f_small, T->ink, on ? LV_OPA_COVER : LV_OPA_40, x, y, buf);
+    }
+    snprintf(buf, sizeof(buf), S_PLAYERS_FMT, U.players, U.players > 1 ? "S" : "");
+    text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 228, buf);
+    int fy = U.home_focus == HOME_PROFILE ? 164 : 244; /* focus: a rule under the row the knob drives */
+    line(l, CX - 70, fy, CX + 70, fy, T->ink, LV_OPA_COVER);
+    const int y1 = 258, y2 = 304;
+    if (U.has_resume) { /* with a saved game, REPRENDRE is the lit action: JOUER would replace it */
+        pill(l, 52, y1, 174, y2, false);
+        text(l, U.f_label, T->ink, LV_OPA_COVER, 113, (y1 + y2) / 2, S_PLAY);
+        pill(l, 186, y1, 308, y2, true);
+        text(l, U.f_label, T->ink, LV_OPA_COVER, 247, (y1 + y2) / 2, S_RESUME);
+    } else {
+        pill(l, 110, y1, 250, y2, true);
+        text(l, U.f_row, T->ink, LV_OPA_COVER, CX, (y1 + y2) / 2, S_PLAY);
+    }
+}
+
 static void draw_cb(lv_event_t *e)
 {
     lv_layer_t *l = lv_event_get_layer(e);
     switch (U.scr) {
-    case UI_SCR_HOME: draw_home(l); break;
+    case UI_SCR_BOOT: draw_boot(l); break;
+    case UI_SCR_HOME: T->light ? draw_home_light(l) : draw_home(l); break;
     case UI_SCR_GAME:
         if (U.g.n_players == 1)
             T->light ? draw_solo_light(l) : draw_solo(l);
@@ -1136,7 +1199,7 @@ void ui_init(const ui_hooks_t *hooks, const sd_profile_t *profiles, int n_profil
     lv_obj_remove_style_all(U.dial);
     lv_obj_set_size(U.dial, UI_W, UI_H);
     lv_obj_add_event_cb(U.dial, draw_cb, LV_EVENT_DRAW_MAIN, NULL);
-    U.scr = UI_SCR_HOME;
+    U.scr = UI_SCR_BOOT;
     redraw();
 }
 
@@ -1146,6 +1209,7 @@ void ui_knob(int detents, uint32_t now)
     if (!detents)
         return;
     switch (U.scr) {
+    case UI_SCR_BOOT: U.scr = UI_SCR_HOME; break; /* any input skips the logo */
     case UI_SCR_HOME:
         if (U.home_focus == HOME_PROFILE && U.n_profiles) {
             U.profile = ((U.profile + detents) % U.n_profiles + U.n_profiles) % U.n_profiles;
@@ -1207,6 +1271,7 @@ void ui_tap(int x, int y, uint32_t now)
 {
     U.now = now;
     switch (U.scr) {
+    case UI_SCR_BOOT: U.scr = UI_SCR_HOME; break;
     case UI_SCR_HOME:
         if (y >= 70 && y < 166) {
             if (U.home_focus == HOME_PROFILE)
@@ -1306,6 +1371,15 @@ void ui_drag(int x0, int y0, int x1, int y1, uint32_t now)
 void ui_tick(uint32_t now)
 {
     U.now = now;
+    if (U.scr == UI_SCR_BOOT) { /* the delay starts at the first tick: ui_init() has no clock */
+        if (!U.boot_until)
+            U.boot_until = now + UI_BOOT_MS;
+        else if (now >= U.boot_until) {
+            U.scr = UI_SCR_HOME;
+            redraw();
+        }
+        return;
+    }
     if (U.undo_until && now >= U.undo_until) {
         U.undo_until = 0;
         redraw_hub();

@@ -41,6 +41,16 @@ static double contrast(uint32_t a, uint32_t b)
     double la = lum(a), lb = lum(b);
     return (fmax(la, lb) + 0.05) / (fmin(la, lb) + 0.05);
 }
+/* colour of the radial ground at distance d from the centre */
+static uint32_t well(uint32_t c, uint32_t rim, int d)
+{
+    uint32_t out = 0;
+    for (int s = 0; s <= 16; s += 8) {
+        int a = (int)((c >> s) & 0xFF), b = (int)((rim >> s) & 0xFF);
+        out |= (uint32_t)(a + (b - a) * d / 180) << s;
+    }
+    return out;
+}
 static bool near(uint32_t a, uint32_t b, int tol)
 {
     for (int s = 0; s <= 16; s += 8)
@@ -85,6 +95,26 @@ int main(int argc, char **argv)
     if (argc == 4)
         ui_set_theme(UI_THEME_BOOSTER, 0);
     ui_init(&hooks, prof, 2, NULL);
+
+    /* --- boot: the logo shows for UI_BOOT_MS from the first tick, then home */
+    assert(ui_screen() == UI_SCR_BOOT);
+    ui_tick(t);
+    snap("00-demarrage");
+    { /* the logo and the product name are drawn: ink in both areas, well above the bare ground */
+        int logo = 0, name = 0;
+        for (int y = 60; y < 240; y++)
+            for (int x = 70; x < 290; x++)
+                logo += lum(shot_pixel(x, y)) > 0.5;
+        for (int y = 272; y < 310; y++)
+            for (int x = 90; x < 270; x++)
+                name += lum(shot_pixel(x, y)) > 0.5;
+        assert(logo > 1500 && name > 400);
+    }
+    t += UI_BOOT_MS - 1;
+    ui_tick(t);
+    assert(ui_screen() == UI_SCR_BOOT);
+    t += 1;
+    ui_tick(t);
 
     /* --- home: Commander, 4 players */
     assert(ui_screen() == UI_SCR_HOME);
@@ -270,13 +300,13 @@ int main(int argc, char **argv)
     assert(ui_selected() == 2);
     snap("16-arene-3");
 
-    /* --- themes and grounds, on the home screen: (180,180), (180,3) and (3,180) are bare ground there */
+    /* --- themes and grounds, on the home screen: (180,250), (180,3) and (3,180) are bare ground there */
     ui_long_press(180, 180, t);
     ui_tap(180, 232, t);      /* NOUVELLE PARTIE */
     assert(ui_screen() == UI_SCR_HOME);
     ui_set_theme(UI_THEME_BOOSTER, 0); /* flat ground */
     shot_render();
-    assert(shot_pixel(180, 180) == ui_theme_booster.ground && shot_pixel(180, 3) == ui_theme_booster.ground);
+    assert(shot_pixel(180, 250) == ui_theme_booster.ground && shot_pixel(180, 3) == ui_theme_booster.ground);
     assert(ui_ground_rim(0x18214A) == 0x060914); /* the contract's well */
     for (int gi = 0; gi < UI_GROUND_COUNT; gi++) {
         uint32_t c = ui_grounds[gi], rim = ui_ground_rim(c);
@@ -285,13 +315,13 @@ int main(int argc, char **argv)
         char name[32];
         snprintf(name, sizeof(name), "17-lumineux-fond-%d", gi);
         snap(name);
-        assert(near(shot_pixel(180, 180), c, 3));  /* centre of the well */
+        assert(near(shot_pixel(180, 250), well(c, rim, 70), 5)); /* 70 px from the centre of the well */
         assert(near(shot_pixel(180, 3), rim, 4));  /* rim */
         assert(near(shot_pixel(3, 180), rim, 4));  /* radial, not vertical */
     }
     ui_set_theme(99, 99);     /* out of range: default theme, default ground */
     shot_render();
-    assert(UI_THEME_DEFAULT == UI_THEME_LUMINEUX && near(shot_pixel(180, 180), ui_grounds[0], 3));
+    assert(UI_THEME_DEFAULT == UI_THEME_LUMINEUX && near(shot_pixel(180, 250), well(ui_grounds[0], ui_ground_rim(ui_grounds[0]), 70), 5));
 
     printf("shots: all flows passed (%d saves, %d detents, %d commits, %d defeats)\n", saves,
            haptics[UI_HAPTIC_DETENT], haptics[UI_HAPTIC_COMMIT], haptics[UI_HAPTIC_DEFEAT]);

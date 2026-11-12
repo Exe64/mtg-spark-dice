@@ -7,6 +7,9 @@
 #include "game.h"
 #include "profile.h"
 
+#define UI_PRODUCT_NAME "SPARKDICE" /* working name: the only place it is written (PRODUCT.md, Brand Commitments) */
+#define UI_BOOT_MS 1500             /* logo screen at power-on; any tap or knob step skips it */
+
 #define UI_W 360
 #define UI_H 360
 
@@ -17,7 +20,7 @@ typedef struct {
     void (*save)(const sd_game_t *g);    /* called after every committed delta, undo and new game; may be NULL */
 } ui_hooks_t;
 
-typedef enum { UI_SCR_HOME, UI_SCR_GAME, UI_SCR_MENU, UI_SCR_LOG, UI_SCR_SHEET, UI_SCR_OVER } ui_screen_t;
+typedef enum { UI_SCR_HOME, UI_SCR_GAME, UI_SCR_MENU, UI_SCR_LOG, UI_SCR_SHEET, UI_SCR_OVER, UI_SCR_BOOT } ui_screen_t;
 
 /* Call after lv_init() and display creation. `resume` (may be NULL) is offered as "REPRENDRE" on the home screen. */
 void ui_init(const ui_hooks_t *hooks, const sd_profile_t *profiles, int n_profiles, const sd_game_t *resume);
