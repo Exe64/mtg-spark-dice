@@ -36,3 +36,14 @@
 #define S_TURN_FMT "TOUR %d"
 #define S_SEP " \xE2\x80\xBA " /* U+203A, text separator "J1 › J3" */
 #define S_TAP_BACK "TOUCHER POUR REVENIR"
+/* markers panel: one entry per kind from SD_POISON to SD_DAYNIGHT, full name and 3-letter chip label */
+#define S_MARKER_NAMES \
+    {"POISON", "ÉNERGIE", "EXPÉRIENCE", "TRÉSOR", "NOURRITURE", "TEMPÊTE", "RADIATION", "ASCENSION", "MONARQUE", \
+     "INITIATIVE", "JOUR / NUIT"}
+#define S_MARKER_ABBR {"PSN", "ÉNG", "EXP", "TRÉ", "NOU", "TMP", "RAD", "ASC", "MON", "INI", "J/N"}
+#define S_YES "OUI"
+#define S_NO "NON"
+#define S_NONE "—"
+#define S_DAY "JOUR"
+#define S_NIGHT "NUIT"
+#define S_CMD2 "CMDT 2"

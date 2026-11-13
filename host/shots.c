@@ -92,6 +92,26 @@ static void seat_xy(int n, int i, int *x, int *y)
     *y = 180 + (int)(r[n] * sin(a));
 }
 
+/* centre of chip i of the markers panel, and of the button that opens it for seat `sel` of an n-seat arena (ui.c) */
+static void chip_xy(int i, int *x, int *y)
+{
+    double a = (-90.0 + i * 360.0 / 11) * 3.14159265 / 180.0;
+    *x = 180 + (int)lround(132 * cos(a));
+    *y = 180 + (int)lround(132 * sin(a));
+}
+static void tap_chip(int kind)
+{
+    int x, y;
+    chip_xy(kind - SD_POISON, &x, &y);
+    ui_tap(x, y, t);
+}
+static void markers_btn_xy(int n, int sel, int *x, int *y)
+{
+    double a = (90.0 + sel * 360.0 / n - 180.0 / n + 14.0) * 3.14159265 / 180.0;
+    *x = 180 + (int)(152 * cos(a));
+    *y = 180 + (int)(152 * sin(a));
+}
+
 int main(int argc, char **argv)
 {
     assert(argc == 3 || argc == 4);
@@ -340,6 +360,71 @@ int main(int argc, char **argv)
     ui_tap(x, y, t);
     assert(ui_selected() == 2);
     snap("16-arene-3");
+
+    /* --- markers panel, opened from the three-dot button of the selected seat (J3 of 3) */
+    markers_btn_xy(3, 2, &x, &y);
+    ui_tap(x, y, t);
+    assert(ui_screen() == UI_SCR_MARKERS && ui_selected() == 2);
+    ui_knob(2, t);            /* poison is focused first: +2, pending like a life change */
+    t += 300;
+    ui_tick(t);
+    assert(ui_game()->has_pending && sd_counter(&ui_game()->p[2], SD_POISON) == 0);
+    snap("16a-marqueurs-en-attente");
+    t += 600;
+    ui_tick(t);
+    assert(!ui_game()->has_pending && sd_counter(&ui_game()->p[2], SD_POISON) == 2);
+    tap_chip(SD_ENERGY);
+    ui_knob(3, t);
+    tap_chip(SD_MONARCH);     /* moving the focus commits the energy; a state flips on its own chip */
+    assert(sd_counter(&ui_game()->p[2], SD_ENERGY) == 3 && ui_game()->monarch == 2);
+    ui_knob(-1, t);           /* the knob too: back = nobody, forward = this seat */
+    assert(ui_game()->monarch == SD_NOBODY);
+    ui_knob(1, t);
+    assert(ui_game()->monarch == 2);
+    tap_chip(SD_DAYNIGHT);
+    tap_chip(SD_DAYNIGHT);
+    assert(ui_game()->daynight == SD_DN_NIGHT);
+    tap_chip(SD_ASCEND);
+    assert(ui_game()->p[2].ascended && !ui_game()->p[0].ascended);
+    tap_chip(SD_ASCEND);
+    tap_chip(SD_ASCEND);
+    assert(ui_game()->p[2].ascended && saved.log_len == ui_game()->log_len); /* every change persisted */
+    snap("16b-marqueurs");
+    ui_tap(40, 40, t);        /* neither a chip nor the centre: nothing */
+    assert(ui_screen() == UI_SCR_MARKERS);
+    ui_tap(180, 180, t);      /* centre: back to the game */
+    assert(ui_screen() == UI_SCR_GAME);
+    snap("16c-arene-marqueurs");
+    ui_long_press(180, 180, t);
+    ui_tap(180, 128, t);      /* JOURNAL: counters and states have their lines */
+    assert(ui_screen() == UI_SCR_LOG);
+    snap("16d-journal-marqueurs");
+    ui_tap(180, 180, t);
+    ui_tap(180, 284, t);      /* RETOUR */
+    ui_tap(180, 180, t);      /* undo pill: takes the last state change back */
+    assert(ui_screen() == UI_SCR_GAME && !ui_game()->p[2].ascended);
+    /* the other seat's panel is its own: J1 holds nothing, and takes the crown from J3 */
+    seat_xy(3, 0, &x, &y);
+    ui_tap(x, y, t);
+    markers_btn_xy(3, 0, &x, &y);
+    ui_tap(x, y, t);
+    assert(ui_screen() == UI_SCR_MARKERS && ui_selected() == 0);
+    tap_chip(SD_MONARCH);
+    assert(ui_game()->monarch == 0);
+    ui_tap(180, 180, t);
+
+    /* --- same panel from Solo: the three-dot button on the right */
+    ui_long_press(180, 180, t);
+    ui_tap(180, 232, t);
+    new_game(0, -2);          /* 3 -> 2 -> SOLO */
+    assert(ui_game()->n_players == 1);
+    ui_tap(296, 262, t);
+    assert(ui_screen() == UI_SCR_MARKERS);
+    tap_chip(SD_TREASURE);
+    ui_knob(4, t);
+    snap("16e-solo-marqueurs");
+    ui_tap(180, 180, t);      /* leaving commits */
+    assert(ui_screen() == UI_SCR_GAME && sd_counter(&ui_game()->p[0], SD_TREASURE) == 4);
 
     /* --- themes and grounds, on the home screen: (180,250), (180,3) and (3,180) are bare ground there */
     ui_long_press(180, 180, t);

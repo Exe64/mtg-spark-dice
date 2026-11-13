@@ -33,6 +33,7 @@ static struct {
     const sd_profile_t *profiles;
     int n_profiles;
     int profile, players, new_step;
+    int marker; /* focused chip of the markers panel: kind - SD_POISON */
     bool has_resume;
     sd_game_t resume;
     sd_game_t g;
@@ -232,6 +233,19 @@ static void fmt_signed(char *buf, size_t n, int v)
         snprintf(buf, n, "+%d", v);
 }
 
+#define N_MARKERS (SD_KIND_COUNT - SD_POISON)
+static const char *const MARKER_NAME[N_MARKERS] = S_MARKER_NAMES;
+static const char *const MARKER_ABBR[N_MARKERS] = S_MARKER_ABBR;
+
+/* who a state names: "J3", or a dash for nobody */
+static const char *holder(char *buf, size_t n, uint8_t who)
+{
+    if (who >= U.g.n_players)
+        return S_NONE;
+    snprintf(buf, n, S_SEAT_FMT, who + 1);
+    return buf;
+}
+
 static void fmt_action(char *buf, size_t n, const sd_action_t *a)
 {
     char d[12];
@@ -242,10 +256,34 @@ static void fmt_action(char *buf, size_t n, const sd_action_t *a)
         snprintf(buf, n, "J%d" S_SEP "J%d  PV %s", a->src + 1, a->player + 1, d);
     else if (a->kind == SD_LIFE)
         snprintf(buf, n, "J%d  PV %s", a->player + 1, d);
-    else if (a->kind == SD_POISON)
-        snprintf(buf, n, "J%d  " S_POISON " %s", a->player + 1, d);
+    else if (a->kind == SD_CMD || a->kind == SD_CMD2)
+        snprintf(buf, n, "J%d  %s J%d %s", a->player + 1, a->kind == SD_CMD ? S_CMD : S_CMD2, a->src + 1, d);
+    else if (a->kind < SD_ASCEND)
+        snprintf(buf, n, "J%d  %s %s", a->player + 1, MARKER_NAME[a->kind - SD_POISON], d);
+    else if (a->kind == SD_ASCEND)
+        snprintf(buf, n, "J%d  %s %s", a->player + 1, MARKER_NAME[a->kind - SD_POISON], a->amount > 0 ? "+" : MINUS);
+    else if (a->kind == SD_DAYNIGHT)
+        snprintf(buf, n, "%s", a->player == SD_DN_DAY ? S_DAY : a->player == SD_DN_NIGHT ? S_NIGHT : S_DAY " / " S_NIGHT "  " S_NONE);
     else
-        snprintf(buf, n, "J%d  " S_CMD " J%d %s", a->player + 1, a->src + 1, d);
+        snprintf(buf, n, "%s  %s", MARKER_NAME[a->kind - SD_POISON], holder(d, sizeof(d), a->player));
+}
+
+/* What the undo pill takes back, in a few characters. */
+static void fmt_undo(char *buf, size_t n, const sd_action_t *a)
+{
+    if (a->kind == SD_TURN) /* the hand-off it reverses */
+        snprintf(buf, n, "J%d" S_SEP "J%d", a->player + 1, a->src + 1);
+    else if (a->kind >= SD_ASCEND)
+        snprintf(buf, n, "%s", MARKER_ABBR[a->kind - SD_POISON]);
+    else
+        fmt_signed(buf, n, a->kind == SD_CMD || a->kind == SD_CMD2 ? -a->amount : a->amount);
+}
+
+/* The seat a journal line belongs to, as a colour; ink when it belongs to the table (day/night, nobody). */
+static uint32_t log_hue(const sd_action_t *a)
+{
+    uint8_t who = a->kind == SD_DAYNIGHT ? SD_NOBODY : a->kind < SD_MONARCH || a->player != SD_NOBODY ? a->player : a->src;
+    return who < U.g.n_players ? T->seat[who] : T->ink;
 }
 
 static float pending_progress(void)
@@ -408,6 +446,32 @@ static void go_home(void)
 
 /* ---------- screens: drawing ---------- */
 
+/* Direct way into the markers panel: a three-dot button (not a "+", which already means +1 life), on the right in
+ * Solo and in the right corner of the selected seat's rim in the arena (right as its player sees it). */
+#define MARKERS_BTN_R 17
+static void markers_btn_xy(int *x, int *y)
+{
+    if (U.g.n_players == 1) {
+        *x = 296;
+        *y = 262;
+        return;
+    }
+    float a = (seat_angle(U.sel) - seat_span() / 2 + 14.f) * (float)M_PI / 180.f;
+    *x = CX + (int)((R - 28) * cosf(a));
+    *y = CY + (int)((R - 28) * sinf(a));
+}
+
+static void markers_btn(lv_layer_t *l); /* drawn with button(), defined with the panel */
+
+static bool markers_btn_shown(void) { return !sd_player_lost(&U.g, U.sel); }
+
+static bool markers_btn_hit(int x, int y)
+{
+    int bx, by;
+    markers_btn_xy(&bx, &by);
+    return markers_btn_shown() && (x - bx) * (x - bx) + (y - by) * (y - by) <= 26 * 26; /* a finger, not the ink */
+}
+
 /* Pending band: dull silver that the foil sheen fills from left to right over SD_COMMIT_MS (the seal).
  * The bright leading edge is the timer; the edges are always complete. */
 static void band(lv_layer_t *l, int y1, int y2, const char *txt)
@@ -468,10 +532,7 @@ static void draw_hub(lv_layer_t *l)
                 a--;
             fill(l, CX - HUB_R, CY - HUB_R, CX + HUB_R, CY + HUB_R, T->ink, LV_RADIUS_CIRCLE);
             text(l, U.f_small, T->ground, LV_OPA_COVER, CX, CY - 14, S_MENU_UNDO);
-            if (a->kind == SD_TURN) /* the hand-off it reverses */
-                snprintf(t, sizeof(t), "J%d" S_SEP "J%d", a->player + 1, a->src + 1);
-            else
-                fmt_signed(t, sizeof(t), a->kind == SD_CMD ? -a->amount : a->amount);
+            fmt_undo(t, sizeof(t), a);
             text(l, U.f_row, T->ground, LV_OPA_COVER, CX, CY + 12, t);
             return;
         }
@@ -546,12 +607,13 @@ static void draw_solo(lv_layer_t *l)
     if (!lost)
         pm_marks(l, CX, 162, 136, ink);
     char cnt[24];
+    markers_btn(l);
     fmt_counters(cnt, sizeof(cnt), p);
     text(l, U.f_label, ink, LV_OPA_COVER, CX, 334, cnt);
     if (undo_pill()) {
         const sd_action_t *a = &g->log[g->log_len - 1];
         char d[12];
-        fmt_signed(d, sizeof(d), a->amount);
+        fmt_undo(d, sizeof(d), a);
         snprintf(buf, sizeof(buf), S_MENU_UNDO "  %s", d);
         fill(l, 100, 282, 260, 318, T->ink, 0);
         text(l, U.f_label, T->ground, LV_OPA_COVER, CX, 300, buf);
@@ -627,6 +689,7 @@ static void draw_arena(lv_layer_t *l)
             lv_draw_layer(l, &d, &box);
         }
     }
+    markers_btn(l);
     draw_hub(l);
 }
 
@@ -690,10 +753,7 @@ static void draw_hub_light(lv_layer_t *l)
             a--;
         fx_glass(l, CX, CY, HUB_R, T->ground_rim, true);
         fx_icon(l, FX_ICON_UNDO, CX, CY - 17, T->ink, LV_OPA_COVER);
-        if (a->kind == SD_TURN) /* the hand-off it reverses */
-            snprintf(t, sizeof(t), "J%d" S_SEP "J%d", a->player + 1, a->src + 1);
-        else
-            fmt_signed(t, sizeof(t), a->kind == SD_CMD ? -a->amount : a->amount);
+        fmt_undo(t, sizeof(t), a);
         text(l, U.f_row, T->ink, LV_OPA_COVER, CX, CY + 20, t);
         return;
     }
@@ -749,12 +809,13 @@ static void draw_solo_light(lv_layer_t *l)
         pm_marks(l, CX, 162, 136, T->ink);
     }
     char cnt[24];
+    markers_btn(l);
     fmt_counters(cnt, sizeof(cnt), p);
     text(l, U.f_label, T->ink, opa, CX, 326, cnt);
     if (undo_pill()) {
         const sd_action_t *a = &g->log[g->log_len - 1];
         char d[12];
-        fmt_signed(d, sizeof(d), a->amount);
+        fmt_undo(d, sizeof(d), a);
         snprintf(buf, sizeof(buf), S_MENU_UNDO "  %s", d);
         pill(l, 100, 282, 260, 318, true);
         text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 300, buf);
@@ -842,6 +903,7 @@ static void draw_arena_light(lv_layer_t *l)
             lv_draw_layer(l, &d, &box);
         }
     }
+    markers_btn(l);
     draw_hub_light(l);
 }
 
@@ -919,7 +981,7 @@ static void draw_log(lv_layer_t *l)
             break;
         const sd_action_t *a = &U.g.log[idx];
         int y = 104 + k * 44;
-        fill(l, 70, y - 7, 84, y + 7, T->seat[a->player], 0);
+        fill(l, 70, y - 7, 84, y + 7, log_hue(a), 0);
         log_row(l, a, y);
     }
     text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 326, S_TAP_BACK);
@@ -1017,7 +1079,7 @@ static void draw_log_light(lv_layer_t *l)
             break;
         const sd_action_t *a = &U.g.log[idx];
         int y = 104 + k * 44;
-        fx_halo(l, 77, y, 14, T->seat[a->player], LV_OPA_COVER); /* a point of the seat's light; the text names it */
+        fx_halo(l, 77, y, 14, log_hue(a), LV_OPA_COVER); /* a point of the seat's light; the text names it */
         log_row(l, a, y);
     }
     text(l, U.f_small, T->ink, LV_OPA_70, CX, 326, S_TAP_BACK);
@@ -1224,6 +1286,130 @@ static void draw_new(lv_layer_t *l)
     text(l, U.f_row, ink, LV_OPA_COVER, 194, (NEW_BTN_Y1 + NEW_BTN_Y2) / 2, U.new_step == NEW_FORMAT ? S_NEXT : S_PLAY);
 }
 
+static void markers_btn(lv_layer_t *l)
+{
+    int x, y;
+    if (!markers_btn_shown())
+        return;
+    markers_btn_xy(&x, &y);
+    uint32_t ink = button(l, x - MARKERS_BTN_R, y - MARKERS_BTN_R, x + MARKERS_BTN_R, y + MARKERS_BTN_R, false);
+    text(l, U.f_small, ink, LV_OPA_COVER, x, y, "\xE2\x80\xA2\xE2\x80\xA2\xE2\x80\xA2"); /* three dots: "more" */
+}
+
+/* Markers panel of the selected seat: eleven chips on a ring (seven counters, then ascension, monarch, initiative,
+ * day/night). A tap focuses a chip, the knob changes it; a state chip also flips on its tap. The centre names the
+ * focused marker, shows its value, and takes the tap that goes back to the game. */
+#define MARKER_RING 132
+#define MARKER_CHIP 23
+static void marker_xy(int i, int *x, int *y)
+{
+    float a = (-90.f + i * 360.f / N_MARKERS) * (float)M_PI / 180.f;
+    *x = CX + (int)lroundf(MARKER_RING * cosf(a));
+    *y = CY + (int)lroundf(MARKER_RING * sinf(a));
+}
+
+/* is the marker "on" for the selected seat: a counter above zero, a state it holds */
+static bool marker_on(int i)
+{
+    const sd_game_t *g = &U.g;
+    switch (SD_POISON + i) {
+    case SD_ASCEND: return g->p[U.sel].ascended;
+    case SD_MONARCH: return g->monarch == U.sel;
+    case SD_INITIATIVE: return g->initiative == U.sel;
+    case SD_DAYNIGHT: return g->daynight != SD_DN_NONE;
+    default: return g->p[U.sel].counter[i] > 0;
+    }
+}
+
+/* Knob step (or the tap on a state chip, as +1 / -1) on the focused marker. */
+static void marker_change(int d)
+{
+    sd_game_t *g = &U.g;
+    sd_kind_t kind = (sd_kind_t)(SD_POISON + U.marker);
+    if (kind < SD_ASCEND) {
+        adjust(U.sel, kind, U.sel, d);
+        return;
+    }
+    uint8_t v;
+    if (kind == SD_ASCEND) {
+        if (g->p[U.sel].ascended == (d > 0))
+            return;
+        v = U.sel;
+    } else if (kind == SD_DAYNIGHT)
+        v = (uint8_t)(((g->daynight + d) % 3 + 3) % 3);
+    else
+        v = d > 0 ? U.sel : SD_NOBODY; /* clockwise: this seat takes it; back: nobody holds it */
+    bool lost[SD_MAX_PLAYERS];
+    snapshot_lost(lost);
+    if (sd_game_set(g, kind, v))
+        committed(lost);
+}
+
+/* Owner-supplied icon of a marker chip (ui_marker_icons_a8[], ui/assets/icons2a8.py), NULL while it has none: the
+ * chip then shows its 3-letter label. Day/night shows the moon at night, the sun otherwise. */
+extern const lv_image_dsc_t ui_marker_icons_a8[4]; /* energy, rad, day, night */
+static const lv_image_dsc_t *marker_icon(int i)
+{
+    switch (SD_POISON + i) {
+    case SD_ENERGY: return &ui_marker_icons_a8[0];
+    case SD_RAD: return &ui_marker_icons_a8[1];
+    case SD_DAYNIGHT: return &ui_marker_icons_a8[U.g.daynight == SD_DN_NIGHT ? 3 : 2];
+    default: return NULL;
+    }
+}
+
+static void draw_markers(lv_layer_t *l)
+{
+    const sd_game_t *g = &U.g;
+    const sd_player_t *p = &g->p[U.sel];
+    sd_kind_t kind = (sd_kind_t)(SD_POISON + U.marker);
+    char buf[32], who[8];
+    ground(l);
+    if (T->light)
+        knob_ring(l);
+    for (int i = 0; i < N_MARKERS; i++) {
+        int x, y;
+        marker_xy(i, &x, &y);
+        bool focus = i == U.marker, on = marker_on(i);
+        if (on && T->light)
+            fx_halo(l, x, y, 40, T->seat[U.sel], LV_OPA_30);
+        uint32_t ink = button(l, x - MARKER_CHIP, y - MARKER_CHIP, x + MARKER_CHIP, y + MARKER_CHIP, focus);
+        /* lit chip = focus; seat hue = this seat has it (the centre gives the value) */
+        uint32_t c = on && (T->light || !focus) ? T->seat[U.sel] : ink;
+        lv_opa_t o = on || focus ? LV_OPA_COVER : LV_OPA_70;
+        if (marker_icon(i))
+            fx_image(l, marker_icon(i), x, y, c, o);
+        else
+            text(l, U.f_small, c, o, x, y, MARKER_ABBR[i]);
+    }
+    snprintf(buf, sizeof(buf), S_SEAT_FMT, U.sel + 1);
+    text(l, U.f_label, T->seat[U.sel], LV_OPA_COVER, CX, 104, buf);
+    text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 134, MARKER_NAME[U.marker]);
+    const char *v = buf;
+    if (kind == SD_POISON && g->rules.poison_lethal)
+        snprintf(buf, sizeof(buf), S_SHEET_POISON_FMT, sd_counter(p, SD_POISON), g->rules.poison_lethal);
+    else if (kind < SD_ASCEND)
+        snprintf(buf, sizeof(buf), "%d", sd_counter(p, kind));
+    else if (kind == SD_ASCEND)
+        v = p->ascended ? S_YES : S_NO;
+    else if (kind == SD_DAYNIGHT)
+        v = g->daynight == SD_DN_DAY ? S_DAY : g->daynight == SD_DN_NIGHT ? S_NIGHT : S_NONE;
+    else
+        v = holder(who, sizeof(who), kind == SD_MONARCH ? g->monarch : g->initiative);
+    text(l, U.f_hub, T->ink, LV_OPA_COVER, CX, 180, v);
+    if (g->has_pending && g->pending.player == U.sel && g->pending.kind == kind) {
+        char d[12];
+        sd_player_t view = sd_game_view(g, U.sel);
+        fmt_signed(d, sizeof(d), g->pending.amount);
+        snprintf(buf, sizeof(buf), "%s  = %d", d, sd_counter(&view, kind));
+        button(l, 116, 210, 244, 246, false);
+        text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 228, buf);
+        if (T->light)
+            arc(l, KNOB_R + 2, -90.f, -90.f + 360.f * pending_progress(), 5, T->ink, LV_OPA_COVER);
+    } else
+        text(l, U.f_small, T->ink, LV_OPA_70, CX, 232, S_MENU_BACK);
+}
+
 static void draw_cb(lv_event_t *e)
 {
     lv_layer_t *l = lv_event_get_layer(e);
@@ -1231,6 +1417,7 @@ static void draw_cb(lv_event_t *e)
     case UI_SCR_BOOT: draw_boot(l); break;
     case UI_SCR_HOME: draw_home(l); break;
     case UI_SCR_NEW: draw_new(l); break;
+    case UI_SCR_MARKERS: draw_markers(l); break;
     case UI_SCR_GAME:
         if (U.g.n_players == 1)
             T->light ? draw_solo_light(l) : draw_solo(l);
@@ -1327,7 +1514,8 @@ void ui_knob(int detents, uint32_t now)
         }
         break;
     }
-    case UI_SCR_SHEET: adjust(U.sel, SD_POISON, 0, detents); break;
+    case UI_SCR_SHEET: adjust(U.sel, SD_POISON, U.sel, detents); break;
+    case UI_SCR_MARKERS: marker_change(detents); break;
     case UI_SCR_MENU:
         U.menu_focus = ((U.menu_focus + detents) % MENU_ROWS + MENU_ROWS) % MENU_ROWS;
         haptic(UI_HAPTIC_DETENT);
@@ -1392,7 +1580,13 @@ void ui_tap(int x, int y, uint32_t now)
         }
         break;
     case UI_SCR_GAME:
-        if (U.g.n_players == 1) {
+        if (markers_btn_hit(x, y)) {
+            flush();
+            if (U.scr == UI_SCR_GAME) {
+                U.marker = 0;
+                U.scr = UI_SCR_MARKERS;
+            }
+        } else if (U.g.n_players == 1) {
             if (undo_pill() && y >= 276 && y < 324 && x >= 100 && x < 260)
                 undo();
             else if (x < 110 || x >= 250)
@@ -1432,6 +1626,27 @@ void ui_tap(int x, int y, uint32_t now)
         if (U.scr == UI_SCR_SHEET)
             U.scr = UI_SCR_GAME;
         break;
+    case UI_SCR_MARKERS: {
+        int hit = -1;
+        for (int i = 0; i < N_MARKERS && hit < 0; i++) {
+            int cx, cy;
+            marker_xy(i, &cx, &cy);
+            if ((x - cx) * (x - cx) + (y - cy) * (y - cy) <= 30 * 30)
+                hit = i;
+        }
+        flush(); /* a pending counter is committed before the focus moves or the panel closes */
+        if (U.scr != UI_SCR_MARKERS)
+            break; /* that commit ended the game */
+        if (hit < 0) {
+            if ((x - CX) * (x - CX) + (y - CY) * (y - CY) <= 100 * 100)
+                U.scr = UI_SCR_GAME;
+        } else {
+            U.marker = hit;
+            if (SD_POISON + hit >= SD_ASCEND) /* a state flips on its own chip: one gesture */
+                marker_change(marker_on(hit) && SD_POISON + hit != SD_DAYNIGHT ? -1 : 1);
+        }
+        break;
+    }
     case UI_SCR_OVER:
         if (y >= 196 && y < 252) {
             undo();

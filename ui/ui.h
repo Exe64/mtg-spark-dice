@@ -21,7 +21,7 @@ typedef struct {
     void (*save)(const sd_game_t *g);    /* called after every committed delta, undo and new game; may be NULL */
 } ui_hooks_t;
 
-typedef enum { UI_SCR_HOME, UI_SCR_GAME, UI_SCR_MENU, UI_SCR_LOG, UI_SCR_SHEET, UI_SCR_OVER, UI_SCR_BOOT, UI_SCR_NEW } ui_screen_t;
+typedef enum { UI_SCR_HOME, UI_SCR_GAME, UI_SCR_MENU, UI_SCR_LOG, UI_SCR_SHEET, UI_SCR_OVER, UI_SCR_BOOT, UI_SCR_NEW, UI_SCR_MARKERS } ui_screen_t;
 
 /* Call after lv_init() and display creation. `resume` (may be NULL) is offered as "REPRENDRE" on the home screen.
  * Home starts a game in two steps on UI_SCR_NEW: the format (one of `profiles`), then the table size. */
