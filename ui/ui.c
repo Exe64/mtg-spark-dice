@@ -1086,7 +1086,8 @@ static void draw_over_light(lv_layer_t *l)
 
 /* ---------- logo: boot screen (both themes) and the luminous home ---------- */
 
-extern const lv_image_dsc_t ui_logo_a8, ui_logo_small_a8; /* ui/assets/logo2a8.py */
+extern const lv_image_dsc_t ui_logo_a8, ui_logo_small_a8;         /* ui/assets/logo2a8.py */
+extern const lv_image_dsc_t ui_wordmark_a8, ui_wordmark_small_a8; /* ui/assets/wordmark2a8.py: the product name */
 
 static void draw_boot(lv_layer_t *l)
 {
@@ -1094,10 +1095,9 @@ static void draw_boot(lv_layer_t *l)
     if (T->light)
         fx_halo(l, CX, 150, 150, T->ink, LV_OPA_20); /* the well of light the logo rises from */
     fx_image(l, &ui_logo_a8, CX, 142, T->ink, LV_OPA_COVER);
-    text(l, U.f_hub, T->ink, LV_OPA_COVER, CX, 290, UI_PRODUCT_NAME);
+    fx_image(l, &ui_wordmark_a8, CX, 286, T->ink, LV_OPA_COVER);
 }
 
-/* Interim home in the luminous style: same rows and tap zones as draw_home (plan #2 rebuilds this screen). */
 /* Button of both themes: a glass pill (lit when primary) or the booster's flat block. Returns the ink to write on it. */
 static uint32_t button(lv_layer_t *l, int x1, int y1, int x2, int y2, bool primary)
 {
@@ -1131,7 +1131,7 @@ static void draw_home(lv_layer_t *l)
                {FX_ICON_PLAYERS, 284, 206, 34, S_JOIN}};
     char buf[24];
     ground(l);
-    text(l, U.f_row, T->ink, LV_OPA_COVER, CX, 46, UI_PRODUCT_NAME);
+    fx_image(l, &ui_wordmark_small_a8, CX, 46, T->ink, LV_OPA_COVER);
     for (size_t i = 0; i < sizeof(off) / sizeof(off[0]); i++) {
         button(l, off[i].x - off[i].r, off[i].y - off[i].r, off[i].x + off[i].r, off[i].y + off[i].r, false);
         fx_icon(l, off[i].icon, off[i].x, off[i].y, T->ink, LV_OPA_40);

@@ -7,7 +7,8 @@
 #include "game.h"
 #include "profile.h"
 
-#define UI_PRODUCT_NAME "DICE SPARK" /* working name: the only place it is written (PRODUCT.md, Brand Commitments) */
+/* The product name is not a string: it is drawn from the masks of ui/wordmark_a8.c. To rename the product, run
+ * ui/assets/wordmark2a8.py with the new name (the only place it is written; PRODUCT.md, Brand Commitments). */
 #define UI_BOOT_MS 1500             /* logo screen at power-on; any tap or knob step skips it */
 
 #define UI_W 360
