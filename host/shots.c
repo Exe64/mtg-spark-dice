@@ -245,7 +245,7 @@ int main(int argc, char **argv)
     snap("10-arene-degats-commandant");
     t += 500;
     ui_tick(t);
-    assert(ui_game()->p[0].cmd[2] == 5 && ui_game()->p[0].life == 35);
+    assert(ui_game()->p[0].cmd[2][0] == 5 && ui_game()->p[0].life == 35);
 
     /* poison on J4 through its sheet */
     seat_xy(4, 3, &x, &y);
@@ -259,7 +259,7 @@ int main(int argc, char **argv)
     snap("11-fiche-joueur");
     t += 700;
     ui_tick(t);
-    assert(ui_game()->p[3].poison == 3);
+    assert(sd_counter(&ui_game()->p[3], SD_POISON) == 3);
     ui_tap(180, 180, t);
     assert(ui_screen() == UI_SCR_GAME);
 

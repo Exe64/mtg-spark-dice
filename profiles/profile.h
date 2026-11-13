@@ -2,8 +2,8 @@
  *   name             string, 1..23 chars
  *   start_life       int 1..999
  *   family           string, 0..15 chars, optional (shown above the format: "Singleton", "Construit")
- *   players          int 1..SD_MAX_PLAYERS (default player count)
- *   players_min/max  int 2..SD_MAX_PLAYERS, optional (default 2..SD_MAX_PLAYERS); min == max = fixed table size.
+ *   players          int 1..4 (default player count)
+ *   players_min/max  int 2..4, optional (default 2..4); min == max = fixed table size.
  *                    A seat is whoever shares a life total: a two-headed giant team is one seat.
  *   commander_damage int 0..99, 0 = disabled (lethal threshold)
  *   poison           int 0..99, 0 = disabled (lethal threshold)

@@ -2,7 +2,7 @@
 
 #include <string.h>
 
-#define SAVE_MAGIC 0x53444732u /* "SDG2": turns + per-action turn */
+#define SAVE_MAGIC 0x53444733u /* "SDG3": 6 players, partner commander, counters, states, format name */
 #define PERSIST_SIZE offsetof(sd_game_t, pending)
 
 typedef struct {
@@ -22,19 +22,27 @@ static int16_t apply(sd_player_t *p, const sd_action_t *a)
         after = clampi(before + a->amount, SD_LIFE_MIN, SD_LIFE_MAX);
         p->life = (int16_t)after;
         return (int16_t)(after - before);
-    case SD_POISON:
-        before = p->poison;
-        after = clampi(before + a->amount, 0, SD_COUNTER_MAX);
-        p->poison = (uint8_t)after;
-        return (int16_t)(after - before);
-    case SD_TURN:
-        return a->amount;
     case SD_CMD:
-        before = p->cmd[a->src];
+    case SD_CMD2: {
+        uint8_t *c = &p->cmd[a->src][a->kind == SD_CMD2];
+        before = *c;
         after = clampi(before + a->amount, 0, SD_COUNTER_MAX);
-        p->cmd[a->src] = (uint8_t)after;
+        *c = (uint8_t)after;
         p->life = (int16_t)(p->life - (after - before)); /* commander damage is also life loss */
         return (int16_t)(after - before);
+    }
+    case SD_ASCEND:
+        p->ascended = a->amount > 0;
+        return a->amount;
+    default:
+        if (a->kind >= SD_POISON && a->kind < SD_ASCEND) {
+            uint8_t *c = &p->counter[a->kind - SD_POISON];
+            before = *c;
+            after = clampi(before + a->amount, 0, SD_COUNTER_MAX);
+            *c = (uint8_t)after;
+            return (int16_t)(after - before);
+        }
+        return a->amount; /* SD_TURN and the table states do not live in a player */
     }
     return 0;
 }
@@ -47,6 +55,7 @@ void sd_game_new(sd_game_t *g, const sd_rules_t *r, uint8_t n_players)
     for (int i = 0; i < g->n_players; i++)
         g->p[i].life = r->start_life;
     g->turn = 1;
+    g->monarch = g->initiative = SD_NOBODY;
 }
 
 static void log_push(sd_game_t *g, sd_action_t a)
@@ -78,7 +87,7 @@ bool sd_game_flush(sd_game_t *g)
 
 bool sd_game_adjust(sd_game_t *g, uint8_t player, sd_kind_t kind, uint8_t src, int16_t step, uint32_t now_ms)
 {
-    if (player >= g->n_players || src >= g->n_players || kind > SD_CMD)
+    if (player >= g->n_players || src >= g->n_players || kind == SD_TURN || kind >= SD_ASCEND)
         return false;
     bool committed = false;
     sd_action_t *pa = &g->pending;
@@ -120,10 +129,39 @@ bool sd_game_pending_toggle_cmd(sd_game_t *g)
         return false;
     if (a->kind == SD_LIFE)
         *a = (sd_action_t){.player = a->player, .kind = SD_CMD, .src = a->src, .amount = (int16_t)-a->amount};
-    else if (a->kind == SD_CMD)
+    else if (a->kind == SD_CMD || a->kind == SD_CMD2)
         *a = (sd_action_t){.player = a->player, .kind = SD_LIFE, .src = a->src, .amount = (int16_t)-a->amount};
     else
         return false;
+    return true;
+}
+
+/* the table state a kind names, NULL for the other kinds */
+static uint8_t *state_of(sd_game_t *g, uint8_t kind)
+{
+    return kind == SD_MONARCH ? &g->monarch : kind == SD_INITIATIVE ? &g->initiative : kind == SD_DAYNIGHT ? &g->daynight : NULL;
+}
+
+static bool state_valid(const sd_game_t *g, uint8_t kind, uint8_t v)
+{
+    return kind == SD_DAYNIGHT ? v <= SD_DN_NIGHT : v < g->n_players || v == SD_NOBODY;
+}
+
+bool sd_game_set(sd_game_t *g, sd_kind_t kind, uint8_t value)
+{
+    sd_action_t a = {.player = value, .kind = (uint8_t)kind, .src = value};
+    uint8_t *st = state_of(g, (uint8_t)kind);
+    if (kind == SD_ASCEND ? value >= g->n_players : !st || !state_valid(g, (uint8_t)kind, value) || *st == value)
+        return false;
+    sd_game_flush(g);
+    if (st) {
+        a.src = *st;
+        *st = value;
+    } else {
+        a.amount = g->p[value].ascended ? -1 : 1;
+        apply(&g->p[value], &a);
+    }
+    log_push(g, a);
     return true;
 }
 
@@ -145,6 +183,11 @@ bool sd_game_undo(sd_game_t *g)
         g->turn = (uint16_t)(g->turn - a.amount);
         return a.automatic && g->log_len ? sd_game_undo(g) : true; /* take back its cause too */
     }
+    uint8_t *st = state_of(g, a.kind);
+    if (st) {
+        *st = a.src;
+        return true;
+    }
     a.amount = (int16_t)-a.amount;
     apply(&g->p[a.player], &a);
     return true;
@@ -153,7 +196,7 @@ bool sd_game_undo(sd_game_t *g)
 sd_player_t sd_game_view(const sd_game_t *g, uint8_t i)
 {
     sd_player_t p = g->p[i];
-    if (g->has_pending && g->pending.player == i && g->pending.kind != SD_TURN)
+    if (g->has_pending && g->pending.player == i)
         apply(&p, &g->pending);
     return p;
 }
@@ -163,11 +206,12 @@ bool sd_player_lost(const sd_game_t *g, uint8_t i)
     const sd_player_t *p = &g->p[i];
     if (p->life <= 0)
         return true;
-    if (g->rules.poison_lethal && p->poison >= g->rules.poison_lethal)
+    if (g->rules.poison_lethal && sd_counter(p, SD_POISON) >= g->rules.poison_lethal)
         return true;
     for (int s = 0; g->rules.cmd_lethal && s < g->n_players; s++)
-        if (p->cmd[s] >= g->rules.cmd_lethal)
-            return true;
+        for (int c = 0; c < SD_CMD_SLOTS; c++) /* each commander counts apart, partners included */
+            if (p->cmd[s][c] >= g->rules.cmd_lethal)
+                return true;
     return false;
 }
 
@@ -221,11 +265,18 @@ bool sd_game_load(sd_game_t *g, const void *buf, size_t len)
     memset(&tmp, 0, sizeof(tmp));
     memcpy(&tmp, (const uint8_t *)buf + sizeof(h), PERSIST_SIZE);
     if (tmp.n_players < 1 || tmp.n_players > SD_MAX_PLAYERS || tmp.log_len > SD_LOG_MAX || tmp.turn < 1 ||
-        tmp.active >= tmp.n_players)
+        tmp.active >= tmp.n_players || tmp.format[sizeof(tmp.format) - 1] ||
+        !state_valid(&tmp, SD_MONARCH, tmp.monarch) || !state_valid(&tmp, SD_INITIATIVE, tmp.initiative) ||
+        !state_valid(&tmp, SD_DAYNIGHT, tmp.daynight))
         return false;
-    for (int i = 0; i < tmp.log_len; i++)
-        if (tmp.log[i].player >= tmp.n_players || tmp.log[i].src >= tmp.n_players || tmp.log[i].kind > SD_TURN)
+    for (int i = 0; i < tmp.log_len; i++) {
+        const sd_action_t *a = &tmp.log[i];
+        if (a->kind >= SD_KIND_COUNT)
             return false;
+        if (state_of(&tmp, a->kind) ? !state_valid(&tmp, a->kind, a->player) || !state_valid(&tmp, a->kind, a->src)
+                                    : a->player >= tmp.n_players || a->src >= tmp.n_players)
+            return false;
+    }
     *g = tmp;
     return true;
 }

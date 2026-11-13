@@ -384,19 +384,14 @@ static void start_game(const sd_game_t *resume)
 {
     if (resume) {
         U.g = *resume;
-        U.profile_name[0] = '\0';
+        snprintf(U.profile_name, sizeof(U.profile_name), "%s", U.g.format);
     } else {
         const sd_profile_t *p = &U.profiles[U.profile];
         sd_game_new(&U.g, &p->rules, (uint8_t)U.players);
+        snprintf(U.g.format, sizeof(U.g.format), "%s", p->name);
         snprintf(U.profile_name, sizeof(U.profile_name), "%s", p->name);
         save();
     }
-    /* recover the profile name for a resumed game from its rules.
-     * ponytail: formats with the same rules (all constructed ones) resume under the first one's name; store the
-     * format in the save when its layout changes (plan #6). */
-    for (int i = 0; resume && i < U.n_profiles; i++)
-        if (!memcmp(&U.profiles[i].rules, &U.g.rules, sizeof(sd_rules_t)))
-            snprintf(U.profile_name, sizeof(U.profile_name), "%s", U.profiles[i].name);
     upper(U.profile_name);
     U.sel = 0;
     U.has_resume = false;
@@ -509,17 +504,23 @@ static void draw_hub(lv_layer_t *l)
     ring(l, HUB_R, -90.f, -90.f + 360.f * pending_progress(), T->ink);
 }
 
+static int view_poison(const sd_game_t *g)
+{
+    sd_player_t v = sd_game_view(g, U.sel);
+    return sd_counter(&v, SD_POISON);
+}
+
 /* "P3  C12" style counters; empty when none */
 static void fmt_counters(char *buf, size_t n, const sd_player_t *p)
 {
     int cmd = 0;
     for (int s = 0; s < U.g.n_players; s++)
-        cmd = p->cmd[s] > cmd ? p->cmd[s] : cmd;
+        cmd = p->cmd[s][0] > cmd ? p->cmd[s][0] : cmd;
     buf[0] = '\0';
-    if (p->poison && cmd)
-        snprintf(buf, n, "P%d  C%d", p->poison, cmd);
-    else if (p->poison)
-        snprintf(buf, n, S_POISON " %d", p->poison);
+    if (sd_counter(p, SD_POISON) && cmd)
+        snprintf(buf, n, "P%d  C%d", sd_counter(p, SD_POISON), cmd);
+    else if (sd_counter(p, SD_POISON))
+        snprintf(buf, n, S_POISON " %d", sd_counter(p, SD_POISON));
     else if (cmd)
         snprintf(buf, n, S_CMD " %d", cmd);
 }
@@ -935,9 +936,9 @@ static void draw_sheet(lv_layer_t *l)
     text(l, U.f_title, T->seat_ink[U.sel], LV_OPA_COVER, CX, 84, buf);
     text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 152, S_POISON);
     if (g->rules.poison_lethal)
-        snprintf(buf, sizeof(buf), S_SHEET_POISON_FMT, p->poison, g->rules.poison_lethal);
+        snprintf(buf, sizeof(buf), S_SHEET_POISON_FMT, sd_counter(p, SD_POISON), g->rules.poison_lethal);
     else
-        snprintf(buf, sizeof(buf), "%d", p->poison);
+        snprintf(buf, sizeof(buf), "%d", sd_counter(p, SD_POISON));
     text(l, U.f_hub, T->ink, LV_OPA_COVER, CX, 182, buf);
     if (g->n_players > 1 && g->rules.cmd_lethal) {
         /* one column per source seat: seat label in its hue over the tally; "/ 21" once within 5 of lethal */
@@ -949,10 +950,10 @@ static void draw_sheet(lv_layer_t *l)
             int x = CX + (k++ - (cols - 1) / 2.f) * 84;
             snprintf(buf, sizeof(buf), S_SEAT_FMT, s + 1);
             text(l, U.f_small, T->seat[s], LV_OPA_COVER, x, 294, buf);
-            if (p->cmd[s] + 5 >= g->rules.cmd_lethal)
-                snprintf(buf, sizeof(buf), "%d / %d", p->cmd[s], g->rules.cmd_lethal);
+            if (p->cmd[s][0] + 5 >= g->rules.cmd_lethal)
+                snprintf(buf, sizeof(buf), "%d / %d", p->cmd[s][0], g->rules.cmd_lethal);
             else
-                snprintf(buf, sizeof(buf), "%d", p->cmd[s]);
+                snprintf(buf, sizeof(buf), "%d", p->cmd[s][0]);
             text(l, U.f_row, T->ink, LV_OPA_COVER, x, 320, buf);
         }
     }
@@ -960,7 +961,7 @@ static void draw_sheet(lv_layer_t *l)
         const int y1 = 212, y2 = 244;
         char d[12];
         fmt_signed(d, sizeof(d), g->pending.amount);
-        snprintf(buf, sizeof(buf), "%s  = %d", d, sd_game_view(g, U.sel).poison);
+        snprintf(buf, sizeof(buf), "%s  = %d", d, view_poison(g));
         band(l, y1, y2, buf);
     }
 }
@@ -1034,9 +1035,9 @@ static void draw_sheet_light(lv_layer_t *l)
     text(l, U.f_title, T->ink, LV_OPA_COVER, CX, 84, buf);
     text(l, U.f_label, T->seat[U.sel], LV_OPA_COVER, CX, 152, S_POISON);
     if (g->rules.poison_lethal)
-        snprintf(buf, sizeof(buf), S_SHEET_POISON_FMT, p->poison, g->rules.poison_lethal);
+        snprintf(buf, sizeof(buf), S_SHEET_POISON_FMT, sd_counter(p, SD_POISON), g->rules.poison_lethal);
     else
-        snprintf(buf, sizeof(buf), "%d", p->poison);
+        snprintf(buf, sizeof(buf), "%d", sd_counter(p, SD_POISON));
     text(l, U.f_hub, T->ink, LV_OPA_COVER, CX, 182, buf);
     if (g->n_players > 1 && g->rules.cmd_lethal) {
         /* one column per source seat: seat label in its hue over the tally; "/ 21" once within 5 of lethal */
@@ -1048,17 +1049,17 @@ static void draw_sheet_light(lv_layer_t *l)
             int x = CX + (k++ - (cols - 1) / 2.f) * 78;
             snprintf(buf, sizeof(buf), S_SEAT_FMT, s + 1);
             text(l, U.f_small, T->seat[s], LV_OPA_COVER, x, 290, buf);
-            if (p->cmd[s] + 5 >= g->rules.cmd_lethal)
-                snprintf(buf, sizeof(buf), "%d / %d", p->cmd[s], g->rules.cmd_lethal);
+            if (p->cmd[s][0] + 5 >= g->rules.cmd_lethal)
+                snprintf(buf, sizeof(buf), "%d / %d", p->cmd[s][0], g->rules.cmd_lethal);
             else
-                snprintf(buf, sizeof(buf), "%d", p->cmd[s]);
+                snprintf(buf, sizeof(buf), "%d", p->cmd[s][0]);
             text(l, U.f_row, T->ink, LV_OPA_COVER, x, 314, buf);
         }
     }
     if (g->has_pending && g->pending.player == U.sel && g->pending.kind == SD_POISON) {
         char d[12];
         fmt_signed(d, sizeof(d), g->pending.amount);
-        snprintf(buf, sizeof(buf), "%s  = %d", d, sd_game_view(g, U.sel).poison);
+        snprintf(buf, sizeof(buf), "%s  = %d", d, view_poison(g));
         pill(l, 106, 208, 254, 246, false);
         text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 227, buf);
         arc(l, KNOB_R + 2, -90.f, -90.f + 360.f * pending_progress(), 5, T->ink, LV_OPA_COVER);

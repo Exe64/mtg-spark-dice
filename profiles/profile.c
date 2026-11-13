@@ -7,6 +7,7 @@
 #include "cJSON.h"
 
 #define PROFILE_MAX_BYTES 2048
+#define SEATS_MAX 4 /* the core plays 6 (SD_MAX_PLAYERS), the arena draws 4 until plan #4 gives it 5 and 6 seats */
 
 static bool get_int(const cJSON *root, const char *key, int lo, int hi, int *out)
 {
@@ -38,12 +39,12 @@ bool sd_profile_parse(const char *json, sd_profile_t *out, const char **err)
         e = "name: string of 1..23 chars required";
     else if (!get_int(root, "start_life", 1, SD_LIFE_MAX, &life))
         e = "start_life: integer 1..999 required";
-    else if (!get_int(root, "players", 1, SD_MAX_PLAYERS, &players))
+    else if (!get_int(root, "players", 1, SEATS_MAX, &players))
         e = "players: integer 1..4 required";
     else if (family && (!cJSON_IsString(family) || strlen(family->valuestring) >= sizeof(out->family)))
         e = "family: string of 0..15 chars";
-    else if (!opt_int(root, "players_min", 2, SD_MAX_PLAYERS, 2, &pmin) ||
-             !opt_int(root, "players_max", 2, SD_MAX_PLAYERS, SD_MAX_PLAYERS, &pmax) || pmin > pmax)
+    else if (!opt_int(root, "players_min", 2, SEATS_MAX, 2, &pmin) ||
+             !opt_int(root, "players_max", 2, SEATS_MAX, SEATS_MAX, &pmax) || pmin > pmax)
         e = "players_min/players_max: integers 2..4, min <= max";
     else if (!get_int(root, "commander_damage", 0, SD_COUNTER_MAX, &cmd))
         e = "commander_damage: integer 0..99 required";
