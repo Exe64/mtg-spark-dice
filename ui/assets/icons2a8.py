@@ -9,7 +9,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 HOME = (("settings", "settings.svg", 34), ("update", "update.png", 34), ("host", "host.png", 44), ("join", "join.png", 44))
 # markers panel: order = MARKER_ICON in ui/ui.c; the others keep their 3-letter label until their icon arrives
-MARKERS = (("energy", "energy.png", 28), ("rad", "rad.png", 28), ("day", "day.png", 28), ("night", "night.png", 28))
+MARKERS = (("energy", "energy.png", 46), ("rad", "rad.png", 46), ("day", "day.png", 46), ("night", "night.png", 46))  # = a chip
 GROUPS = (("ui_home_icons_a8", "home", HOME), ("ui_marker_icons_a8", "marker", MARKERS))
 
 

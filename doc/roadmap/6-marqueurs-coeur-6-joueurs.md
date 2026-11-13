@@ -75,7 +75,7 @@ Dépend de #5 (les écrans sont construits dans le thème lumineux). Bloque #7 (
 | États (Ascension, monarque, initiative, Jour/Nuit) | `sd_game_set()` : effet immédiat, sans délai de validation, journalisé et annulable ; aucune règle automatique (la couronne ne bouge pas seule si son détenteur est vaincu) | Hors périmètre : règles automatiques |
 | Nom du format | Enregistré dans la partie (`format`), posé par l'interface | Une partie reprise d'un format construit s'affichait « STANDARD » (limite notée au plan #5) |
 | Panneau Marqueurs | Un écran par joueur : 11 pastilles en anneau (7 marqueurs, puis Ascension, Monarque, Initiative, Jour/Nuit), abréviations de 3 lettres en attendant les icônes (étape 4). Tap = choisir, molette = régler ; un état bascule d'un tap sur sa pastille ; tap au centre = retour | Radial comme le reste, tout se fait à la molette |
-| Icônes des marqueurs | Fournies par l'opérateur au fil de l'eau, converties par `ui/assets/icons2a8.py` (28 px) ; une pastille sans icône garde son abréviation. Jour/Nuit montre la lune la nuit, le soleil sinon | Opérateur 2026-11-13 |
+| Icônes des marqueurs | Fournies par l'opérateur au fil de l'eau, converties par `ui/assets/icons2a8.py` à la taille d'une pastille (46 px) et dessinées sans cercle ; sélection = lumière blanche derrière l'icône (Lumineux) ou trait dessous (Booster) ; une pastille sans icône garde son cercle et son abréviation. Jour/Nuit montre la lune la nuit, le soleil sinon | Opérateur 2026-11-13 |
 | Accès direct | Bouton « ••• » : à droite en Solo, dans le coin droit du bord du siège sélectionné en Arène | Le plan prévoyait un « + » et une flèche : le « + » se confond avec le « + » de la vie juste à côté |
 | Monarque / Initiative | Molette en avant ou tap : ce joueur le prend ; molette en arrière ou tap du détenteur : personne | Un seul détenteur, pris à l'autre en un geste |
 | Sièges affichés | Le cœur joue à 6, les profils restent plafonnés à 4 sièges (`SEATS_MAX` dans `profiles/profile.c`) | L'Arène à 5 et 6 sièges est dans le plan #4 |
@@ -146,6 +146,7 @@ bash -c 'n=0; for f in /srv/dev/mtg-dial/.impeccable/review/booster/[0-9]*.png; 
 | 2026-11-13 | T2.2 captures de référence | `lumineux=38/38`, `booster=31/31` | identique | ✅ PASS |
 | 2026-11-13 | T2.3 firmware | `build_exit=0`, `0` | `build_exit=0`, `0` | ✅ PASS |
 | 2026-11-13 | T2.4 contrôle visuel (7 images) | voir T2.4 | les 7 images conformes | ✅ PASS |
+| 2026-11-13 | Retouche : icônes sans cercle, à 46 px ; T2.1, T2.2, T2.3 rejoués | 6/6 deux fois, `38/38`, `31/31`, `build_exit=0`, `0` | identique | ✅ PASS (rejoués par l'exécuteur, même contexte) |
 
 ## Journal de session
 
@@ -162,3 +163,4 @@ bash -c 'n=0; for f in /srv/dev/mtg-dial/.impeccable/review/booster/[0-9]*.png; 
 - 🚧 La première vérification indépendante de T2 s'est arrêtée sans verdict (crédits d'utilisation épuisés) ; relancée : PASS.
 - 🔧 Réglé en passant : la pastille d'annulation inverse aussi le signe pour `SD_CMD2`, et le journal ne prend plus la couleur d'un siège inexistant pour un état (point ouvert à l'étape 1).
 - ⚠️ Pour l'étape 3 (relevé du vérificateur) : si une validation de poison élimine le joueur pendant que son panneau est ouvert, le panneau reste ouvert sur un siège vaincu ; `R_NUM[]` de l'Arène ne va que jusqu'à 4 joueurs (à étendre avec #4).
+- 📝 Retouche (opérateur) : les icônes des marqueurs sont dessinées sans cercle, à la taille de la pastille.

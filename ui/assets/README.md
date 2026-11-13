@@ -27,4 +27,4 @@ past the font buffer (see the script header). Outlines and metrics are unchanged
 
 # Marker icons
 
-Same generator, same folder: `icons/energy.png`, `rad.png`, `day.png`, `night.png`, supplied by the owner on 2026-11-13 (source not stated), become `ui_marker_icons_a8[]` (28×28) for the markers panel. The other markers keep a 3-letter label until their icon is supplied.
+Same generator, same folder: `icons/energy.png`, `rad.png`, `day.png`, `night.png`, supplied by the owner on 2026-11-13 (source not stated), become `ui_marker_icons_a8[]` (46×46, the size of a chip: an icon replaces its chip's circle) for the markers panel. The other markers keep a 3-letter label until their icon is supplied.

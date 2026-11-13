@@ -1371,16 +1371,21 @@ static void draw_markers(lv_layer_t *l)
         int x, y;
         marker_xy(i, &x, &y);
         bool focus = i == U.marker, on = marker_on(i);
-        if (on && T->light)
+        /* seat hue = this seat has it (the centre gives the value); focus = a lit chip, or for a bare icon white light
+         * behind it (Lumineux) or a rule under it (Booster) */
+        if (focus && marker_icon(i) && T->light)
+            fx_halo(l, x, y, 40, 0xFFFFFF, LV_OPA_50);
+        else if (on && T->light)
             fx_halo(l, x, y, 40, T->seat[U.sel], LV_OPA_30);
-        uint32_t ink = button(l, x - MARKER_CHIP, y - MARKER_CHIP, x + MARKER_CHIP, y + MARKER_CHIP, focus);
-        /* lit chip = focus; seat hue = this seat has it (the centre gives the value) */
-        uint32_t c = on && (T->light || !focus) ? T->seat[U.sel] : ink;
         lv_opa_t o = on || focus ? LV_OPA_COVER : LV_OPA_70;
-        if (marker_icon(i))
-            fx_image(l, marker_icon(i), x, y, c, o);
-        else
-            text(l, U.f_small, c, o, x, y, MARKER_ABBR[i]);
+        if (marker_icon(i)) { /* an icon stands on its own, at the size of the chip it replaces */
+            fx_image(l, marker_icon(i), x, y, on ? T->seat[U.sel] : T->ink, o);
+            if (focus && !T->light)
+                line(l, x - 16, y + MARKER_CHIP + 4, x + 16, y + MARKER_CHIP + 4, T->ink, LV_OPA_COVER);
+        } else {
+            uint32_t ink = button(l, x - MARKER_CHIP, y - MARKER_CHIP, x + MARKER_CHIP, y + MARKER_CHIP, focus);
+            text(l, U.f_small, on && (T->light || !focus) ? T->seat[U.sel] : ink, o, x, y, MARKER_ABBR[i]);
+        }
     }
     snprintf(buf, sizeof(buf), S_SEAT_FMT, U.sel + 1);
     text(l, U.f_label, T->seat[U.sel], LV_OPA_COVER, CX, 104, buf);
