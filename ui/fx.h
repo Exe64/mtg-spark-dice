@@ -1,5 +1,6 @@
-/* Light and line icons of the luminous theme: pre-rendered A8 masks (ui/assets/glow_gen.py) tinted at draw time.
- * No blur is computed at runtime; each call is one alpha blit. Colours are 0xRRGGBB. */
+/* Light and line icons of the luminous theme: A8 masks tinted at draw time. Ring, ray and icons are pre-rendered
+ * (ui/assets/glow_gen.py); halos are computed once per radius and cached. No blur is computed per frame.
+ * Colours are 0xRRGGBB. */
 #pragma once
 #include <stdbool.h>
 #include <stdint.h>

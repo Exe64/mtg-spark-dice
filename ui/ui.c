@@ -59,18 +59,64 @@ static void fill(lv_layer_t *l, int x1, int y1, int x2, int y2, uint32_t color, 
     lv_draw_rect(l, &d, &a);
 }
 
-/* Full-dial ground: flat, or the theme's radial well (centre -> rim). */
+/* The radial well (centre -> rim) is computed once per ground colour into a screen-sized buffer in the display's
+ * own pixel format, then copied: a per-frame radial gradient cost 8x a flat fill (host/bench.c). On 16-bit displays
+ * it is dithered, because 5-6 bit channels would show rings in so dark a gradient. */
+static lv_draw_buf_t *well_buf;
+static uint32_t well_c, well_rim;
+
+static const lv_draw_buf_t *well(void)
+{
+    if (well_buf && well_c == T->ground && well_rim == T->ground_rim)
+        return well_buf;
+    if (!well_buf)
+        well_buf = lv_draw_buf_create(UI_W, UI_H, LV_COLOR_FORMAT_NATIVE, 0);
+    if (!well_buf)
+        return NULL;
+    static const uint8_t bayer[4][4] = {{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}};
+    (void)bayer;
+    for (int y = 0; y < UI_H; y++) {
+        uint8_t *rowp = well_buf->data + (size_t)y * well_buf->header.stride;
+        for (int x = 0; x < UI_W; x++) {
+            float d = sqrtf((float)((x - CX) * (x - CX) + (y - CY) * (y - CY))) / R;
+            int k = d >= 1.f ? 256 : (int)(d * 256.f), ch[3]; /* ch = R, G, B in 0..255 */
+            for (int c = 0; c < 3; c++) {
+                int a = (int)((T->ground >> (16 - 8 * c)) & 0xFF), b = (int)((T->ground_rim >> (16 - 8 * c)) & 0xFF);
+                ch[c] = a + (b - a) * k / 256;
+            }
+#if LV_COLOR_DEPTH == 16
+            int t = bayer[y & 3][x & 3]; /* ordered dither: 0..15 sixteenths of one output step */
+            int r5 = (ch[0] * 31 * 16 / 255 + t) >> 4, g6 = (ch[1] * 63 * 16 / 255 + t) >> 4,
+                b5 = (ch[2] * 31 * 16 / 255 + t) >> 4;
+            ((uint16_t *)rowp)[x] = (uint16_t)((r5 << 11) | (g6 << 5) | b5);
+#else
+            rowp[4 * x] = (uint8_t)ch[2];
+            rowp[4 * x + 1] = (uint8_t)ch[1];
+            rowp[4 * x + 2] = (uint8_t)ch[0];
+            rowp[4 * x + 3] = 0xFF;
+#endif
+        }
+    }
+    well_c = T->ground;
+    well_rim = T->ground_rim;
+    return well_buf;
+}
+
+/* Full-dial ground: flat, or the theme's radial well. */
 static void ground(lv_layer_t *l)
 {
-    lv_draw_rect_dsc_t d;
+    lv_area_t a = {0, 0, UI_W - 1, UI_H - 1};
+    const lv_draw_buf_t *w = T->ground_rim != T->ground ? well() : NULL;
+    if (w) {
+        lv_draw_image_dsc_t d;
+        lv_draw_image_dsc_init(&d);
+        d.src = w;
+        lv_draw_image(l, &d, &a);
+        return;
+    }
+    lv_draw_rect_dsc_t d; /* flat theme, or no memory for the well: the centre colour */
     lv_draw_rect_dsc_init(&d);
     d.bg_color = C(T->ground);
-    if (T->ground_rim != T->ground) {
-        const lv_color_t c[2] = {C(T->ground), C(T->ground_rim)};
-        lv_gradient_init_stops(&d.bg_grad, c, NULL, NULL, 2);
-        lv_grad_radial_init(&d.bg_grad, CX, CY, CX + R, CY, LV_GRAD_EXTEND_PAD);
-    }
-    lv_area_t a = {0, 0, UI_W - 1, UI_H - 1};
     lv_draw_rect(l, &d, &a);
 }
 
@@ -654,16 +700,17 @@ static void draw_hub_light(lv_layer_t *l)
     fill(l, CX - HUB_R, CY - HUB_R, CX + HUB_R, CY + HUB_R, T->ground_rim, LV_RADIUS_CIRCLE);
     if (!g->has_pending) { /* at rest: whose turn it is; tap = next turn */
         snprintf(t, sizeof(t), S_TURN_FMT, g->turn);
-        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, CY - 20, t);
+        text(l, U.f_label, T->ink, LV_OPA_COVER, CX, CY - 22, t);
         snprintf(t, sizeof(t), S_SEAT_FMT, g->active + 1);
-        text(l, U.f_hub, T->seat[g->active], LV_OPA_COVER, CX, CY + 8, t);
+        text(l, U.f_hub, T->seat[g->active], LV_OPA_COVER, CX, CY + 9, t);
         return;
     }
     char d[12], sub[24];
-    fmt_signed(d, sizeof(d), g->pending.kind == SD_CMD ? -g->pending.amount : g->pending.amount); /* effect on life */
-    text(l, U.f_hub, T->ink, LV_OPA_COVER, CX, CY - 8, d);
-    if (g->pending.kind == SD_CMD)
-        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, CY - 36, S_CMD);
+    bool cmd = g->pending.kind == SD_CMD;
+    fmt_signed(d, sizeof(d), cmd ? -g->pending.amount : g->pending.amount); /* effect on life */
+    text(l, U.f_hub, T->ink, LV_OPA_COVER, CX, cmd ? CY - 3 : CY - 8, d);
+    if (cmd) /* the only mark that tells commander damage from combat damage: kept clear of the ring */
+        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, CY - 31, S_CMD);
     if (g->pending.src != g->pending.player) { /* source seat, drawn pointer, target seat: each in its own light */
         snprintf(sub, sizeof(sub), S_SEAT_FMT, g->pending.src + 1);
         text(l, U.f_small, T->seat[g->pending.src], LV_OPA_COVER, CX - 17, CY + 26, sub);
@@ -672,10 +719,10 @@ static void draw_hub_light(lv_layer_t *l)
         tri(l, CX - 4, CY + 21, CX - 4, CY + 31, CX + 4, CY + 26, T->ink);
     } else {
         snprintf(sub, sizeof(sub), "= %d", sd_game_view(g, g->pending.player).life);
-        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, CY + 26, sub);
+        text(l, U.f_label, T->ink, LV_OPA_COVER, CX, CY + 27, sub);
     }
-    /* the light ring closes clockwise over exactly SD_COMMIT_MS */
-    arc(l, HUB_R, -90.f, -90.f + 360.f * pending_progress(), 4, T->ink, LV_OPA_COVER);
+    /* the light ring closes clockwise over exactly SD_COMMIT_MS, on the edge of the glass */
+    arc(l, HUB_R + 3, -90.f, -90.f + 360.f * pending_progress(), 4, T->ink, LV_OPA_COVER);
 }
 
 static void draw_solo_light(lv_layer_t *l)
@@ -683,12 +730,12 @@ static void draw_solo_light(lv_layer_t *l)
     const sd_game_t *g = &U.g;
     const sd_player_t *p = &g->p[0];
     bool lost = sd_player_lost(g, 0);
-    lv_opa_t opa = lost ? LV_OPA_50 : LV_OPA_COVER; /* a defeated seat goes dark */
+    lv_opa_t opa = lost ? LV_OPA_60 : LV_OPA_COVER; /* a defeated seat goes dark */
     char buf[64];
     ground(l);
     knob_ring(l);
     if (!lost)
-        fx_halo(l, CX, 160, 150, T->seat[0], LV_OPA_60);
+        fx_halo(l, CX, 160, 150, T->seat[0], LV_OPA_40);
     snprintf(buf, sizeof(buf), S_SEAT_PROFILE_FMT, 1, U.profile_name);
     text(l, U.f_label, lost ? T->ink : T->seat[0], opa, CX, 62, buf);
     snprintf(buf, sizeof(buf), "%d", p->life);
@@ -726,27 +773,32 @@ static void draw_arena_light(lv_layer_t *l)
     const sd_game_t *g = &U.g;
     int n = g->n_players;
     float span = seat_span();
-    const float gap = 1.5f; /* degrees trimmed on each side: seats are parted by ground, not by rules */
+    const float gap = 2.f; /* whole degrees trimmed on each side (LVGL truncates arc angles): seats are parted by
+                           * ground, not by rules */
     const int r_out = R - 2, r_in = HUB_R + 8;
     ground(l);
     for (int i = 0; i < n; i++) { /* glass sectors, tinted by the seat's light */
         if (sd_player_lost(g, (uint8_t)i))
             continue; /* a defeated seat is switched off */
         float a = seat_angle(i);
-        arc(l, r_out, a - span / 2 + gap, a + span / 2 - gap, r_out - r_in, T->seat[i], i == U.sel ? 82 : 36);
+        /* selected glass is only a little brighter (46 vs 36 of 255): with its halo, more would take the white
+         * numeral under 7:1 on the gold seat. The selection is carried by a full-hue band on the rim instead. */
+        arc(l, r_out, a - span / 2 + gap, a + span / 2 - gap, r_out - r_in, T->seat[i], i == U.sel ? 46 : 36);
+        if (i == U.sel)
+            arc(l, r_out, a - span / 2 + gap, a + span / 2 - gap, 5, T->seat[i], LV_OPA_COVER);
     }
     if (!sd_player_lost(g, U.sel)) { /* the selected seat carries its halo */
         float a = seat_angle(U.sel) * (float)M_PI / 180.f;
         fx_halo(l, CX + (int)(R_NUM[n] * cosf(a)), CY + (int)(R_NUM[n] * sinf(a)), n == 2 ? 120 : 84, T->seat[U.sel],
-                LV_OPA_60);
+                LV_OPA_20); /* kept low: white numerals need 7:1 over it */
     }
     /* signature: the light points at the active seat, three rays from the hub */
-    float side = span / 4 > 20.f ? 20.f : span / 4;
-    for (int k = -1; k <= 1; k++)
-        fx_ray(l, CX, CY, seat_angle(g->active) + k * side, R - 6, T->ink, k ? LV_OPA_40 : LV_OPA_60);
+    float side = span / 4 < 24.f ? 24.f : span / 4 > 40.f ? 40.f : span / 4; /* the side rays flank the numeral */
+    for (int k = -1; k <= 1; k++) /* the centre ray stops short of it */
+        fx_ray(l, CX, CY, seat_angle(g->active) + k * side, k ? R - 6 : 72, T->ink, LV_OPA_70);
     for (int i = 0; i < n; i++) {
         bool sel = i == U.sel, lost = sd_player_lost(g, (uint8_t)i);
-        lv_opa_t opa = lost ? LV_OPA_40 : LV_OPA_COVER;
+        lv_opa_t opa = lost ? LV_OPA_60 : LV_OPA_COVER;
         float a = seat_angle(i) * (float)M_PI / 180.f, rot = seat_rot(i);
         int nx = CX + (int)(R_NUM[n] * cosf(a)), ny = CY + (int)(R_NUM[n] * sinf(a));
         int lh = lv_font_get_line_height(U.f_arena[n]);
@@ -770,7 +822,8 @@ static void draw_arena_light(lv_layer_t *l)
             snprintf(buf, sizeof(buf), S_SEAT_FMT "  %s", i + 1, cnt);
         else
             snprintf(buf, sizeof(buf), S_SEAT_FMT, i + 1);
-        text(ly, U.f_label, lost ? T->ink : T->seat[i], opa, nx, ny + lh / 2 - 8, buf);
+        /* 30 px label (readable across the table); white on the lit glass of the selected seat */
+        text(ly, U.f_row, lost || sel ? T->ink : T->seat[i], opa, nx, ny + lh / 2 - 6, buf);
         if (turn) {
             lv_draw_image_dsc_t d;
             lv_draw_image_dsc_init(&d);
@@ -1014,7 +1067,7 @@ static void draw_sheet_light(lv_layer_t *l)
     char buf[48];
     ground(l);
     knob_ring(l);
-    fx_halo(l, CX, 84, 96, T->seat[U.sel], LV_OPA_60);
+    fx_halo(l, CX, 84, 96, T->seat[U.sel], LV_OPA_30);
     snprintf(buf, sizeof(buf), S_SEAT_FMT, U.sel + 1);
     text(l, U.f_title, T->ink, LV_OPA_COVER, CX, 84, buf);
     text(l, U.f_label, T->seat[U.sel], LV_OPA_COVER, CX, 152, S_POISON);
@@ -1057,12 +1110,12 @@ static void draw_over_light(lv_layer_t *l)
     ground(l);
     knob_ring(l);
     if (w >= 0) { /* the winner's light fills the well */
-        fx_halo(l, CX, 120, 170, T->seat[w], LV_OPA_70);
+        fx_halo(l, CX, 120, 170, T->seat[w], LV_OPA_30);
         snprintf(buf, sizeof(buf), S_WINS_FMT, w + 1);
     } else
         snprintf(buf, sizeof(buf), S_DEFEAT);
     text(l, U.f_title, T->ink, w >= 0 ? LV_OPA_COVER : LV_OPA_60, CX, 112, buf);
-    text(l, U.f_label, w >= 0 ? T->seat[w] : T->ink, LV_OPA_COVER, CX, 158, S_GAME_OVER);
+    text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 158, S_GAME_OVER);
     pill(l, 70, 200, 290, 246, false);
     text(l, U.f_row, T->ink, LV_OPA_COVER, CX, 223, S_MENU_UNDO);
     pill(l, 70, 258, 290, 304, true);
@@ -1104,13 +1157,13 @@ static void draw_home_light(lv_layer_t *l)
         lv_draw_rect_dsc_init(&d);
         d.radius = LV_RADIUS_CIRCLE;
         d.bg_color = C(T->seat[i]);
-        d.bg_opa = on ? 90 : LV_OPA_TRANSP;
+        d.bg_opa = on ? 50 : LV_OPA_TRANSP;
         d.border_color = C(on ? T->seat[i] : T->ink);
         d.border_opa = on ? LV_OPA_COVER : LV_OPA_30;
         d.border_width = 2;
         lv_area_t a = {x - 18, y - 18, x + 18, y + 18};
         if (on)
-            fx_halo(l, x, y, 30, T->seat[i], LV_OPA_50);
+            fx_halo(l, x, y, 30, T->seat[i], LV_OPA_20);
         lv_draw_rect(l, &d, &a);
         snprintf(buf, sizeof(buf), S_SEAT_FMT, i + 1);
         text(l, U.f_small, T->ink, on ? LV_OPA_COVER : LV_OPA_40, x, y, buf);
@@ -1382,7 +1435,10 @@ void ui_tick(uint32_t now)
     }
     if (U.undo_until && now >= U.undo_until) {
         U.undo_until = 0;
-        redraw_hub();
+        if (T->light)
+            redraw(); /* the lit pill's halo reaches past the hub box */
+        else
+            redraw_hub();
     }
     if (!U.g.has_pending)
         return;

@@ -33,8 +33,7 @@ file(GLOB_RECURSE LVGL_SRC ${TP}/lvgl/src/*.c)
 add_library(lvgl ${LVGL_SRC})
 target_include_directories(lvgl PUBLIC ${TP}/lvgl ${TP}/lvgl/src ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(lvgl PUBLIC LV_CONF_INCLUDE_SIMPLE)
-# -fno-sanitize=shift: LVGL 9.2 radial gradients left-shift negative ints (lv_draw_sw_gradient.c), fine on GCC
-target_compile_options(lvgl PRIVATE -w -fno-sanitize=shift)
+target_compile_options(lvgl PRIVATE -w)
 target_link_libraries(lvgl PUBLIC m)
 
 add_library(shot shot.c)
@@ -63,6 +62,10 @@ target_link_libraries(sd_ui PUBLIC sd_profiles lvgl m)
 add_executable(test_fx test_fx.c)
 target_link_libraries(test_fx sd_ui shot)
 add_test(NAME fx COMMAND test_fx ${CMAKE_CURRENT_BINARY_DIR}/shots-out/fx-specimen.png)
+
+# not a test (timings): host/build/bench <profiles_dir>
+add_executable(bench bench.c)
+target_link_libraries(bench sd_ui shot)
 
 add_executable(shots shots.c)
 target_link_libraries(shots sd_ui shot)

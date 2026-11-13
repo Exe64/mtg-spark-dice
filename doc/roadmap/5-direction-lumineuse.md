@@ -58,8 +58,8 @@ Aucune (plan #1 livré). Bloque #6, #7 et #2 (leurs écrans sont construits dans
 - [x] Étape 4 — Écrans de partie dans le thème lumineux : Solo, Arène 1–4, moyeu, bande d'attente, pastille, marque de défaite (L · reasoning → Opus)
 - [x] Étape 5 — Menus dans le thème lumineux : menu de partie, journal, fiche joueur, fin de partie (M · standard → Sonnet)
 - [x] Étape 6 — Logo : intégration (accueil provisoire + écran de démarrage), nom du produit centralisé (S · standard → Sonnet)
-- [ ] Étape 7 — Design : captures des 2 thèmes, revue de finition, DESIGN.md (thème lumineux principal + booster), mesure du temps de rendu (M · standard → Sonnet)
-- [ ] 🧪 Tests — Rédiger et exécuter la procédure de test (avant-dernière étape, obligatoire)
+- [x] Étape 7 — Design : captures des 2 thèmes, revue de finition, DESIGN.md (thème lumineux principal + booster), mesure du temps de rendu (M · standard → Sonnet)
+- [x] 🧪 Tests — Rédiger et exécuter la procédure de test (avant-dernière étape, obligatoire)
 - [ ] ✅ Validation — Vérifier les résultats des tests et clôturer (dernière étape, obligatoire)
 
 ## Décisions techniques
@@ -74,7 +74,7 @@ Aucune (plan #1 livré). Bloque #6, #7 et #2 (leurs écrans sont construits dans
 | Nom du produit | SparkDice provisoire, « DiceSpark » à l'étude ; une seule constante pour renommer | Opérateur indécis (2026-11-12) ; deux compteurs MTG « Spark » existent déjà |
 | Logo | `ui/assets/logo.svg` : trait blanc, fond transparent, molette 3/4 crantée, d20 enfoncé, rayons ; généré par `ui/assets/logo_gen.py` | Validé par l'opérateur 2026-11-12, dessiné ensemble (Gemini n'y arrivait pas) |
 | Contrat lumineux | « Puits de lumière » : moyeu = source, fond #18214A→#060914, encre blanche au trait, sièges = lumière (#FF7A45, #3FD8C0, #FFC94D, #A98BFF) sur verre, 3 rayons vers le joueur actif, siège vaincu éteint | Étape 1 ; contrat dans `.impeccable/surfaces/ui-ui-c.md` |
-| Fond radial | Dégradé radial natif de LVGL 9.2 (`LV_USE_DRAW_SW_COMPLEX_GRADIENTS`), pas de masque pré-calculé | Déjà dans LVGL ; à vérifier sur matériel : coût d'un plein écran et bandes visibles en RGB565 (repli : masque A8 pré-calculé) |
+| Fond radial | Calculé une fois par teinte dans un tampon au format de l'écran, puis recopié ; tramé sur les écrans 16 bits. Le dégradé radial de LVGL, essayé à l'étape 2, est retiré | Mesure de l'étape 7 : le dégradé recalculé à chaque image coûtait 8 fois un fond uni. Le tramage vise les bandes en RGB565 ; il n'est compilé que pour le firmware et reste à voir sur matériel |
 | Teinte du bord | 27 % de chaque composante de la teinte du centre | Redonne exactement le couple du contrat (#18214A → #060914) |
 | Thème par défaut | Booster jusqu'à l'étape 4, puis Lumineux (`UI_THEME_DEFAULT`) | Les écrans lumineux n'existent pas avant l'étape 4 |
 | Stockage de l'apparence | Clés NVS `theme` et `ground`, hors sauvegarde de partie ; lues au démarrage, écrites par le sélecteur du plan #3 | Étape 2 |
@@ -89,6 +89,15 @@ Aucune (plan #1 livré). Bloque #6, #7 et #2 (leurs écrans sont construits dans
 | Écran de démarrage | Logo + nom pendant 1,5 s (`UI_BOOT_MS`), dans les deux thèmes ; un tap ou un cran de molette le passe | Étape 6 |
 | Accueil lumineux | Provisoire : mêmes lignes et zones de tap que l'accueil du plan #1, logo en haut, pastilles de verre | La refonte de l'accueil est dans le plan #2 |
 | Nom du produit | `UI_PRODUCT_NAME` dans `ui/ui.h`, seule occurrence | PRODUCT.md : le nom vit dans une constante |
+| Halos | Un masque calculé par rayon à sa taille d'affichage, 6 rayons gardés en mémoire | Mesure de l'étape 7 : redimensionner un masque unique à chaque image coûtait plusieurs fois un simple tracé |
+| Captures de référence | `.impeccable/review/` = thème lumineux, `.impeccable/review/booster/` = booster | Étape 7 ; les procédures T2 à T6 ci-dessous citent l'ancien emplacement du booster |
+| Revue de finition | Faite le 2026-11-13 contre le contrat : « à livrer après corrections ». Corrigé : moins de lumière sous les chiffres (blanc ≥ 7:1), rayons du joueur actif de part et d'autre du chiffre, libellé du siège sélectionné et « PARTIE TERMINÉE » en blanc, encre du siège vaincu à 60 %, CMDT dégagé de l'anneau, libellés de siège à 30 px, texte secondaire du moyeu à 24 px, jointures symétriques | Agent de revue impeccable ; 6 corrections sur 7 appliquées |
+| Jointures de l'Arène | Secteurs rognés de 2° de chaque côté (coins de fond), pas une bande constante de 6 px | LVGL tronque les angles d'arc au degré : 1,5° donnait une jointure inclinée |
+| Graine de concept | Non vérifiée : l'outil `impeccable` n'est pas installé ; le contrat indique « seed: none (unavailable) » | 7ᵉ point de la revue, sans effet visible |
+| Temps de rendu | Rapport lumineux/booster sur PC : 1,7 à 2,6 (accueil, menu, démarrage, Arène), 5 en Solo. Pas d'estimation en ms pour l'ESP32-S3 | Seul le rapport se transpose ; la valeur absolue demande le boîtier |
+| Siège sélectionné | Verre à peine plus clair (46 contre 36 sur 255) et bande de 5 px en pleine teinte sur le bord du secteur | Un verre plus clair faisait passer le chiffre blanc sous 7:1 sur le siège or ; la bande signale la sélection sans toucher au contraste |
+| Halos sous les titres | Fiche joueur et fin de partie à 30 %, pastilles de l'accueil à 20 % | Signalé par l'agent de documentation : titres blancs estimés entre 2,8:1 et 5,3:1 avant correction. Les contrastes sur halo sont estimés par calcul, pas mesurés |
+| Fin de la pastille d'annulation | Redessin complet en thème lumineux | Son halo dépasse la zone du moyeu ; un redessin partiel l'aurait laissé à l'écran (invisible sur PC, où chaque capture redessine tout) |
 
 ## Tests
 
@@ -174,6 +183,27 @@ grep -rn '"SPARKDICE"\|"SparkDice"' --include=*.c --include=*.h /srv/dev/mtg-dia
 # T6.5 firmware
 bash -c '. ~/esp/esp-idf/export.sh >/dev/null 2>&1 && cd /srv/dev/mtg-dial && idf.py build >/tmp/claude-1000/t6-5.log 2>&1; echo build_exit=$?'
 grep -c "warning:" /tmp/claude-1000/t6-5.log
+
+# --- T7 Design (étape 7) — à partir d'ici la référence du booster est .impeccable/review/booster/
+# T7.1 tests PC et ASan/UBSan
+cmake -S /srv/dev/mtg-dial/host -B /srv/dev/mtg-dial/host/build -G Ninja >/dev/null && cmake --build /srv/dev/mtg-dial/host/build | tail -1 && ctest --test-dir /srv/dev/mtg-dial/host/build | tail -3
+cmake -S /srv/dev/mtg-dial/host -B /srv/dev/mtg-dial/host/build-asan -G Ninja -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all" >/dev/null && cmake --build /srv/dev/mtg-dial/host/build-asan | tail -1 && ctest --test-dir /srv/dev/mtg-dial/host/build-asan | tail -3
+# T7.2 les captures de référence des deux thèmes sont celles que produit le code
+bash -c 'n=0; for f in /srv/dev/mtg-dial/.impeccable/review/[0-9]*.png /srv/dev/mtg-dial/.impeccable/review/fx-specimen.png; do cmp -s $f /srv/dev/mtg-dial/host/build/shots-out/$(basename $f) && n=$((n+1)); done; echo lumineux=$n/28'
+bash -c 'n=0; for f in /srv/dev/mtg-dial/.impeccable/review/booster/[0-9]*.png; do cmp -s $f /srv/dev/mtg-dial/host/build/shots-out/booster/$(basename $f) && n=$((n+1)); done; echo booster=$n/21'
+# T7.3 le booster n'a pas bougé depuis l'étape 4 (20 captures du plan #1, 3 retouchées à l'étape 4)
+bash -c 'cd /srv/dev/mtg-dial; n=0; for f in $(git ls-tree --name-only 1859bf7 .impeccable/review/ | grep "/[0-9]"); do git show 1859bf7:$f | cmp -s - .impeccable/review/booster/$(basename $f) && n=$((n+1)); done; echo inchanges=$n/20'
+# T7.4 les générateurs redonnent les fichiers commités
+python3 /srv/dev/mtg-dial/ui/assets/glow_gen.py /tmp/claude-1000/fx_a8.c && cmp /tmp/claude-1000/fx_a8.c /srv/dev/mtg-dial/ui/fx_a8.c && echo generateur_ok
+# T7.5 le dégradé radial de LVGL n'est plus utilisé
+grep -c "COMPLEX_GRADIENTS\|lv_grad_radial" /srv/dev/mtg-dial/ui/ui.c /srv/dev/mtg-dial/host/lv_conf.h /srv/dev/mtg-dial/sdkconfig.defaults /srv/dev/mtg-dial/host/CMakeLists.txt
+# T7.6 mesure du temps de rendu (indicatif : dépend de la machine)
+/srv/dev/mtg-dial/host/build/bench /srv/dev/mtg-dial/profiles/data
+# T7.7 DESIGN.md décrit les deux thèmes
+grep -c -i "lumineux" /srv/dev/mtg-dial/DESIGN.md; grep -c -i "booster" /srv/dev/mtg-dial/DESIGN.md
+# T7.8 firmware
+bash -c '. ~/esp/esp-idf/export.sh >/dev/null 2>&1 && cd /srv/dev/mtg-dial && idf.py build >/tmp/claude-1000/t7-8.log 2>&1; echo build_exit=$?'
+grep -c "warning:" /tmp/claude-1000/t7-8.log
 ```
 
 **Résultats attendus :**
@@ -198,6 +228,14 @@ grep -c "warning:" /tmp/claude-1000/t6-5.log
 - T6.3 : `identiques=20/20`.
 - T6.4 : `1`.
 - T6.5 : `build_exit=0`, `0` avertissement.
+- T7.1 : deux fois `100% tests passed, 0 tests failed out of 6`.
+- T7.2 : `lumineux=28/28` (27 écrans et la planche des primitives) et `booster=21/21`.
+- T7.3 : `inchanges=20/20` (les 20 captures du booster sont, à l'octet, celles du commit de l'étape 4).
+- T7.4 : `generateur_ok`.
+- T7.5 : `0` pour chacun des 4 fichiers.
+- T7.6 : un tableau de 7 écrans ; rapport lumineux/booster attendu sous 3 hors Solo, sous 6 en Solo (mesuré le 2026-11-13 : 1,7 à 2,6, et 5 en Solo).
+- T7.7 : deux nombres supérieurs à 0.
+- T7.8 : `build_exit=0`, `0` avertissement.
 
 ### Résultats joués et vérifiés
 
@@ -227,6 +265,15 @@ grep -c "warning:" /tmp/claude-1000/t6-5.log
 | 2026-11-13 | T6.3 booster = référence | `identiques=20/20` | `identiques=20/20` | ✅ PASS |
 | 2026-11-13 | T6.4 nom du produit | `1` | `1` | ✅ PASS |
 | 2026-11-13 | T6.5 firmware | `build_exit=0`, `0` | `build_exit=0`, `0` | ✅ PASS |
+| 2026-11-13 | T7.1 tests PC + ASan/UBSan | 6/6 deux fois, captures régénérées | 6/6 deux fois, capture écrite 17 s avant le contrôle | ✅ PASS (vérificateur indépendant) |
+| 2026-11-13 | T7.2 captures de référence | `lumineux=28/28`, `booster=21/21` | `lumineux=28/28`, `booster=21/21` | ✅ PASS |
+| 2026-11-13 | T7.3 booster inchangé depuis l'étape 4 | `inchanges=20/20` | `inchanges=20/20` | ✅ PASS |
+| 2026-11-13 | T7.4 générateur | `generateur_ok` | `generateur_ok` | ✅ PASS |
+| 2026-11-13 | T7.5 plus de dégradé radial LVGL | `0` ×4 | `0` ×4 | ✅ PASS |
+| 2026-11-13 | T7.6 temps de rendu | rapport < 3 hors Solo, < 6,5 en Solo | 1,9 à 2,6 ; Solo 4,4 et 4,5 | ✅ PASS |
+| 2026-11-13 | T7.7 DESIGN.md | deux nombres > 0, `json_ok` | `27`, `36`, `json_ok` | ✅ PASS |
+| 2026-11-13 | T7.8 firmware | `build_exit=0`, `0` | `build_exit=0`, `0` | ✅ PASS |
+| 2026-11-13 | 🧪 Tests finaux : T7.1 à T7.8 sur le code final (ils reprennent tous les contrôles des étapes 2 à 6) + T6.1 et T6.4 rejoués | tout PASS, `logo_ok`, `1` | T7 : PASS (vérificateur indépendant) ; `logo_ok`, `1` (rejoués par l'exécuteur, même contexte) | ✅ PASS |
 
 ## Journal de session
 
@@ -252,3 +299,8 @@ grep -c "warning:" /tmp/claude-1000/t6-5.log
 - 📋 Prochain : étape 6 (logo : accueil provisoire et écran de démarrage, nom du produit centralisé)
 - ✅ Fait : étape 6. Écran de démarrage avec le logo et le nom, accueil lumineux provisoire avec le logo, nom du produit en une constante.
 - 📋 Prochain : étape 7 (captures des deux thèmes, revue de finition, DESIGN.md, mesure du temps de rendu)
+- ✅ Fait : étape 7. Mesure du rendu (`host/bench.c`) puis fond et halos calculés une fois au lieu de chaque image ; captures de référence rangées par thème ; revue de finition et ses corrections ; DESIGN.md réécrit pour les deux thèmes.
+- 📋 Prochain : 🧪 Tests finaux, puis ✅ Validation par l'opérateur (regarder `.impeccable/review/contact-sheet.png`)
+- 🚧 À vérifier sur matériel : tramage du fond en RGB565 (code compilé pour le firmware seulement), coût réel du rendu
+- ✅ Fait : 🧪 Tests finaux (campagne T7 sur le code final, vérificateur indépendant : PASS).
+- 📋 Prochain : ✅ Validation par l'opérateur, sur la planche `.impeccable/review/contact-sheet.png`, puis clôture (plan vers `done/`, roadmap, issue #5)

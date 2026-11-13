@@ -1,12 +1,204 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-12T18:00:00+01:00",
+  "generatedAt": "2026-11-13T12:00:00+01:00",
   "title": "Design System: SparkDice",
   "extensions": {
     "colorMeta": {
+      "well-centre": {
+        "role": "neutral",
+        "displayName": "Well Centre (Nuit, default ground)",
+        "canonical": "#18214A",
+        "tonalRamp": [
+          "#060A1B",
+          "#1B2347",
+          "#333F6B",
+          "#53618F",
+          "#7584B5",
+          "#98A6D2",
+          "#C1CAE5",
+          "#EBEEF7"
+        ],
+        "theme": "lumineux"
+      },
+      "well-rim": {
+        "role": "neutral",
+        "displayName": "Well Rim (glass fill)",
+        "canonical": "#060914",
+        "tonalRamp": [
+          "#090B10",
+          "#222631",
+          "#3D4250",
+          "#5D6372",
+          "#808696",
+          "#A2A7B6",
+          "#C7CAD3",
+          "#EDEEF1"
+        ],
+        "theme": "lumineux"
+      },
+      "light-ink": {
+        "role": "neutral",
+        "displayName": "Light Ink",
+        "canonical": "#F4F7FF",
+        "tonalRamp": [
+          "#0A0B0D",
+          "#24262B",
+          "#404248",
+          "#61636A",
+          "#83868D",
+          "#A5A7AE",
+          "#C9CACE",
+          "#EEEEF0"
+        ],
+        "theme": "lumineux"
+      },
+      "light-ember": {
+        "role": "primary",
+        "displayName": "Ember (J1)",
+        "canonical": "#FF7A45",
+        "tonalRamp": [
+          "#200000",
+          "#471200",
+          "#732600",
+          "#A63C05",
+          "#D9581D",
+          "#F68357",
+          "#FEB79D",
+          "#FEE9E2"
+        ],
+        "theme": "lumineux"
+      },
+      "light-aqua": {
+        "role": "primary",
+        "displayName": "Aqua (J2)",
+        "canonical": "#3FD8C0",
+        "tonalRamp": [
+          "#00100C",
+          "#002E27",
+          "#004E44",
+          "#007465",
+          "#089C89",
+          "#43BFAA",
+          "#9BD9CC",
+          "#E0F3EF"
+        ],
+        "theme": "lumineux"
+      },
+      "light-gold": {
+        "role": "primary",
+        "displayName": "Gold Light (J3)",
+        "canonical": "#FFC94D",
+        "tonalRamp": [
+          "#140900",
+          "#332400",
+          "#553E02",
+          "#7D5E0A",
+          "#A87F15",
+          "#CDA038",
+          "#E2C791",
+          "#F6EEDD"
+        ],
+        "theme": "lumineux"
+      },
+      "light-iris": {
+        "role": "primary",
+        "displayName": "Iris (J4)",
+        "canonical": "#A98BFF",
+        "tonalRamp": [
+          "#0F0128",
+          "#2E0463",
+          "#4B2390",
+          "#6B49B7",
+          "#8D6EDF",
+          "#AD95F9",
+          "#CDC1FD",
+          "#EFECFE"
+        ],
+        "theme": "lumineux"
+      },
+      "ground-noir": {
+        "role": "neutral",
+        "displayName": "Ground Noir",
+        "canonical": "#14151A",
+        "tonalRamp": [
+          "#0B0B0D",
+          "#25262B",
+          "#414248",
+          "#616369",
+          "#84868C",
+          "#A6A7AD",
+          "#C9CACE",
+          "#EEEEEF"
+        ],
+        "theme": "lumineux"
+      },
+      "ground-amethyste": {
+        "role": "neutral",
+        "displayName": "Ground Améthyste",
+        "canonical": "#2B1A4A",
+        "tonalRamp": [
+          "#0D071A",
+          "#2B1D46",
+          "#47376A",
+          "#68588E",
+          "#8B7BB4",
+          "#AC9ED1",
+          "#CDC5E4",
+          "#EFEDF7"
+        ],
+        "theme": "lumineux"
+      },
+      "ground-foret": {
+        "role": "neutral",
+        "displayName": "Ground Forêt",
+        "canonical": "#12382B",
+        "tonalRamp": [
+          "#020E09",
+          "#0D2D22",
+          "#264B3D",
+          "#476D5E",
+          "#699080",
+          "#8FB1A2",
+          "#BCD0C7",
+          "#EAF0ED"
+        ],
+        "theme": "lumineux"
+      },
+      "ground-grenat": {
+        "role": "neutral",
+        "displayName": "Ground Grenat",
+        "canonical": "#4A1826",
+        "tonalRamp": [
+          "#180509",
+          "#401621",
+          "#642F3C",
+          "#88505D",
+          "#AE727F",
+          "#CD97A1",
+          "#E2C0C6",
+          "#F6EBED"
+        ],
+        "theme": "lumineux"
+      },
+      "ground-ardoise": {
+        "role": "neutral",
+        "displayName": "Ground Ardoise",
+        "canonical": "#28323F",
+        "tonalRamp": [
+          "#080B11",
+          "#1F2732",
+          "#394351",
+          "#596473",
+          "#7B8797",
+          "#9EA9B7",
+          "#C5CBD4",
+          "#ECEFF1"
+        ],
+        "theme": "lumineux"
+      },
       "wrapper-black": {
         "role": "neutral",
-        "displayName": "Wrapper Black",
+        "displayName": "Booster · Wrapper Black",
         "canonical": "#121014",
         "tonalRamp": [
           "#0C0A0E",
@@ -17,11 +209,12 @@
           "#A6A4A8",
           "#CAC8CB",
           "#EFEEF0"
-        ]
+        ],
+        "theme": "booster"
       },
       "wrapper-ink": {
         "role": "neutral",
-        "displayName": "Wrapper Ink",
+        "displayName": "Booster · Wrapper Ink",
         "canonical": "#FFF6E8",
         "tonalRamp": [
           "#0D0B07",
@@ -32,11 +225,12 @@
           "#ABA499",
           "#D0C8BC",
           "#F6EDE0"
-        ]
+        ],
+        "theme": "booster"
       },
       "seat-vermilion": {
         "role": "primary",
-        "displayName": "Seat Vermilion (J1)",
+        "displayName": "Booster · Seat Vermilion (J1)",
         "canonical": "#E4572E",
         "tonalRamp": [
           "#280000",
@@ -47,11 +241,12 @@
           "#FC7854",
           "#FFA482",
           "#FFCFB1"
-        ]
+        ],
+        "theme": "booster"
       },
       "seat-teal": {
         "role": "primary",
-        "displayName": "Seat Teal (J2)",
+        "displayName": "Booster · Seat Teal (J2)",
         "canonical": "#179C8E",
         "tonalRamp": [
           "#00120E",
@@ -62,11 +257,12 @@
           "#54B9AB",
           "#87DCCF",
           "#B7FFF3"
-        ]
+        ],
+        "theme": "booster"
       },
       "seat-gold": {
         "role": "primary",
-        "displayName": "Seat Gold (J3)",
+        "displayName": "Booster · Seat Gold (J3)",
         "canonical": "#F2B134",
         "tonalRamp": [
           "#1B0400",
@@ -77,11 +273,12 @@
           "#D4991F",
           "#FCBD48",
           "#FFE480"
-        ]
+        ],
+        "theme": "booster"
       },
       "seat-violet": {
         "role": "primary",
-        "displayName": "Seat Violet (J4)",
+        "displayName": "Booster · Seat Violet (J4)",
         "canonical": "#8A6CD0",
         "tonalRamp": [
           "#100029",
@@ -92,11 +289,12 @@
           "#AC93EE",
           "#CFBAFF",
           "#F3E2FF"
-        ]
+        ],
+        "theme": "booster"
       },
       "foil-silver": {
         "role": "secondary",
-        "displayName": "Foil Silver",
+        "displayName": "Booster · Foil Silver",
         "canonical": "#B9BEC6",
         "tonalRamp": [
           "#0A0B0E",
@@ -107,11 +305,12 @@
           "#A1A5AD",
           "#C4C9D1",
           "#EAEFF6"
-        ]
+        ],
+        "theme": "booster"
       },
       "foil-shine": {
         "role": "secondary",
-        "displayName": "Foil Shine",
+        "displayName": "Booster · Foil Shine",
         "canonical": "#F3F4F6",
         "tonalRamp": [
           "#0B0B0C",
@@ -122,7 +321,8 @@
           "#A4A5A6",
           "#C8C9CB",
           "#EDEEF0"
-        ]
+        ],
+        "theme": "booster"
       }
     },
     "typographyMeta": {
@@ -144,42 +344,162 @@
       },
       "title": {
         "displayName": "Title",
-        "purpose": "Profile name, Fiche seat, winner line."
+        "purpose": "Profile name, player-sheet seat number, winner line."
       },
       "headline-hub": {
         "displayName": "Headline Hub",
-        "purpose": "Pending delta in hub; active J# in resting hub; Fiche poison tally."
+        "purpose": "Pending delta and active J# in the hub; poison tally; product name on the boot screen."
       },
       "row": {
         "displayName": "Row",
-        "purpose": "Menu rows, primary buttons, foil text, undo-pill delta or hand-off, CMDT tallies."
+        "purpose": "Menu rows, main button, pending pill or band, hub undo amount, CMDT tallies; Lumineux arena seat labels."
       },
       "label": {
         "displayName": "Label",
-        "purpose": "Seat/profile lines, section labels, journal rows, Solo undo bar, secondary buttons."
+        "purpose": "Seat/profile line, section labels, journal rows, Solo undo; Lumineux hub TOUR n and = total; Booster arena seat labels."
       },
       "label-small": {
         "displayName": "Label Small",
-        "purpose": "Sub-lines, chip numbers, hub tags (TOUR n, CMDT, ANNULER), hub sub-line, hints."
+        "purpose": "Home sub-lines, chip numbers, hub CMDT tag and attack J#, sheet column labels, hints; Booster hub tags and sub-line."
       }
     },
     "shadows": [],
+    "light": [
+      {
+        "name": "well",
+        "value": "radial ground, centre colour at (180,180) to rim colour at radius 180; rim = 27 % of each centre channel; cached per ground in the display format; 4×4 Bayer dither on 16-bit",
+        "purpose": "Ground of every Lumineux screen; flat centre colour if the buffer cannot be allocated."
+      },
+      {
+        "name": "halo",
+        "value": "A8 Gaussian disc reaching zero at its radius (k 4.5); one mask per radius, 6 cached (LRU)",
+        "purpose": "Solo numeral r150 40 %; selected arena numeral r120 (2p) / r84 (3–4p) 20 %; sheet title r96 60 %; winner r170 70 %; lit home chip r30 50 %; journal seat point r14 100 %; boot logo r150 ink 20 %."
+      },
+      {
+        "name": "glowing-ring",
+        "value": "pre-rendered 128×128 A8 ring (native radius 48, sigma 5.5), scaled",
+        "purpose": "Hub glow: ink 70 % at rest, 30 % while pending."
+      },
+      {
+        "name": "ray",
+        "value": "pre-rendered 32×128 A8 beam, widening and fading; stretched to length, rotated",
+        "purpose": "Active seat: centre ray 72 px on the seat axis, side rays 174 px at ± clamp(span/4, 24°, 40°); ink 70 %."
+      },
+      {
+        "name": "glass",
+        "value": "rim colour at 215/255, rounded-full, border ink 1 px 30 % (unlit) or 2 px 80 % (lit); round fx_glass: 190/255, 1 px white border 20 % / 70 %, 1 px white top arc 205°–335° at 50 %, focused = white halo of 2× radius at 80 %",
+        "purpose": "Pills, menu focus, hub undo."
+      }
+    ],
+    "strokes": [
+      {
+        "name": "hairline",
+        "value": "1px",
+        "purpose": "Lumineux knob-ring circle, unlit glass borders, glass highlight."
+      },
+      {
+        "name": "rule",
+        "value": "2px",
+        "purpose": "Detent ticks, +/− marks, focus rule, journal rule, lit pill and chip borders; every Booster line."
+      },
+      {
+        "name": "hub-pending-arc",
+        "value": "4px at radius 51",
+        "purpose": "Lumineux hub pending arc, clockwise from −90°."
+      },
+      {
+        "name": "knob-pending-arc",
+        "value": "5px at radius 172",
+        "purpose": "Lumineux Solo and player-sheet pending arc, clockwise from −90°."
+      },
+      {
+        "name": "icon-stroke",
+        "value": "2.5px, round caps, 40×40 A8",
+        "purpose": "Eight line icons (settings, players, resume, game, undo, turn, wifi, room); only undo is used by current screens."
+      },
+      {
+        "name": "booster-crest",
+        "value": "6px at radius 176, inset 6°",
+        "purpose": "Booster active-seat crest."
+      }
+    ],
     "motion": [
       {
-        "name": "commit-seal",
+        "name": "commit",
         "value": "800ms linear",
-        "purpose": "Drawn seal length = elapsed share of SD_COMMIT_MS; closing completes the commit (foil sheen fills the band left to right, hub ring clockwise from 12 o'clock)."
+        "purpose": "Drawn extent of the pending arc (Lumineux) or foil seal (Booster) = elapsed share of SD_COMMIT_MS; closing completes the commit."
       },
       {
         "name": "undo-window",
         "value": "4000ms",
-        "purpose": "After any commit or pass, the hub (arena) or the bottom bar (Solo) offers ANNULER for 4 s."
+        "purpose": "After any commit or pass, the hub (arena) or the bottom pill/bar (Solo) offers undo for 4 s."
+      },
+      {
+        "name": "boot",
+        "value": "1500ms",
+        "purpose": "Logo and product name at power-on (UI_BOOT_MS); any tap or knob step skips it."
       }
     ],
     "breakpoints": [
       {
         "name": "dial",
         "value": "360px (round, 360×360)"
+      }
+    ],
+    "themes": [
+      {
+        "id": "UI_THEME_LUMINEUX",
+        "name": "Lumineux",
+        "default": true,
+        "tokens": "ui/theme_lumineux.c",
+        "drawing": "ui/ui.c functions ending in _light, draw_boot",
+        "captures": ".impeccable/review/"
+      },
+      {
+        "id": "UI_THEME_BOOSTER",
+        "name": "Booster",
+        "default": false,
+        "tokens": "ui/theme_booster.c",
+        "drawing": "ui/ui.c draw_solo, draw_arena, draw_hub, draw_home, draw_menu, draw_log, draw_sheet, draw_over, draw_boot",
+        "captures": ".impeccable/review/booster/"
+      }
+    ],
+    "grounds": [
+      {
+        "index": 0,
+        "name": "Nuit",
+        "centre": "#18214A",
+        "rim": "#060914"
+      },
+      {
+        "index": 1,
+        "name": "Noir",
+        "centre": "#14151A",
+        "rim": "#050607"
+      },
+      {
+        "index": 2,
+        "name": "Améthyste",
+        "centre": "#2B1A4A",
+        "rim": "#0C0714"
+      },
+      {
+        "index": 3,
+        "name": "Forêt",
+        "centre": "#12382B",
+        "rim": "#050F0C"
+      },
+      {
+        "index": 4,
+        "name": "Grenat",
+        "centre": "#4A1826",
+        "rim": "#14060A"
+      },
+      {
+        "index": 5,
+        "name": "Ardoise",
+        "centre": "#28323F",
+        "rim": "#0B0E11"
       }
     ],
     "seal": [
@@ -218,186 +538,296 @@
       "seatFrame": {
         "layerBox": "300px wide (2 players) / 190px (3–4) × (line height + 44px)",
         "numeral": "ny − 8",
-        "label": "ny + lh/2 − 8 (rim side)",
+        "label": "ny + lh/2 − 6 (Lumineux) / − 8 (Booster), rim side",
         "pmMarks": "ny − 6, ±110px (2p) / ±64px (3–4p), 18px drawn marks",
         "pmTap": "|local x| > 26px in the seat frame"
       },
-      "solo": {
-        "pmMarks": "±136px at y 162",
-        "pmTap": "x < 110 / x ≥ 250",
-        "undoBar": "x 100–260, y 282–318"
+      "lumineux": {
+        "sectors": "arcs from radius 56 to 178, 2° trimmed on each side (4° wedge of ground between seats); tint 36/255 at rest, 46/255 selected plus a 5 px full-hue band on the rim; defeated seat not drawn",
+        "knobRing": "1px circle at radius 170, 16 ticks of 2px from radius 170 to 177, ink 40 %; Solo, player sheet, game over",
+        "solo": {
+          "halo": "(180,160) r150 40 %",
+          "seatLine": "y 62",
+          "numeral": "y 158",
+          "pmMarks": "±136px at y 162",
+          "counters": "y 326",
+          "pendingPill": "x 96–264, y 252–296",
+          "undoPill": "x 100–260, y 282–318",
+          "pmTap": "x < 110 / x ≥ 250"
+        },
+        "hub": {
+          "rest": "TOUR n (Label, ink) at CY−22 over active J# (Headline Hub, seat hue) at CY+9",
+          "pending": "delta at CY−8 (CY−3 with the CMDT tag at CY−31); = total (Label) at CY+27; attack J# (Label Small, seat hues) at CX∓17, CY+26 with a drawn 8×10 ink triangle; arc 4px at radius 51",
+          "undo": "fx_glass r48 focused; undo icon at CY−17; amount or J1 › J2 (Row) at CY+20",
+          "repaint": "invalidate (CX,CY) ± 66px while only the hub changes"
+        },
+        "home": "interim: logo y 40, name y 108, sub-line y 148 (80 %), chips centred y 190 from x 114 at 44px pitch, count y 228, focus rule y 164 / 244, pills y 258–304",
+        "menu": "rows at y 76 + 52·i; focus pill y−24..y+23, half-width min(144, sqrt(180² − (|y−180|+24)²) − 8)",
+        "sheet": "halo (180,84) r96 60 %; POISON y 152; tally y 182; pending pill x 106–254, y 208–246; CMDT y 268; columns 78px pitch, labels y 290, tallies y 314",
+        "over": "halo (180,120) r170 70 %; title y 112; subline y 158; pills x 70–290 at y 200–246 and y 258–304",
+        "boot": "ink halo (180,150) r150 20 %; logo centred (180,142); name y 290"
       },
-      "hub": {
-        "rest": "TOUR n (Label Small, ink) at CY−20 over active J# (Headline Hub, seat hue) at CY+8",
-        "undo": "ink disc, ANNULER at CY−14, delta or J1 › J2 at CY+12",
-        "pending": "delta at CY−8, CMDT tag at CY−36, sub-line at CY+26 with drawn 8×10 triangle",
-        "repaint": "invalidate (CX,CY) ± 54px only while only the hub changes"
+      "booster": {
+        "solo": {
+          "pmMarks": "±136px at y 162",
+          "pmTap": "x < 110 / x ≥ 250",
+          "undoBar": "x 100–260, y 282–318"
+        },
+        "hub": {
+          "rest": "TOUR n (Label Small, ink) at CY−20 over active J# (Headline Hub, seat hue) at CY+8",
+          "undo": "ink disc, ANNULER at CY−14, delta or J1 › J2 at CY+12",
+          "pending": "delta at CY−8, CMDT tag at CY−36, sub-line at CY+26 with drawn 8×10 triangle",
+          "repaint": "invalidate (CX,CY) ± 54px only while only the hub changes"
+        },
+        "seams": "2px, hub edge to rim",
+        "home": "name y 104, sub-line y 146, square chips y 172–208, focus rule y 162 / 242, bars y 258–304",
+        "sheet": "hue band to y 132; CMDT columns 84px pitch"
       }
     },
-    "platform": "LVGL 9 draw calls; tokens are ui_theme_t constants in ui/theme_booster.c; fonts via lv_tiny_ttf, kerning off"
+    "provenance": {
+      "record": "ui/assets/README.md",
+      "fonts": "Barlow Condensed ExtraBold and SemiBold, google/fonts ofl/barlowcondensed, SIL OFL 1.1; GPOS tag renamed by ui/assets/strip_gpos.py, outlines and metrics unchanged",
+      "defeatMark": "ui/assets/dead.svg, owner-supplied 2026-11-12, converted by svg2a8.py to a 160×160 A8 mask (ui/skull_a8.c); resembles the Magic black mana symbol, Wizards materials allowed by the owner (PRODUCT.md)",
+      "lightMasksAndIcons": "ui/fx_a8.c generated by ui/assets/glow_gen.py (stdlib only): ring 128×128, ray 32×128, eight 40×40 line icons; computed by the script, no external source",
+      "logo": "ui/logo_a8.c generated by ui/assets/logo2a8.py from ui/assets/logo.svg (owner-approved 2026-11-12, drawn by logo_gen.py): 237×195 and 72×60 A8 masks, rendered through GdkPixbuf and librsvg",
+      "computedAtRunTime": "halos (ui/fx.c) and the radial well (ui/ui.c) are not assets"
+    },
+    "review": {
+      "date": "2026-11-13",
+      "contract": ".impeccable/surfaces/ui-ui-c.md",
+      "verdict": "ship after fixes (as reported by the build session; no review file in the repository)",
+      "notVerified": [
+        "Nothing seen on real hardware: RGB565 dithering of the ground, render cost on the ESP32-S3.",
+        "Contrast of ink over halos and tinted glass is not measured; only ink on the bare ground is asserted (host/shots.c).",
+        "The Lumineux home is an interim layout that plan #2 rebuilds.",
+        "Concept seed: the contract says \"seed: none (unavailable)\"."
+      ],
+      "renderCostPc": "host/bench.c, unoptimised build, full redraw: Lumineux ≈ 2–2.6× Booster on boot, home and menu; ≈ 5× on Solo; ≈ 1.6–1.8× in the 4-player arena"
+    },
+    "platform": "LVGL 9.2 draw calls into one full-screen object; tokens are ui_theme_t constants in ui/theme_lumineux.c and ui/theme_booster.c; light primitives in ui/fx.c; fonts via lv_tiny_ttf, kerning off"
   },
   "components": [
     {
-      "name": "Primary Button",
+      "name": "Glass Pill (lit)",
       "kind": "button",
-      "refersTo": "button-primary",
-      "description": "Ink-inverse action bar (JOUER, REPRENDRE); knob focus is a straight 2 px underline, not a hover.",
-      "html": "<button class=\"ds-btn-primary\">JOUER</button>",
-      "css": ".ds-btn-primary{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;font-size:30px;background:#FFF6E8;color:#121014;height:46px;padding:0 24px;border:none;border-radius:0;} .ds-btn-primary:focus-visible{outline:2px solid #FFF6E8;outline-offset:4px;} .ds-btn-primary:active{background:#121014;color:#FFF6E8;box-shadow:inset 0 0 0 2px #FFF6E8;}"
+      "refersTo": "glass-pill-lit",
+      "description": "Lumineux. The thing to tap right now: rim-colour glass at 215/255, 2 px ink border at 80 %. JOUER, REPRENDRE when a save exists, NOUVELLE PARTIE, the Solo undo. No hover on the device; knob focus on the home is a 2 px ink rule.",
+      "html": "<div class=\"ds-well\"><button class=\"ds-pill ds-lit\">JOUER</button></div>",
+      "css": ".ds-well{display:inline-flex;gap:10px;align-items:center;padding:18px;background:radial-gradient(circle,#18214A,#060914);} .ds-pill{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;font-size:30px;height:46px;padding:0 28px;border-radius:9999px;background:rgba(6,9,20,.84);color:#F4F7FF;border:1px solid rgba(244,247,255,.3);} .ds-pill.ds-lit{border:2px solid rgba(244,247,255,.8);} .ds-pill:focus-visible{outline:2px solid #F4F7FF;outline-offset:4px;} .ds-pill:hover,.ds-pill:active{border-color:#F4F7FF;}"
     },
     {
-      "name": "Secondary Button",
+      "name": "Glass Pill (unlit)",
       "kind": "button",
-      "refersTo": "button-secondary",
-      "description": "2 px ink outline on ground; JOUER when a saved game makes REPRENDRE primary.",
-      "html": "<button class=\"ds-btn-secondary\">JOUER</button>",
-      "css": ".ds-btn-secondary{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;font-size:24px;background:#121014;color:#FFF6E8;height:46px;padding:0 24px;border:2px solid #FFF6E8;border-radius:0;} .ds-btn-secondary:focus-visible{outline:2px solid #FFF6E8;outline-offset:4px;} .ds-btn-secondary:active{background:#FFF6E8;color:#121014;}"
+      "refersTo": "glass-pill",
+      "description": "Lumineux. The secondary action or a waiting value: the same glass with a 1 px ink border at 30 %.",
+      "html": "<div class=\"ds-well\"><button class=\"ds-pill\">ANNULER</button><button class=\"ds-pill ds-lit\">NOUVELLE PARTIE</button></div>",
+      "css": ".ds-well{display:inline-flex;gap:10px;align-items:center;padding:18px;background:radial-gradient(circle,#18214A,#060914);} .ds-pill{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;font-size:30px;height:46px;padding:0 28px;border-radius:9999px;background:rgba(6,9,20,.84);color:#F4F7FF;border:1px solid rgba(244,247,255,.3);} .ds-pill.ds-lit{border:2px solid rgba(244,247,255,.8);} .ds-pill:focus-visible{outline:2px solid #F4F7FF;outline-offset:4px;} .ds-pill:hover,.ds-pill:active{border-color:#F4F7FF;}"
     },
     {
       "name": "Menu",
       "kind": "nav",
       "refersTo": "menu-row-focus",
-      "description": "Five centred rows at 52 px pitch; focused row is an ink-inverse bar. The undo row previews the action (an automatic pass previews its cause).",
+      "description": "Lumineux. Five centred rows at a 52 px pitch; the focused row sits in a lit glass pill kept inside the round bezel, the others are ink at 70 %. The undo row previews the action.",
       "html": "<nav class=\"ds-menu\"><div class=\"ds-menu-row ds-on\">ANNULER  J1  PV −3</div><div class=\"ds-menu-row\">JOURNAL</div><div class=\"ds-menu-row\">FICHE J1</div><div class=\"ds-menu-row\">NOUVELLE PARTIE</div><div class=\"ds-menu-row\">RETOUR</div></nav>",
-      "css": ".ds-menu{background:#121014;width:288px;padding:8px 0;} .ds-menu-row{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;font-size:30px;color:#FFF6E8;height:52px;line-height:52px;text-align:center;white-space:pre;} .ds-menu-row.ds-on,.ds-menu-row:hover{background:#FFF6E8;color:#121014;}"
+      "css": ".ds-menu{width:300px;padding:8px 6px;background:radial-gradient(circle,#18214A,#060914);} .ds-menu-row{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;font-size:30px;color:rgba(244,247,255,.7);height:47px;line-height:47px;margin:5px 0;text-align:center;white-space:pre;border-radius:9999px;border:2px solid transparent;} .ds-menu-row.ds-on,.ds-menu-row:hover{color:#F4F7FF;background:rgba(6,9,20,.84);border-color:rgba(244,247,255,.8);}"
     },
     {
       "name": "Seat Chips",
       "kind": "chip",
-      "refersTo": "seat-chip-on",
-      "description": "Home player count: in-game seats filled in hue with black J#, unused seats outlined in hue.",
-      "html": "<div class=\"ds-chips\"><span class=\"ds-chip\" style=\"background:#E4572E\">J1</span><span class=\"ds-chip\" style=\"background:#179C8E\">J2</span><span class=\"ds-chip ds-off\" style=\"color:#F2B134;border-color:#F2B134\">J3</span><span class=\"ds-chip ds-off\" style=\"color:#8A6CD0;border-color:#8A6CD0\">J4</span></div>",
-      "css": ".ds-chips{display:flex;gap:8px;background:#121014;padding:12px;} .ds-chip{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;font-size:20px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:#121014;box-sizing:border-box;} .ds-chip.ds-off{background:transparent;border:2px solid;}"
+      "refersTo": "seat-chip-lit",
+      "description": "Lumineux home (interim layout). Seats in play are lit: hue at 50/255 inside a 2 px hue border over a 20 % halo; the others are empty glass with a 2 px ink border at 30 %.",
+      "html": "<div class=\"ds-well\"><span class=\"ds-chip\" style=\"--h:255,122,69\">J1</span><span class=\"ds-chip\" style=\"--h:63,216,192\">J2</span><span class=\"ds-chip ds-off\">J3</span><span class=\"ds-chip ds-off\">J4</span></div>",
+      "css": ".ds-well{display:inline-flex;gap:10px;align-items:center;padding:18px;background:radial-gradient(circle,#18214A,#060914);} .ds-chip{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;font-size:20px;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#F4F7FF;background:rgba(var(--h),.35);border:2px solid rgb(var(--h));box-shadow:0 0 14px rgba(var(--h),.5);box-sizing:border-box;} .ds-chip.ds-off{background:transparent;border-color:rgba(244,247,255,.3);box-shadow:none;color:rgba(244,247,255,.4);}"
     },
     {
-      "name": "Pending Band",
+      "name": "Seat Glass",
+      "kind": "card",
+      "refersTo": "seat-glass",
+      "description": "Lumineux arena seat, drawn in its own frame turned to face its player. At rest: glass tinted 36/255, ink numeral, 30 px label in the seat hue. Selected: tint 46/255, a 5 px full-hue rim band, a 20 % halo, numeral, label and drawn +/− in ink. Defeated: no tint, the skull mark (ui/assets/dead.svg as an A8 mask; the snippet shows a neutral placeholder) and J# VAINCU in ink at 60 %.",
+      "html": "<div class=\"ds-seats\"><div class=\"ds-seat ds-sel\" style=\"--h:255,122,69\"><b>40</b><small>J1</small></div><div class=\"ds-seat\" style=\"--h:63,216,192\"><b>34</b><small>J2  POISON 3</small></div><div class=\"ds-seat ds-lost\"><svg class=\"ds-skull\" viewBox=\"0 0 100 100\" aria-label=\"Placeholder for ui/assets/dead.svg\"><circle cx=\"50\" cy=\"50\" r=\"45\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"6\"/><path d=\"M50 22a22 22 0 0 0-22 22c0 9 5 15 10 18v12h24V62c5-3 10-9 10-18a22 22 0 0 0-22-22z\" fill=\"currentColor\"/></svg><small>J4  VAINCU</small></div></div>",
+      "css": ".ds-seats{display:flex;gap:6px;padding:6px;background:radial-gradient(circle,#18214A,#060914);} .ds-seat{width:140px;height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(var(--h),.14);color:#F4F7FF;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;white-space:pre;} .ds-seat b{font-weight:800;font-size:80px;line-height:1;} .ds-seat small{font-weight:600;font-size:30px;color:rgb(var(--h));} .ds-seat.ds-sel{background:radial-gradient(circle 84px,rgba(var(--h),.2),transparent),rgba(var(--h),.25);} .ds-seat.ds-sel small{color:#F4F7FF;} .ds-seat.ds-lost{background:none;color:rgba(244,247,255,.6);} .ds-seat.ds-lost small{color:inherit;} .ds-skull{width:62px;height:62px;}"
+    },
+    {
+      "name": "Hub",
       "kind": "custom",
-      "refersTo": "pending-band",
-      "description": "Solid silver band carrying the pending delta, 2 px edges always complete; the foil sheen fills it left to right over 800 ms (the commit), nothing ahead of the progress.",
+      "refersTo": "hub-glass",
+      "description": "Lumineux. Radius-48 disc in the rim colour inside a baked glowing ring (approximated here by a shadow). At rest: TOUR n over the active J# in its hue; tap = next turn. Pending: the glow drops to 30 %, a 4 px ink arc at radius 51 closes clockwise from 12 o'clock over 800 ms; attack shows the two J# in their hues around a drawn triangle, with a CMDT tag for commander damage.",
+      "html": "<div class=\"ds-well\"><div class=\"ds-hub\"><small>TOUR 1</small><b style=\"color:#FF7A45\">J1</b></div><div class=\"ds-hub-arc\"><div class=\"ds-hub ds-pend\"><i>CMDT</i><b>−5</b><em><span style=\"color:#FFC94D\">J3</span><span class=\"ds-tri\"></span><span style=\"color:#FF7A45\">J1</span></em></div></div></div>",
+      "css": ".ds-well{display:inline-flex;gap:10px;align-items:center;padding:18px;background:radial-gradient(circle,#18214A,#060914);} .ds-hub{width:96px;height:96px;border-radius:50%;background:#060914;box-shadow:0 0 12px 2px rgba(244,247,255,.7);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;color:#F4F7FF;} .ds-hub small{font-weight:600;font-size:24px;line-height:1;} .ds-hub b{font-weight:800;font-size:48px;line-height:.9;} .ds-hub i{font-style:normal;font-weight:600;font-size:20px;line-height:.8;} .ds-hub em{font-style:normal;font-weight:600;font-size:20px;line-height:1;display:flex;gap:4px;align-items:center;} .ds-hub.ds-pend{box-shadow:0 0 12px 2px rgba(244,247,255,.3);} .ds-hub.ds-pend b{font-size:44px;} .ds-hub-arc{padding:6px;border-radius:50%;background:conic-gradient(#F4F7FF 0 65%,transparent 0);} .ds-tri{width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:8px solid #F4F7FF;}"
+    },
+    {
+      "name": "Hub Undo",
+      "kind": "button",
+      "refersTo": "hub-undo",
+      "description": "Lumineux. For 4 s after a commit the hub is a focused round glass button with a white halo: the undo line icon over the amount it reverses, or J1 › J2 after a pass. No word, so it reads upside down; tap = undo.",
+      "html": "<div class=\"ds-well\"><button class=\"ds-hub-undo\"><svg viewBox=\"0 0 40 40\" width=\"40\" height=\"40\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M11.13 18.41A10.5 10.5 0 1 1 15.75 31.09\"/><path d=\"M5 12L11.1 18.4L17.5 13\"/></svg><b>J1 › J2</b></button></div>",
+      "css": ".ds-well{display:inline-flex;gap:10px;align-items:center;padding:40px;background:radial-gradient(circle,#18214A,#060914);} .ds-hub-undo{width:96px;height:96px;border-radius:50%;background:rgba(6,9,20,.75);border:1px solid rgba(255,255,255,.7);border-top-color:#fff;box-shadow:0 0 44px 10px rgba(255,255,255,.35);color:#F4F7FF;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;} .ds-hub-undo svg{margin-top:-4px;} .ds-hub-undo b{font-weight:600;font-size:30px;line-height:.9;} .ds-hub-undo:focus-visible{outline:2px solid #F4F7FF;outline-offset:4px;} .ds-hub-undo:active{background:#060914;}"
+    },
+    {
+      "name": "Pending Pill",
+      "kind": "custom",
+      "refersTo": "pending-pill",
+      "description": "Lumineux Solo and player sheet. The pending delta and the resulting total wait in an unlit glass pill while a 5 px ink arc runs once around the knob ring (radius 172) in 800 ms; the arc closing is the commit.",
+      "html": "<div class=\"ds-well\"><div class=\"ds-pend-pill\">−3  = 37</div></div>",
+      "css": ".ds-well{display:inline-flex;gap:10px;align-items:center;padding:18px;background:radial-gradient(circle,#18214A,#060914);} .ds-pend-pill{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;font-size:30px;width:168px;height:44px;line-height:44px;text-align:center;white-space:pre;border-radius:9999px;background:rgba(6,9,20,.84);border:1px solid rgba(244,247,255,.3);color:#F4F7FF;}"
+    },
+    {
+      "name": "Booster Primary Button",
+      "kind": "button",
+      "refersTo": "booster-button-primary",
+      "description": "Booster (theme 2). Ink-inverse action bar (JOUER, REPRENDRE); knob focus is a straight 2 px underline, not a hover.",
+      "html": "<button class=\"ds-btn-primary\">JOUER</button>",
+      "css": ".ds-btn-primary{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;font-size:30px;background:#FFF6E8;color:#121014;height:46px;padding:0 24px;border:none;border-radius:0;} .ds-btn-primary:focus-visible{outline:2px solid #FFF6E8;outline-offset:4px;} .ds-btn-primary:active{background:#121014;color:#FFF6E8;box-shadow:inset 0 0 0 2px #FFF6E8;}"
+    },
+    {
+      "name": "Booster Pending Band",
+      "kind": "custom",
+      "refersTo": "booster-pending-band",
+      "description": "Booster (theme 2). Solid silver band carrying the pending delta, 2 px edges always complete; the foil sheen fills it left to right over 800 ms (the commit), nothing ahead of the progress.",
       "html": "<div class=\"ds-foil\"><span>−3  = 37</span></div>",
       "css": ".ds-foil{position:relative;box-sizing:border-box;width:360px;height:46px;display:flex;align-items:center;justify-content:center;background:#B9BEC6;border-top:2px solid #121014;border-bottom:2px solid #121014;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;font-size:30px;color:#121014;white-space:pre;} .ds-foil::before{content:'';position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,#B9BEC6,#F3F4F6);animation:ds-seal 800ms linear forwards;} .ds-foil span{position:relative;} @keyframes ds-seal{to{width:100%;}}"
     },
     {
-      "name": "Seat Field",
+      "name": "Booster Seat Field",
       "kind": "card",
-      "refersTo": "seat-chip-on",
-      "description": "Each arena seat drawn in its own frame turned to face its player, label on the rim side. Selected: hue field with black numeral, label and drawn +/−; unselected: hue numeral on ground; defeated: the skull mark (owner-supplied ui/assets/dead.svg, skull inside a ring, as a 160x160 A8 mask recolored to the seat hue; arena line height x 84 % at ny - 14, Solo 150 px at (CX, 158); Wizards materials allowed by the owner, see PRODUCT.md; snippet shows a neutral placeholder) replaces the total, label J# VAINCU; the total returns on undo.",
+      "refersTo": "booster-seat-chip-on",
+      "description": "Booster (theme 2). Each arena seat drawn in its own frame turned to face its player, label on the rim side. Selected: hue field with black numeral, label and drawn +/−; unselected: hue numeral on ground; defeated: the skull mark (owner-supplied ui/assets/dead.svg, skull inside a ring, as a 160x160 A8 mask recolored to the seat hue; arena line height x 84 % at ny - 14, Solo 150 px at (CX, 158); Wizards materials allowed by the owner, see PRODUCT.md; snippet shows a neutral placeholder) replaces the total, label J# VAINCU; the total returns on undo.",
       "html": "<div class=\"ds-seats\"><div class=\"ds-seat ds-sel\"><b>40</b><small>J1</small></div><div class=\"ds-seat\" style=\"color:#179C8E\"><small>J2  POISON 3</small><b>34</b></div><div class=\"ds-seat ds-lost\" style=\"color:#8A6CD0\"><small>J4  VAINCU</small><svg class=\"ds-skull\" viewBox=\"0 0 100 100\" aria-label=\"Placeholder for ui/assets/dead.svg\"><circle cx=\"50\" cy=\"50\" r=\"45\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"6\"/><path d=\"M50 22a22 22 0 0 0-22 22c0 9 5 15 10 18v12h24V62c5-3 10-9 10-18a22 22 0 0 0-22-22z\" fill=\"currentColor\"/></svg></div></div>",
       "css": ".ds-seats{display:flex;gap:2px;background:#121014;} .ds-seat{width:140px;height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#121014;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;white-space:pre;} .ds-seat b{font-weight:800;font-size:80px;line-height:1;} .ds-seat small{font-weight:600;font-size:24px;} .ds-seat.ds-sel{background:#E4572E;color:#121014;} .ds-skull{width:62px;height:62px;}"
     },
     {
-      "name": "Hub Seal",
+      "name": "Booster Hub Seal",
       "kind": "custom",
-      "refersTo": "hub-pending",
-      "description": "Radius-48 hub: at rest a closed 2 px ring with TOUR n over the active J# (tap = next turn); while pending, foil with the life-effect delta (or J3 ▸ J1 for an attack, CMDT tag for commander damage) and a 2 px ring drawn clockwise from 12 o'clock over 800 ms.",
+      "refersTo": "booster-hub-pending",
+      "description": "Booster (theme 2). Radius-48 hub: at rest a closed 2 px ring with TOUR n over the active J# (tap = next turn); while pending, foil with the life-effect delta (or J3 ▸ J1 for an attack, CMDT tag for commander damage) and a 2 px ring drawn clockwise from 12 o'clock over 800 ms.",
       "html": "<div class=\"ds-hub\"><i>CMDT</i><b>−5</b><small>J3 <span class=\"ds-tri\"></span> J1</small></div>",
       "css": ".ds-hub{width:96px;height:96px;border-radius:50%;background:linear-gradient(90deg,#B9BEC6 0%,#F3F4F6 59%,#B9BEC6 100%);box-shadow:0 0 0 2px #FFF6E8;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;color:#121014;} .ds-hub b{font-weight:800;font-size:48px;line-height:.9;} .ds-hub small{font-weight:600;font-size:20px;} .ds-hub i{font-style:normal;font-weight:600;font-size:20px;line-height:1;} .ds-tri{display:inline-block;width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:8px solid #121014;}"
-    },
-    {
-      "name": "Hub Undo Pill",
-      "kind": "button",
-      "refersTo": "hub-undo",
-      "description": "For 4 s after a commit the hub is an ink-inverse disc: ANNULER over the delta it reverses, or J1 › J2 after a pass; tap = undo.",
-      "html": "<button class=\"ds-hub-undo\"><small>ANNULER</small><b>J1 › J2</b></button>",
-      "css": ".ds-hub-undo{width:96px;height:96px;border-radius:50%;border:none;background:#FFF6E8;color:#121014;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;} .ds-hub-undo small{font-size:20px;} .ds-hub-undo b{font-weight:600;font-size:30px;line-height:1;} .ds-hub-undo:focus-visible{outline:2px solid #FFF6E8;outline-offset:4px;} .ds-hub-undo:active{background:#121014;color:#FFF6E8;}"
-    },
-    {
-      "name": "Active-Seat Crest",
-      "kind": "custom",
-      "refersTo": "seat-chip-on",
-      "description": "Solid 6 px arc along the active seat's rim (radius R−4, inset 6° at each end); black on the selected field, ink otherwise.",
-      "html": "<div class=\"ds-crest\"></div>",
-      "css": ".ds-crest{width:240px;height:40px;background:#E4572E;position:relative;} .ds-crest::before{content:'';position:absolute;left:12px;right:12px;top:4px;height:6px;background:#121014;}"
     }
   ],
   "narrative": {
-    "northStar": "The Sealed Booster",
-    "overview": "The dial is a booster wrapper. Each seat is a saturated wrapper field on a wrapper-interior black ground. A pending change rides a dull silver band that the foil sheen fills from left to right in exactly 800 ms (on the hub, a 2 px ring closes clockwise); when the seal is complete, the change is committed. This one metaphor governs every surface: colour fields, a single foil, and the closing seal as the only ornament and the only progress indicator. Every edge is smooth: the user rejected the zigzag crimp (2026-11-12).\n\nDensity is low and the type is loud. Every screen has one huge condensed numeral or title, a single line of uppercase labels, and nothing else. Hierarchy comes from size and field fill, not from tints, shadows or opacity. The build is drawn in code (LVGL 9 draw calls into one full-screen object), so the system consists of flat fills, 2 px lines, filled triangles, one horizontal foil gradient and two TTF faces; in the arena each seat is drawn into its own layer and turned to face its player. The dial is round (360×360) and every layout is centred on (180, 180).\n\nRejected (from the contract): the default life-counter look of a black dial, a white number, a thin progress ring and rainbow quadrants. Also rejected by the product record: any copy of Soul Dial branding, and any Wizards of the Coast logos, mana symbols or card art.",
+    "northStar": "The Well of Light",
+    "overview": "The dial is the knob's well of light seen from above, as in the logo. The hub at the centre is the light source and everything is lit from the centre outward: a dark ground that falls from a bluish centre to a near-black rim, white ink, and seat hues that exist only as light (a tint on the seat's glass, a soft halo behind its numeral, the colour of its label). A pending change is light gathering: an arc of white light runs once around the ring in exactly 800 ms, and when it closes the change is committed. The active player is the one the light points at, with three soft rays leaving the hub. This is the Lumineux theme, the default (`UI_THEME_DEFAULT`).\n\nTwo themes share one layout and one set of gestures. Booster, the wrapper theme shipped first, is kept as theme 2: saturated seat fields on wrapper black, a silver foil that seals a pending change, straight 2 px rules, no light. Each canonical section below describes Lumineux first, then what Booster does differently under \"Theme 2: Booster\". A rule stated for one theme binds that theme only; rules marked shared bind both. `ui_set_theme(theme, ground)` switches at run time and the firmware reads both values at start; the settings screen that lets the user choose is not built yet.\n\nDensity is low and the type is loud. Every screen has one huge condensed numeral or title, one line of uppercase labels, and nothing else. Everything is drawn in code (LVGL 9.2 draw calls into one full-screen object on a 360×360 round LCD), and every layout is centred on (180, 180). The light is baked: the ground, the halos, the ring, the ray and the icons are alpha masks tinted at draw time, and no blur is computed per frame.\n\nRejected by the direction contract: flat colour quadrants, a thin progress ring on black, and the neon gamer HUD (scanlines, chrome bevels, hexagon grids). Rejected by the user (2026-11-12): any zigzag or crimped edge. The product record takes the spirit of a third-party dial app without copying its colours, icons, logo or composition. Wizards of the Coast materials are allowed by the owner (PRODUCT.md, Brand Commitments).",
     "keyCharacteristics": [
-      "A strict tonal set: ground, ink, four seat hues, foil. No tints, no alpha fades.",
-      "Straight 2 px rules mark every seam, focus and the band edges; the seal is the foil sheen filling the band, or the hub ring closing, in step with the commit. No zigzag anywhere.",
-      "One rule weight (2 px) for every line, outline, ring and arc; the 6 px active-seat crest is the single exception.",
-      "Condensed ExtraBold numerals and SemiBold uppercase labels, kerning off.",
-      "The foil gradient appears only while something is pending.",
-      "A seat is never identified by hue alone: every seat carries its J1–J4 label.",
-      "Every arena seat faces its player; the hub at the centre is the turn marker, the undo pill and the pending seal."
+      "Two themes, one layout, one set of gestures. Lumineux is the default; Booster is theme 2.",
+      "Lumineux: a radial dark ground, white ink, and seat hues used as light on glass, never as paint.",
+      "The hub is the light source: turn marker, pending value and undo all live there, and three rays point at the active seat.",
+      "Pending is always an arc or band whose drawn extent is the elapsed share of the 800 ms commit delay.",
+      "Condensed ExtraBold numerals and SemiBold uppercase labels, kerning off, in both themes.",
+      "A seat is never identified by hue alone: every seat carries its J1–J4 label and its position.",
+      "Every arena seat faces its player.",
+      "All light is pre-computed alpha masks; nothing is blurred at run time."
     ],
     "rules": [
       {
+        "name": "The Hue Is Light Rule",
+        "body": "In Lumineux a seat hue is never an opaque field. It is a translucent tint on glass, a halo, or the colour of a label. Numerals and chrome stay in Light Ink.",
+        "section": "colors"
+      },
+      {
         "name": "The Seat Owns Its Hue Rule",
-        "body": "Seat hues mark seats only: fields, numerals, the J-labels, the active seat's J# in the resting hub, home seat chips and the 14 px seat swatch in the log. Chrome (buttons, menu focus, focus marks, the undo pill, the active-seat crest) is never drawn in a seat hue.",
+        "body": "Shared. Seat hues mark seats only. Chrome (buttons, menu focus, focus marks, the undo pill, the pending arc, the rays) is never drawn in a seat hue; in Lumineux focus is white light.",
+        "section": "colors"
+      },
+      {
+        "name": "The Dark Ground Rule",
+        "body": "Every ground preset keeps Light Ink at 7:1 or more on the bare ground; `host/shots.c` asserts it for all six (computed: 12.0 to 17.0 at the centre, 18 or more at the rim). The rim is 27 % of each channel of the centre, rounded, which maps the Nuit centre exactly onto Well Rim. A new preset must pass the same assertion.",
+        "section": "colors"
+      },
+      {
+        "name": "The Low Light Under Numerals Rule",
+        "body": "Light behind a white numeral is kept low so the numeral stays readable: Solo halo at 40 %, the selected seat's glass at 46/255 (36/255 unselected), its halo at 20 %, the sheet and game-over halos at 30 %. The target is 7:1 for numerals and 4.5:1 for text on glass. Do not raise these values to make a seat look brighter.",
         "section": "colors"
       },
       {
         "name": "The One Foil Rule",
-        "body": "The foil is the only gradient in the system, and it shows only while a delta is pending: the Solo and Fiche bands and the pending hub. When nothing is pending, no foil is on screen.",
+        "body": "Booster only. The foil is Booster's only gradient and it shows only while a delta is pending.",
         "section": "colors"
       },
       {
         "name": "The No Fade Rule",
-        "body": "Everything is drawn at full opacity. Defeat, inactivity and secondary state are shown by dropping the field fill, or (defeat) by the skull mark in full seat hue in place of the total, never by lowering alpha.",
+        "body": "Booster only. Everything is drawn at full opacity. Defeat is shown by dropping the field fill and replacing the total with the skull mark in full seat hue, never by lowering alpha. (Lumineux does the opposite on purpose: a defeated seat goes dark.)",
         "section": "colors"
       },
       {
         "name": "The Real Minus Rule",
-        "body": "Negative deltas use U+2212 (−), not a hyphen. Positive deltas always show \"+\".",
+        "body": "Shared. Negative deltas use U+2212 (−), not a hyphen. Positive deltas always show \"+\".",
         "section": "typography"
       },
       {
         "name": "The All Caps Rule",
-        "body": "Every label and row is uppercase French, taken from ui/strings_fr.h. Beyond letters and numerals, text carries only signed deltas and the separators \"·\", \"=\", \"/\" and \"›\".",
+        "body": "Shared. Every label and row is uppercase French, taken from `ui/strings_fr.h`. Beyond letters and numerals, text carries only signed deltas and the separators \"·\", \"=\", \"/\", \"›\" and \"—\" (a rule that is off).",
         "section": "typography"
       },
       {
         "name": "The Drawn Pointer Rule",
-        "body": "In text rows (journal, menu, undo pill) a hand-off or attack is written with U+203A as the separator (\"J3 › J1\"). In the pending hub the pointer is a drawn filled triangle between the two J#, never a glyph. The +/− beside a selected total are drawn 2 px marks (18 px), never glyphs.",
+        "body": "Shared. In text rows (journal, menu, undo) a hand-off or attack is written with U+203A as the separator (\"J3 › J1\"). In the pending hub the pointer is a drawn filled triangle between the two J#, never a glyph. The +/− beside a selected total are drawn 2 px marks (18 px), never glyphs.",
         "section": "typography"
       },
       {
         "name": "The Seats Face Their Players Rule",
-        "body": "An arena seat's numeral, label, +/− marks and tap zones all live in that seat's frame, turned by (seat angle − 90°), with the label on the rim side. Never lay out a seat element in screen coordinates.",
+        "body": "Shared. An arena seat's numeral, label, +/− marks and tap zones all live in that seat's frame, turned by (seat angle − 90°), with the label on the rim side. Never lay out a seat element in screen coordinates.",
         "section": "layout"
       },
       {
+        "name": "The Parted By Ground Rule",
+        "body": "Lumineux only. Seats are separated by a wedge of ground (2° trimmed from each side of each sector, in whole degrees), never by a drawn line.",
+        "section": "layout"
+      },
+      {
+        "name": "The Baked Light Rule",
+        "body": "No blur, glow or radial gradient is computed per frame. Light is an alpha mask blit: pre-rendered by `ui/assets/glow_gen.py`, or computed once and cached (halos per radius, the well per ground). A new light effect must fit that model.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Never Light Alone Rule",
+        "body": "A halo, a tint or a ray never carries information alone. The seat is named by its J# and its position, the active seat by the hub's J#, defeat by the skull and the word VAINCU. If a halo cannot be allocated it is simply not drawn and nothing is lost.",
+        "section": "elevation"
+      },
+      {
         "name": "The Rule Not Shadow Rule",
-        "body": "Separate planes with a straight seam in the rule weight. Never use a drop shadow or an offset.",
+        "body": "Booster only. Separate planes with a straight seam in the rule weight, never with a shadow, a glow or an offset.",
         "section": "elevation"
       },
       {
         "name": "The No Zigzag Rule",
-        "body": "The user rejected the jagged look (2026-11-12). No zigzag, toothed, serrated or crimped edge on any line, seam, ring, band or crest. Every seal is a smooth form whose drawn extent is the progress: the foil fill across the band, the arc on the hub.",
-        "section": "elevation"
+        "body": "Shared. The user rejected the jagged look (2026-11-12). No zigzag, toothed, serrated or crimped edge on any line, seam, ring, band or arc. Every pending indicator is a smooth form whose drawn extent is the progress.",
+        "section": "shapes"
       },
       {
         "name": "The One Rule Weight Rule",
-        "body": "2 px everywhere. No hairlines and no heavier strokes. The one exception is the active-seat crest, a solid 6 px arc.",
+        "body": "Booster only. 2 px everywhere, with one exception, the 6 px active-seat crest.",
         "section": "shapes"
       },
       {
         "name": "The Hub-Only Repaint Rule",
-        "body": "Arena seats show committed values. While only the pending value, the seal or the pill changes, invalidate the hub box (radius 48 + 6 px) and never the turned seat layers.",
+        "body": "Shared. Arena seats show committed values. While only the pending value, the arc or the undo state changes, invalidate the hub box and never the turned seat layers. The box is the hub radius plus 18 px in Lumineux (the glow passes the edge) and plus 6 px in Booster.",
         "section": "components"
       }
     ],
     "dos": [
-      "Do fill the selected seat, and only the selected seat, with its hue. Draw all other totals in their hue on Wrapper Black.",
-      "Do draw every edge, seam and focus mark as a straight 2 px rule (or a 2 px arc on the hub).",
-      "Do show pending state on foil, with the seal (band fill or hub arc) equal to the elapsed share of the commit time (800 ms, linear), and nothing drawn ahead of it.",
-      "Do pair every seat hue with its J1–J4 label.",
-      "Do use ink-inverse fills (or the field's own text colour on a seat field) for primary actions and focus; the hub undo pill and the Solo undo bar are always Wrapper Ink.",
-      "Do take every user-facing string from ui/strings_fr.h, in uppercase.",
+      "Do treat Lumineux as the default. Design a new screen in Lumineux first, then give Booster the same layout and tap zones.",
+      "Do keep numerals in ink in Lumineux, and show the seat hue as glass tint, halo and label.",
+      "Do show pending state as an arc (Lumineux) or a foil seal (Booster) whose drawn extent equals the elapsed share of the commit delay (800 ms, linear), with nothing drawn ahead of it.",
+      "Do pair every seat hue with its J1–J4 label and its position.",
+      "Do mark the thing to tap with white light: a lit pill border, a white halo, the hub's glow.",
+      "Do keep light behind numerals at the shipped levels (Solo halo 40 %, selected glass 46/255, seat halo 20 %, sheet and game-over halos 30 %).",
+      "Do build every light effect from an A8 mask that is pre-rendered or cached, and give every new raster a provenance line in `ui/assets/README.md`.",
+      "Do take every user-facing string from `ui/strings_fr.h`, in uppercase.",
       "Do draw each arena seat in its own frame, turned by (seat angle − 90°), with the label on the rim side.",
-      "Do keep the hub the single place for turn, undo and pending state; repaint only the hub while only it changes."
+      "Do keep the hub the single place for turn, undo and pending state, and repaint only the hub while only it changes.",
+      "Do check a new ground preset with the 7:1 assertion in `host/shots.c`."
     ],
     "donts": [
-      "Don't use a seat hue for chrome, buttons, menu focus, the undo pill or the crest.",
-      "Don't add a second gradient, or show foil when nothing is pending.",
-      "Don't fade, dim or lower the opacity of a defeated or inactive seat. Replace a defeated total with the skull mark in full hue.",
+      "Don't paint an opaque seat field in Lumineux, and don't add halos, glass or rays to Booster.",
+      "Don't use a seat hue for chrome, focus, the pending arc, the undo or the rays.",
+      "Don't compute a blur, a glow or a radial gradient per frame.",
+      "Don't let a halo, a tint or a ray be the only signal of anything.",
+      "Don't draw rules between Lumineux seats; they are parted by ground.",
       "Don't draw a zigzag, toothed or crimped edge anywhere; the user rejected it.",
-      "Don't add shadows, glows or offset depth.",
-      "Don't use strokes other than 2 px, except the 6 px active-seat crest.",
-      "Don't use a hyphen for minus, or a glyph for the hub pointer or the +/− marks.",
-      "Don't fall back to the category default (black dial, white number, thin progress ring, rainbow quadrants), and don't copy Soul Dial branding or use WotC marks, mana symbols or card art."
+      "Don't use a hyphen for minus, or a glyph for the hub pointer, the +/− marks, the skull or an icon.",
+      "Don't fade a defeated seat in Booster, and don't leave a defeated seat lit in Lumineux.",
+      "Don't fall back to the category default (flat colour quadrants, a thin progress ring on black) or to a neon gamer HUD (scanlines, chrome bevels, hexagon grids).",
+      "Don't copy the third-party dial app's colours, icons, logo or composition."
     ]
   }
 }

@@ -2,7 +2,7 @@
 
 #include <math.h>
 
-extern const lv_image_dsc_t fx_halo_a8, fx_ring_a8, fx_ray_a8, fx_icons_a8[FX_ICON_COUNT];
+extern const lv_image_dsc_t fx_ring_a8, fx_ray_a8, fx_icons_a8[FX_ICON_COUNT];
 #define RING_NATIVE_R 48 /* RING_R in ui/assets/glow_gen.py */
 #define GLASS_OPA 190
 #define FOCUS_INK 0xFFFFFF
@@ -31,9 +31,51 @@ static void centred(lv_layer_t *l, const lv_image_dsc_t *img, int cx, int cy, in
     mask(l, img, cx, cy, (int)img->header.w / 2, (int)img->header.h / 2, scale, scale, 0, color, opa);
 }
 
+/* Halo masks are computed once per radius, at their drawn size: scaling one mask every frame cost several times a
+ * plain alpha blit (host/bench.c). Same falloff for every radius: a Gaussian that reaches zero at the radius.
+ * ponytail: 6 radii cached, least recently used evicted; a screen drawing more than 6 distinct halo radii in one
+ * frame would free a mask LVGL has not drawn yet. Today's maximum is 2; raise HALO_CACHE if a screen needs more. */
+#define HALO_CACHE 6
+static struct {
+    int r;
+    uint32_t used;
+    lv_draw_buf_t *buf;
+} halos[HALO_CACHE];
+static uint32_t halo_clock;
+
+static const lv_draw_buf_t *halo_mask(int r)
+{
+    int slot = 0;
+    for (int i = 0; i < HALO_CACHE; i++) {
+        if (halos[i].buf && halos[i].r == r) {
+            halos[i].used = ++halo_clock;
+            return halos[i].buf;
+        }
+        if (halos[i].used < halos[slot].used)
+            slot = i;
+    }
+    if (halos[slot].buf)
+        lv_draw_buf_destroy(halos[slot].buf);
+    lv_draw_buf_t *b = halos[slot].buf = lv_draw_buf_create((uint32_t)(2 * r), (uint32_t)(2 * r), LV_COLOR_FORMAT_A8, 0);
+    halos[slot].r = r;
+    halos[slot].used = ++halo_clock;
+    if (!b)
+        return NULL;
+    const float k = 4.5f, floor_ = expf(-k), c = r - 0.5f;
+    for (int y = 0; y < 2 * r; y++)
+        for (int x = 0; x < 2 * r; x++) {
+            float d2 = ((x - c) * (x - c) + (y - c) * (y - c)) / ((float)r * r);
+            float a = d2 < 1.f ? (expf(-k * d2) - floor_) / (1.f - floor_) : 0.f;
+            b->data[(size_t)y * b->header.stride + x] = (uint8_t)(a * 255.f + 0.5f);
+        }
+    return b;
+}
+
 void fx_halo(lv_layer_t *l, int cx, int cy, int r, uint32_t color, lv_opa_t opa)
 {
-    centred(l, &fx_halo_a8, cx, cy, 256 * 2 * r / (int)fx_halo_a8.header.w, color, opa);
+    const lv_draw_buf_t *m = r > 0 ? halo_mask(r) : NULL;
+    if (m) /* no memory: the halo is decoration, never the only signal */
+        centred(l, (const lv_image_dsc_t *)m, cx, cy, 256, color, opa);
 }
 
 void fx_ring(lv_layer_t *l, int cx, int cy, int r, uint32_t color, lv_opa_t opa)
