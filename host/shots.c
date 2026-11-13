@@ -131,7 +131,8 @@ int main(int argc, char **argv)
     /* --- home: one lit action, NOUVELLE PARTIE; the dimmed buttons and the knob do nothing */
     assert(ui_screen() == UI_SCR_HOME);
     snap("01-accueil");
-    ui_tap(92, 92, t);        /* settings */
+    ui_tap(92, 96, t);        /* settings */
+    ui_tap(268, 96, t);       /* update */
     ui_tap(76, 206, t);       /* host */
     ui_tap(284, 206, t);      /* join */
     ui_tap(180, 300, t);      /* where REPRENDRE would be: no saved game */

@@ -109,6 +109,7 @@ Aucune (plan #1 livré). Bloque #6, #7 et #2 (leurs écrans sont construits dans
 | Commander à 2 | Autorisé (2–4) alors que le tableau dit 3 à 5+ | La partie à deux à 40 PV se joue beaucoup ; se change dans `commander.json` (`players_min`) ; 5 et 6 joueurs avec #6 |
 | Accueil, 2ᵉ retouche | Nom « DICE SPARK » en haut à la place du logo ; le logo passe dans le bouton central, libellé « START » ; Réglages = icône curseurs à la place de l'engrenage ; la constante du nom du produit devient « DICE SPARK » (écran de démarrage compris) | Opérateur 2026-11-13 ; majuscules gardées comme tout le reste de l'interface |
 | Écriture du nom | « Dice Spark » en police Original Motion (Cat.B, dafont), rendu en image par `ui/assets/wordmark2a8.py` ; le fichier de police n'est ni commité ni embarqué | Choix opérateur 2026-11-13 ; police « gratuite pour un usage personnel » et dépôt public : seule l'image du nom est publiée |
+| Icônes de l'accueil | Quatre icônes fournies par l'opérateur (réglages, mise à jour, héberger, rejoindre), converties en masques par `ui/assets/icons2a8.py` ; le bouton Mise à jour est ajouté en haut à droite, atténué et inactif comme les trois autres | Opérateur 2026-11-13 ; licence Icons8 (lien d'attribution) à confirmer par l'opérateur |
 
 ## Tests
 
@@ -320,6 +321,7 @@ grep -c "fx_ray" /srv/dev/mtg-dial/ui/ui.c; grep -rc "S_OFF\|S_PROFILE_SUB_FMT" 
 | 2026-11-13 | 2ᵉ retouche de l'accueil : T8.1, T8.2, T8.4, T8.5 et T7.4 rejoués | 6/6 deux fois, `33/33`, `26/26`, `0`, `build_exit=0`, `0`, `generateur_ok` | identique | ✅ PASS (rejoués par l'exécuteur, même contexte ; pas de vérificateur indépendant pour cette retouche d'apparence) |
 | 2026-11-13 | 3ᵉ retouche (liseré du joueur actif) : T8.1, T8.2, T8.4, T8.5 rejoués | 6/6 deux fois, `33/33`, `26/26`, `0`, `build_exit=0`, `0` | identique | ✅ PASS (rejoués par l'exécuteur, même contexte) |
 | 2026-11-13 | 4ᵉ retouche (nom en police Original Motion) : T8.1, T8.2, T8.5 rejoués | 6/6 deux fois, `33/33`, `26/26`, `build_exit=0`, `0` | identique | ✅ PASS (rejoués par l'exécuteur, même contexte) |
+| 2026-11-13 | 5ᵉ retouche (icônes de l'accueil) : T8.1, T8.2, T8.5 rejoués | 6/6 deux fois, `33/33`, `26/26`, `build_exit=0`, `0` | identique | ✅ PASS (rejoués par l'exécuteur, même contexte) |
 
 ## Journal de session
 
@@ -355,3 +357,4 @@ grep -c "fx_ray" /srv/dev/mtg-dial/ui/ui.c; grep -rc "S_OFF\|S_PROFILE_SUB_FMT" 
 - 📝 2ᵉ retouche de l'accueil (opérateur) : nom en haut, logo + START au centre, icône curseurs pour les réglages.
 - 📝 3ᵉ retouche (opérateur) : le joueur actif est désigné par un liseré sur les trois côtés de sa zone.
 - 📝 4ᵉ retouche (opérateur) : « Dice Spark » écrit en Original Motion sur l'accueil et l'écran de démarrage (image générée, police non publiée).
+- 📝 5ᵉ retouche (opérateur) : quatre icônes fournies pour l'accueil, bouton Mise à jour ajouté (inactif).

@@ -1112,8 +1112,9 @@ static uint32_t button(lv_layer_t *l, int x1, int y1, int x2, int y2, bool prima
     return primary ? T->ground : T->ink;
 }
 
-/* Home, radial: START (new game) at the centre, REPRENDRE below when a game is saved. Settings, host and join are
- * shown dimmed and do nothing yet (plan #2 and the connectivity lots give them a destination). */
+/* Home, radial: START (new game) at the centre, REPRENDRE below when a game is saved. Settings, update, host and
+ * join are shown dimmed and do nothing yet (plan #2 and the connectivity lots give them a destination). */
+extern const lv_image_dsc_t ui_home_icons_a8[4];
 #define NEW_Y 160
 #define NEW_R 64
 #define RESUME_X1 116
@@ -1122,19 +1123,16 @@ static uint32_t button(lv_layer_t *l, int x1, int y1, int x2, int y2, bool prima
 #define RESUME_Y2 326
 static void draw_home(lv_layer_t *l)
 {
-    static const struct {
-        fx_icon_t icon;
+    static const struct { /* order = ui_home_icons_a8[] (ui/assets/icons2a8.py) */
         int x, y, r;
         const char *label;
-    } off[] = {{FX_ICON_SETTINGS, 92, 92, 22, NULL},
-               {FX_ICON_WIFI, 76, 206, 34, S_HOST},
-               {FX_ICON_PLAYERS, 284, 206, 34, S_JOIN}};
+    } off[] = {{92, 96, 24, NULL}, {268, 96, 24, NULL}, {76, 206, 34, S_HOST}, {284, 206, 34, S_JOIN}};
     char buf[24];
     ground(l);
     fx_image(l, &ui_wordmark_small_a8, CX, 46, T->ink, LV_OPA_COVER);
     for (size_t i = 0; i < sizeof(off) / sizeof(off[0]); i++) {
         button(l, off[i].x - off[i].r, off[i].y - off[i].r, off[i].x + off[i].r, off[i].y + off[i].r, false);
-        fx_icon(l, off[i].icon, off[i].x, off[i].y, T->ink, LV_OPA_40);
+        fx_image(l, &ui_home_icons_a8[i], off[i].x, off[i].y, T->ink, LV_OPA_40);
         if (off[i].label)
             text(l, U.f_small, T->ink, LV_OPA_40, off[i].x, off[i].y + off[i].r + 16, off[i].label);
     }
