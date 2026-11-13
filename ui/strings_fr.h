@@ -6,8 +6,7 @@
 #define S_PLAYERS_FMT "%d JOUEUR%s"   /* count, plural suffix */
 #define S_LIFE_FMT "%d PV"
 #define S_DOT " · "
-#define S_NEW_1 "NOUVELLE"
-#define S_NEW_2 "PARTIE"
+#define S_START "START"
 #define S_HOST "HÉBERGER"
 #define S_JOIN "REJOINDRE"
 #define S_RESUME_SUB_FMT "T%d | J%d" /* turn, players */

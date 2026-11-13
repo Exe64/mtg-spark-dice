@@ -7,7 +7,7 @@
 #include "game.h"
 #include "profile.h"
 
-#define UI_PRODUCT_NAME "SPARKDICE" /* working name: the only place it is written (PRODUCT.md, Brand Commitments) */
+#define UI_PRODUCT_NAME "DICE SPARK" /* working name: the only place it is written (PRODUCT.md, Brand Commitments) */
 #define UI_BOOT_MS 1500             /* logo screen at power-on; any tap or knob step skips it */
 
 #define UI_W 360

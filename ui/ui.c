@@ -1106,7 +1106,7 @@ static uint32_t button(lv_layer_t *l, int x1, int y1, int x2, int y2, bool prima
     return primary ? T->ground : T->ink;
 }
 
-/* Home, radial: NOUVELLE PARTIE at the centre, REPRENDRE below when a game is saved. Settings, host and join are
+/* Home, radial: START (new game) at the centre, REPRENDRE below when a game is saved. Settings, host and join are
  * shown dimmed and do nothing yet (plan #2 and the connectivity lots give them a destination). */
 #define NEW_Y 160
 #define NEW_R 64
@@ -1125,10 +1125,7 @@ static void draw_home(lv_layer_t *l)
                {FX_ICON_PLAYERS, 284, 206, 34, S_JOIN}};
     char buf[24];
     ground(l);
-    if (T->light)
-        fx_image(l, &ui_logo_small_a8, CX, 40, T->ink, LV_OPA_COVER);
-    else
-        text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 44, UI_PRODUCT_NAME);
+    text(l, U.f_row, T->ink, LV_OPA_COVER, CX, 46, UI_PRODUCT_NAME);
     for (size_t i = 0; i < sizeof(off) / sizeof(off[0]); i++) {
         button(l, off[i].x - off[i].r, off[i].y - off[i].r, off[i].x + off[i].r, off[i].y + off[i].r, false);
         fx_icon(l, off[i].icon, off[i].x, off[i].y, T->ink, LV_OPA_40);
@@ -1139,9 +1136,8 @@ static void draw_home(lv_layer_t *l)
     if (T->light && !U.has_resume)
         fx_ring(l, CX, NEW_Y, NEW_R, T->ink, LV_OPA_70);
     uint32_t ink = button(l, CX - NEW_R, NEW_Y - NEW_R, CX + NEW_R, NEW_Y + NEW_R, !U.has_resume);
-    fx_icon(l, FX_ICON_GAME, CX, NEW_Y - 30, ink, LV_OPA_COVER);
-    text(l, U.f_label, ink, LV_OPA_COVER, CX, NEW_Y + 8, S_NEW_1);
-    text(l, U.f_label, ink, LV_OPA_COVER, CX, NEW_Y + 32, S_NEW_2);
+    fx_image(l, &ui_logo_small_a8, CX, NEW_Y - 12, ink, LV_OPA_COVER); /* the product's mark starts a game */
+    text(l, U.f_row, ink, LV_OPA_COVER, CX, NEW_Y + 38, S_START);
     if (U.has_resume) {
         ink = button(l, RESUME_X1, RESUME_Y1, RESUME_X2, RESUME_Y2, true);
         text(l, U.f_small, ink, LV_OPA_COVER, CX, RESUME_Y1 + 15, S_RESUME);

@@ -53,16 +53,16 @@ def circle(cx, cy, r):
     return arc(cx, cy, r, 0, 360, 32)
 
 
-def gear():
-    teeth = []
-    for i in range(8):
-        a = math.radians(i * 45)
-        teeth.append([(20 + 10.5 * math.cos(a), 20 + 10.5 * math.sin(a)), (20 + 15 * math.cos(a), 20 + 15 * math.sin(a))])
-    return [circle(20, 20, 9.5), circle(20, 20, 3.5)] + teeth
+def sliders():
+    """Settings: three tracks, each broken by its knob."""
+    out = []
+    for y, kx in ((10, 26), (20, 13), (30, 22)):
+        out += [[(6, y), (kx - 6.5, y)], circle(kx, y, 3.5), [(kx + 6.5, y), (34, y)]]
+    return out
 
 
 ICONS = [
-    ("settings", gear()),
+    ("settings", sliders()),
     ("players", [circle(20, 13, 5.5), arc(20, 35, 12.5, 200, 340)]),
     ("resume", [[(14, 9), (31, 20), (14, 31), (14, 9)]]),
     ("game", [[(9, 13), (23, 13), (23, 34), (9, 34), (9, 13)], [(15, 9), (15, 6), (31, 6), (31, 28), (27, 28)]]),

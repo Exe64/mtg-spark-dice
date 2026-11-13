@@ -107,6 +107,7 @@ Aucune (plan #1 livré). Bloque #6, #7 et #2 (leurs écrans sont construits dans
 | Formats (retouche) | 10 profils JSON : Commander (40 PV, 2–4), Commander 1v1 (30 PV), Commander 2HG (60 PV par équipe, poison 15, un siège = une équipe), Duel Commander (20 PV, sans dégâts de commandant), puis Standard, Pioneer, Modern, Legacy, Pauper, Peasant (20 PV, duel, poison 10, aucune mention de commandant) | Tableaux fournis par l'opérateur 2026-11-13 |
 | SOLO | Reste proposé à l'étape joueurs de chaque format, y compris en duel (afficher ma seule vie) | Fonction existante du plan #1 ; un duel reste un duel |
 | Commander à 2 | Autorisé (2–4) alors que le tableau dit 3 à 5+ | La partie à deux à 40 PV se joue beaucoup ; se change dans `commander.json` (`players_min`) ; 5 et 6 joueurs avec #6 |
+| Accueil, 2ᵉ retouche | Nom « DICE SPARK » en haut à la place du logo ; le logo passe dans le bouton central, libellé « START » ; Réglages = icône curseurs à la place de l'engrenage ; la constante du nom du produit devient « DICE SPARK » (écran de démarrage compris) | Opérateur 2026-11-13 ; majuscules gardées comme tout le reste de l'interface |
 
 ## Tests
 
@@ -315,6 +316,7 @@ grep -c "fx_ray" /srv/dev/mtg-dial/ui/ui.c; grep -rc "S_OFF\|S_PROFILE_SUB_FMT" 
 | 2026-11-13 | T8.4 plus de rayons ni de « CMDT — » | `0`, `0` ×2 | `0`, `0` ×2 | ✅ PASS |
 | 2026-11-13 | T8.5 firmware | `build_exit=0`, `0` | `build_exit=0`, `0` | ✅ PASS |
 | 2026-11-13 | T8.6 contrôle visuel (8 images) | voir T8.6 | les 8 images conformes ; lueur du côté du joueur actif mesurée sur 08c et 15 | ✅ PASS |
+| 2026-11-13 | 2ᵉ retouche de l'accueil : T8.1, T8.2, T8.4, T8.5 et T7.4 rejoués | 6/6 deux fois, `33/33`, `26/26`, `0`, `build_exit=0`, `0`, `generateur_ok` | identique | ✅ PASS (rejoués par l'exécuteur, même contexte ; pas de vérificateur indépendant pour cette retouche d'apparence) |
 
 ## Journal de session
 
@@ -347,3 +349,4 @@ grep -c "fx_ray" /srv/dev/mtg-dial/ui/ui.c; grep -rc "S_OFF\|S_PROFILE_SUB_FMT" 
 - 📋 Prochain : ✅ Validation par l'opérateur, sur la planche `.impeccable/review/contact-sheet.png`, puis clôture (plan vers `done/`, roadmap, issue #5)
 - 📝 Retouches demandées par l'opérateur à la validation → étape 8 : lueur du joueur actif à la place des rayons, accueil radial, écran « Nouvelle partie », 10 formats. Campagne T8 : PASS (vérificateur indépendant).
 - 📋 Prochain : ✅ Validation par l'opérateur sur `.impeccable/review/contact-sheet.png`, puis clôture
+- 📝 2ᵉ retouche de l'accueil (opérateur) : nom en haut, logo + START au centre, icône curseurs pour les réglages.
