@@ -8,11 +8,19 @@
 Backlog consolidé : plans nommés d'après leur issue GitHub (voir `doc/roadmap/`).
 - « À faire » : travaux restants, triés par priorité.
 - « Fait » : ce qui a été livré et validé.
-- Ordre d'exécution (décidé le 2026-11-13) : #5 → #6 → #7 → #2 → #4 → #3.
+- Ordre d'exécution (décidé le 2026-11-13) : #5 → #6 → #7 → #2 → #4 → #3 ; #8 (police) indépendant.
 
 ---
 
 ## À faire
+
+### [Issue: #8] Police Sucker Brush pour les PV et les titres [PRIORITÉ: HAUTE] [Complexité: S] 🟢
+
+Plan : [`8-police-sucker-brush.md`](8-police-sucker-brush.md)
+
+Sucker Brush remplace Barlow Condensed ExtraBold pour les PV, le centre et les titres ; libellés et logo inchangés. Le .ttf (usage personnel) n'est pas committé. Indépendant.
+
+---
 
 ### [Issue: #2] Réglages, Jeu, Appareil et mise en route [PRIORITÉ: HAUTE] [Complexité: L] 🟢
 
