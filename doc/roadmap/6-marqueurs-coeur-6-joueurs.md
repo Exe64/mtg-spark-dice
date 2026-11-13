@@ -56,7 +56,7 @@ Dépend de #5 (les écrans sont construits dans le thème lumineux). Bloque #7 (
 - [x] Étape 1 — Cœur : modèle joueur (6 joueurs, 2 compteurs de commandant par source, tableau de marqueurs, Ascension), états de table (monarque, initiative, Jour/Nuit), journal et annulation, nouveau format de sauvegarde unique + tests host (L · reasoning → Opus)
 - [x] Étape 2 — Panneau Marqueurs : accès direct en Solo (« + » latéral) et en Arène (flèche au bord du siège), réglage à la molette, attribution du monarque et de l'initiative, bascule Jour/Nuit (M · reasoning → Opus)
 - [ ] Étape 3 — Affichage en partie : marqueurs non nuls sur les sièges et en Solo, détenteurs du monarque et de l'initiative, Jour/Nuit ; fiche joueur adaptée au partenaire (M · standard → Sonnet)
-- [ ] Étape 4 — Icônes des marqueurs dans la chaîne d'assets existante (S · standard → Sonnet) — en cours : énergie, radiation, jour, nuit fournies par l'opérateur (2026-11-13) et affichées ; les 7 autres suivront
+- [ ] Étape 4 — Icônes des marqueurs dans la chaîne d'assets existante (S · standard → Sonnet) — en cours : énergie, radiation, jour, nuit fournies par l'opérateur (2026-11-13) et affichées ; les 8 autres suivront
 - [ ] Étape 5 — Design : captures, revue de finition, DESIGN.md (S · standard → Sonnet)
 - [ ] 🧪 Tests — Rédiger et exécuter la procédure de test (avant-dernière étape, obligatoire)
 - [ ] ✅ Validation — Vérifier les résultats des tests et clôturer (dernière étape, obligatoire)
@@ -164,5 +164,5 @@ bash -c 'n=0; for f in /srv/dev/mtg-dial/.impeccable/review/booster/[0-9]*.png; 
 - 🔧 Réglé en passant : la pastille d'annulation inverse aussi le signe pour `SD_CMD2`, et le journal ne prend plus la couleur d'un siège inexistant pour un état (point ouvert à l'étape 1).
 - ⚠️ Pour l'étape 3 (relevé du vérificateur) : si une validation de poison élimine le joueur pendant que son panneau est ouvert, le panneau reste ouvert sur un siège vaincu ; `R_NUM[]` de l'Arène ne va que jusqu'à 4 joueurs (à étendre avec #4).
 - 📝 Retouche (opérateur) : les icônes des marqueurs sont dessinées sans cercle, à la taille de la pastille.
-- ⏸️ En attente (choix opérateur 2026-11-13) : les 7 icônes manquantes (poison, expérience, Trésor, Nourriture, tempête, Ascension, monarque, initiative) avant l'étape 3.
+- ⏸️ En attente (choix opérateur 2026-11-13) : les 8 icônes manquantes (poison, expérience, Trésor, Nourriture, tempête, Ascension, monarque, initiative) avant l'étape 3.
 - 📋 Prochain : convertir les icônes reçues (`ui/assets/icons/` + `icons2a8.py`), puis étape 3 (affichage des marqueurs sur les sièges et en Solo).
