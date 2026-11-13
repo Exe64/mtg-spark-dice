@@ -1,6 +1,6 @@
 #include "theme.h"
 
-extern const uint8_t _binary_BarlowCondensed_ExtraBold_ttf_start[], _binary_BarlowCondensed_ExtraBold_ttf_end[];
+extern const uint8_t _binary_Sucker_Brush_ttf_start[], _binary_Sucker_Brush_ttf_end[];
 extern const uint8_t _binary_BarlowCondensed_SemiBold_ttf_start[], _binary_BarlowCondensed_SemiBold_ttf_end[];
 
 /* Direction contract: .impeccable/surfaces/ui-ui-c.md ("well of light").
@@ -17,8 +17,8 @@ const ui_theme_t ui_theme_lumineux = {
     .foil_b = 0xF4F7FF,
     .foil_ink = 0x060914,
     .rule_w = 2,
-    .display_ttf = _binary_BarlowCondensed_ExtraBold_ttf_start,
-    .display_ttf_end = _binary_BarlowCondensed_ExtraBold_ttf_end,
+    .display_ttf = _binary_Sucker_Brush_ttf_start,
+    .display_ttf_end = _binary_Sucker_Brush_ttf_end,
     .label_ttf = _binary_BarlowCondensed_SemiBold_ttf_start,
     .label_ttf_end = _binary_BarlowCondensed_SemiBold_ttf_end,
 };

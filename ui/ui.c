@@ -43,7 +43,7 @@ static struct {
     int menu_focus, log_scroll;
     uint32_t now, undo_until, boot_until;
     lv_obj_t *dial;
-    lv_font_t *f_solo, *f_arena[SD_MAX_PLAYERS + 1], *f_hub, *f_title, *f_row, *f_label, *f_small;
+    lv_font_t *f_solo, *f_arena[SD_MAX_PLAYERS + 1], *f_hub, *f_title, *f_name, *f_row, *f_label, *f_small;
 } U;
 
 /* ---------- drawing helpers ---------- */
@@ -159,6 +159,16 @@ static void text(lv_layer_t *l, const lv_font_t *f, uint32_t color, lv_opa_t opa
     int h = lv_font_get_line_height(f);
     lv_area_t a = {cx - R, cy - h / 2, cx + R, cy + h / 2};
     lv_draw_label(l, &d, &a);
+}
+
+/* Largest display size whose width fits the well at the title line (the brush face runs wide) */
+static const lv_font_t *title_font(const char *s)
+{
+    const lv_font_t *f[] = {U.f_title, U.f_hub, U.f_name};
+    for (int i = 0; i < 2; i++)
+        if (lv_text_get_width(s, strlen(s), f[i], 0) <= 300)
+            return f[i];
+    return f[2];
 }
 
 static void line(lv_layer_t *l, float x0, float y0, float x1, float y1, uint32_t color, lv_opa_t opa)
@@ -670,7 +680,7 @@ static void draw_arena(lv_layer_t *l)
         else
             text(ly, U.f_arena[n], ink, LV_OPA_COVER, nx, ny - 8, buf);
         if (sel && !lost)
-            pm_marks(ly, nx, ny - 6, n == 2 ? 110 : 64, ink);
+            pm_marks(ly, nx, ny - 6, n == 2 ? 110 : n == 3 ? 74 : 64, ink);
         fmt_counters(cnt, sizeof(cnt), &g->p[i]);
         if (lost)
             snprintf(buf, sizeof(buf), S_SEAT_FMT "  " S_DEFEATED, i + 1);
@@ -883,7 +893,7 @@ static void draw_arena_light(lv_layer_t *l)
         else
             text(ly, U.f_arena[n], T->ink, LV_OPA_COVER, nx, ny - 8, buf);
         if (sel && !lost)
-            pm_marks(ly, nx, ny - 6, n == 2 ? 110 : 64, T->ink);
+            pm_marks(ly, nx, ny - 6, n == 2 ? 110 : n == 3 ? 74 : 64, T->ink);
         fmt_counters(cnt, sizeof(cnt), &g->p[i]);
         if (lost)
             snprintf(buf, sizeof(buf), S_SEAT_FMT "  " S_DEFEATED, i + 1);
@@ -1041,7 +1051,7 @@ static void draw_over(lv_layer_t *l)
         snprintf(buf, sizeof(buf), S_WINS_FMT, w + 1);
     else
         snprintf(buf, sizeof(buf), S_DEFEAT);
-    text(l, U.f_title, ink, LV_OPA_COVER, CX, 112, buf);
+    text(l, title_font(buf), ink, LV_OPA_COVER, CX, 112, buf);
     text(l, U.f_label, ink, LV_OPA_COVER, CX, 158, S_GAME_OVER);
     outline(l, 70, 200, 290, 246, ink);
     text(l, U.f_row, ink, LV_OPA_COVER, CX, 223, S_MENU_UNDO);
@@ -1139,7 +1149,7 @@ static void draw_over_light(lv_layer_t *l)
         snprintf(buf, sizeof(buf), S_WINS_FMT, w + 1);
     } else
         snprintf(buf, sizeof(buf), S_DEFEAT);
-    text(l, U.f_title, T->ink, w >= 0 ? LV_OPA_COVER : LV_OPA_60, CX, 112, buf);
+    text(l, title_font(buf), T->ink, w >= 0 ? LV_OPA_COVER : LV_OPA_60, CX, 112, buf);
     text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 158, S_GAME_OVER);
     pill(l, 70, 200, 290, 246, false);
     text(l, U.f_row, T->ink, LV_OPA_COVER, CX, 223, S_MENU_UNDO);
@@ -1237,7 +1247,7 @@ static void draw_new(lv_layer_t *l)
     text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 60, U.new_step == NEW_PLAYERS ? S_PLAYERS : buf[0] ? buf : S_FORMAT);
     snprintf(name, sizeof(name), "%s", p->name);
     upper(name);
-    text(l, strlen(name) > 9 ? U.f_hub : U.f_title, T->ink, LV_OPA_COVER, CX, 112, name);
+    text(l, title_font(name), T->ink, LV_OPA_COVER, CX, 112, name);
     /* only the rules the format has: no commander damage, no mention of it */
     int n = snprintf(buf, sizeof(buf), S_LIFE_FMT, p->rules.start_life);
     if (p->rules.cmd_lethal)
@@ -1465,16 +1475,17 @@ void ui_init(const ui_hooks_t *hooks, const sd_profile_t *profiles, int n_profil
         U.resume = *resume;
         U.has_resume = true;
     }
-    /* kerning off: GPOS is hidden from stb (ui/assets/strip_gpos.py), and Barlow has no kern table */
+    /* kerning off: GPOS is hidden from stb (ui/assets/strip_gpos.py); neither font has a kern table */
 #define TTF(data, len, px) lv_tiny_ttf_create_data_ex(data, len, px, LV_FONT_KERNING_NONE, 64)
     const uint8_t *dsp = T->display_ttf, *lbl = T->label_ttf;
     size_t dl = (size_t)(T->display_ttf_end - dsp), ll = (size_t)(T->label_ttf_end - lbl);
-    U.f_solo = TTF(dsp, dl, 200);
+    U.f_solo = TTF(dsp, dl, 170);
     U.f_arena[2] = TTF(dsp, dl, 112);
-    U.f_arena[3] = TTF(dsp, dl, 92);
-    U.f_arena[4] = TTF(dsp, dl, 80);
+    U.f_arena[3] = TTF(dsp, dl, 84);
+    U.f_arena[4] = TTF(dsp, dl, 72);
     U.f_hub = TTF(dsp, dl, 48);
-    U.f_title = TTF(dsp, dl, 64);
+    U.f_title = TTF(dsp, dl, 56);
+    U.f_name = TTF(dsp, dl, 32);
     U.f_row = TTF(lbl, ll, 30);
     U.f_label = TTF(lbl, ll, 24);
     U.f_small = TTF(lbl, ll, 20);

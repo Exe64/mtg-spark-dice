@@ -1,8 +1,10 @@
 # Fonts
 
-Barlow Condensed ExtraBold and SemiBold, from google/fonts (`ofl/barlowcondensed`), SIL Open Font License 1.1 (`OFL.txt`).
+Display (life totals, centre, titles): Sucker Brush (https://www.dafont.com/fr/sucker-brush.font), chosen by the owner on 2026-11-13. Free for personal use only: the TTF is not committed (`licensed/` is git-ignored) but it is embedded in the firmware, so a distributed build would need a licence from the author or another typeface. To build, download it as `licensed/Sucker Brush.ttf` and run `python3 strip_gpos.py "licensed/Sucker Brush.ttf"`; `../display_font.cmake` stops the firmware and PC builds if the file is missing or still has its GPOS table.
 
-Modified with `strip_gpos.py`: the GPOS table tag is renamed so LVGL 9.2.2's tiny_ttf / stb_truetype does not read
+Labels: Barlow Condensed SemiBold, from google/fonts (`ofl/barlowcondensed`), SIL Open Font License 1.1 (`OFL.txt`).
+
+Both modified with `strip_gpos.py`: the GPOS table tag is renamed so LVGL 9.2.2's tiny_ttf / stb_truetype does not read
 past the font buffer (see the script header). Outlines and metrics are unchanged.
 
 # Defeat mark

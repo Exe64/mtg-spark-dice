@@ -24,34 +24,39 @@ colors:
   foil-shine: "#F3F4F6"
 typography:
   display-solo:
-    fontFamily: "Barlow Condensed ExtraBold"
-    fontSize: "200px"
-    fontWeight: 800
+    fontFamily: "Sucker Brush"
+    fontSize: "170px"
+    fontWeight: 400
     fontFeature: "'kern' 0"
   display-arena-2:
-    fontFamily: "Barlow Condensed ExtraBold"
+    fontFamily: "Sucker Brush"
     fontSize: "112px"
-    fontWeight: 800
+    fontWeight: 400
     fontFeature: "'kern' 0"
   display-arena-3:
-    fontFamily: "Barlow Condensed ExtraBold"
-    fontSize: "92px"
-    fontWeight: 800
+    fontFamily: "Sucker Brush"
+    fontSize: "84px"
+    fontWeight: 400
     fontFeature: "'kern' 0"
   display-arena-4:
-    fontFamily: "Barlow Condensed ExtraBold"
-    fontSize: "80px"
-    fontWeight: 800
+    fontFamily: "Sucker Brush"
+    fontSize: "72px"
+    fontWeight: 400
     fontFeature: "'kern' 0"
   title:
-    fontFamily: "Barlow Condensed ExtraBold"
-    fontSize: "64px"
-    fontWeight: 800
+    fontFamily: "Sucker Brush"
+    fontSize: "56px"
+    fontWeight: 400
     fontFeature: "'kern' 0"
   headline-hub:
-    fontFamily: "Barlow Condensed ExtraBold"
+    fontFamily: "Sucker Brush"
     fontSize: "48px"
-    fontWeight: 800
+    fontWeight: 400
+    fontFeature: "'kern' 0"
+  title-long:
+    fontFamily: "Sucker Brush"
+    fontSize: "32px"
+    fontWeight: 400
     fontFeature: "'kern' 0"
   row:
     fontFamily: "Barlow Condensed SemiBold"
@@ -207,7 +212,7 @@ Rejected by the direction contract: flat colour quadrants, a thin progress ring 
 - Lumineux: a radial dark ground, white ink, and seat hues used as light on glass, never as paint.
 - The hub is the light source: turn marker, pending value and undo all live there, and the active seat's zone is outlined in its hue.
 - Pending is always an arc or band whose drawn extent is the elapsed share of the 800 ms commit delay.
-- Condensed ExtraBold numerals and SemiBold uppercase labels, kerning off, in both themes.
+- Brush-stroke numerals and titles (Sucker Brush) and condensed SemiBold uppercase labels, kerning off, in both themes.
 - A seat is never identified by hue alone: every seat carries its J1–J4 label and its position.
 - Every arena seat faces its player.
 - All light is pre-computed alpha masks; nothing is blurred at run time.
@@ -245,16 +250,16 @@ Lumineux is a dark radial ground, one white ink and four seat lights. Booster is
 
 ## Typography
 
-**Display Font:** Barlow Condensed ExtraBold (embedded TTF, OFL)
+**Display Font:** Sucker Brush (embedded TTF, personal-use licence, not committed: `ui/assets/licensed/`)
 **Label Font:** Barlow Condensed SemiBold (embedded TTF, OFL)
 
-**Character:** A condensed grotesque, tall, tight and loud. Narrow glyphs keep a three-digit total inside a 90° sector. Both themes use the same two faces at the same nine sizes, rendered by LVGL tiny_ttf with kerning off: the GPOS table is hidden from stb_truetype (`ui/assets/strip_gpos.py`), and Barlow has no kern table.
+**Character:** Hand-painted brush numerals over a condensed grotesque for labels: loud and loose against tight and quiet. The brush runs about 20 % wider than a condensed face, so the arena sizes were lowered (3 and 4 players) to keep a three-digit total clear of the − and + marks, and a title steps down (56, 48, then 32 px) until it fits 300 px. Both themes use the same two faces at the same ten sizes, rendered by LVGL tiny_ttf with kerning off: the GPOS table is hidden from stb_truetype (`ui/assets/strip_gpos.py`), and neither face has a kern table.
 
 ### Hierarchy
-- **Display Solo** (800, 200 px): the single life total in Solo, centred at y 158.
-- **Display Arena** (800, 112 / 92 / 80 px for 2 / 3 / 4 players): seat totals, centred on the seat axis at radius 96 / 104 / 108.
-- **Title** (800, 64 px): the home profile name, the seat number on the player sheet, and "J1 GAGNE" / "DÉFAITE".
-- **Headline Hub** (800, 48 px): the pending delta in the hub, the active seat's J# in the resting hub, the poison tally on the player sheet, and the product name on the boot screen.
+- **Display Solo** (brush, 170 px): the single life total in Solo, centred at y 158.
+- **Display Arena** (brush, 112 / 84 / 72 px for 2 / 3 / 4 players): seat totals, centred on the seat axis at radius 96 / 104 / 108. The selected seat's − and + marks sit 110 / 74 / 64 px either side.
+- **Title** (brush, 56 px): the seat number on the player sheet; the home profile name and "J1 GAGNE" / "DÉFAITE" at the largest of 56, 48 or 32 px that fits 300 px.
+- **Headline Hub** (brush, 48 px): the pending delta in the hub, the active seat's J# in the resting hub, the poison tally on the player sheet, and the product name on the boot screen.
 - **Row** (600, 30 px, uppercase): menu rows, the main button, the pending pill or band, the hub undo amount or hand-off ("−3", "J1 › J2"), commander tallies. In Lumineux also the arena seat labels, sized to be read across the table.
 - **Label** (600, 24 px, uppercase): the seat/profile line ("J1 · COMMANDER"), section labels (POISON, CMDT, JOURNAL), journal rows, the Solo undo, the two-button home row. In Lumineux also the hub's "TOUR n" and "= total"; in Booster also the arena seat labels.
 - **Label Small** (600, 20 px, uppercase): home sub-lines, seat-chip numbers, the CMDT tag and the two J# of an attack in the hub, player-sheet column labels, the "TOUCHER POUR REVENIR" hint. In Booster also "TOUR n", "ANNULER" and the "= total" line in the hub.
@@ -421,7 +426,7 @@ Lumineux components first; Booster's equivalents are listed at the end.
 
 Every raster the firmware ships is recorded in `ui/assets/README.md`. Nothing is taken from an icon set, a stock library or an image generator.
 
-- **Fonts:** Barlow Condensed ExtraBold and SemiBold from google/fonts (`ofl/barlowcondensed`), SIL Open Font License 1.1 (`ui/assets/OFL.txt`). Modified by `strip_gpos.py`: the GPOS table tag is renamed so LVGL 9.2.2's tiny_ttf does not read past the font buffer. Outlines and metrics are unchanged.
+- **Fonts:** Sucker Brush (display, https://www.dafont.com/fr/sucker-brush.font, free for personal use only: not committed, the build stops if `ui/assets/licensed/Sucker Brush.ttf` is missing) and Barlow Condensed SemiBold (labels) from google/fonts (`ofl/barlowcondensed`), SIL Open Font License 1.1 (`ui/assets/OFL.txt`). Both modified by `strip_gpos.py`: the GPOS table tag is renamed so LVGL 9.2.2's tiny_ttf does not read past the font buffer. Outlines and metrics are unchanged.
 - **Defeat mark:** `ui/assets/dead.svg`, supplied by the project owner (2026-11-12), converted by `svg2a8.py` into a 160×160 A8 mask (`ui/skull_a8.c`). It resembles the Magic black mana symbol; Wizards materials are allowed by the owner. PRODUCT.md records that Wizards' Fan Content Policy covers free, non-commercial fan content only.
 - **Light masks and line icons:** `ui/fx_a8.c`, generated by `glow_gen.py` (Python standard library only): the glowing ring (128×128), the ray (32×128) and eight 40×40 line icons. Every mask is computed by the script; the icons are drawn for this project from plain strokes, with no external source.
 - **Halos and the well:** not assets. `ui/fx.c` and `ui/ui.c` compute them at run time, once per radius and once per ground.

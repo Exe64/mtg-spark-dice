@@ -43,16 +43,18 @@ target_link_libraries(test_shot shot)
 add_test(NAME shot COMMAND test_shot ${CMAKE_CURRENT_BINARY_DIR}/test_shot.png)
 
 # UI (shared with firmware) + embedded fonts. Fonts become _binary_<name>_ttf_start/_end symbols, as IDF EMBED_FILES does.
-set(FONTS BarlowCondensed-ExtraBold BarlowCondensed-SemiBold)
+include(${ROOT}/ui/display_font.cmake)
+set(FONTS "${SD_DISPLAY_TTF}" ${ROOT}/ui/assets/BarlowCondensed-SemiBold.ttf)
 set(FONT_OBJS)
 foreach(f ${FONTS})
-  string(REPLACE "-" "_" sym ${f})
-  set(obj ${CMAKE_CURRENT_BINARY_DIR}/${f}.o)
+  get_filename_component(name "${f}" NAME_WE)
+  string(MAKE_C_IDENTIFIER "${name}" sym)
+  set(obj ${CMAKE_CURRENT_BINARY_DIR}/${sym}.o)
   add_custom_command(OUTPUT ${obj}
-    COMMAND cp ${ROOT}/ui/assets/${f}.ttf ${CMAKE_CURRENT_BINARY_DIR}/${sym}.ttf
+    COMMAND cp "${f}" ${CMAKE_CURRENT_BINARY_DIR}/${sym}.ttf
     COMMAND ld -r -b binary -z noexecstack -o ${obj} ${sym}.ttf
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    DEPENDS ${ROOT}/ui/assets/${f}.ttf)
+    DEPENDS "${f}")
   list(APPEND FONT_OBJS ${obj})
 endforeach()
 add_library(sd_ui ${ROOT}/ui/ui.c ${ROOT}/ui/theme_booster.c ${ROOT}/ui/theme_lumineux.c ${ROOT}/ui/skull_a8.c ${ROOT}/ui/fx.c ${ROOT}/ui/fx_a8.c ${ROOT}/ui/logo_a8.c ${ROOT}/ui/wordmark_a8.c ${ROOT}/ui/home_icons_a8.c ${FONT_OBJS})
