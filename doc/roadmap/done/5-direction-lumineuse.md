@@ -2,8 +2,8 @@
 plan:
   id: '5'
   name: 5-direction-lumineuse.md
-  link: https://github.com/Exe64/mtg-spark-dice/blob/main/doc/roadmap/5-direction-lumineuse.md
-status: active
+  link: https://github.com/Exe64/mtg-spark-dice/blob/main/doc/roadmap/done/5-direction-lumineuse.md
+status: done
 date: 2026-11-12
 description: >
   Nouvelle direction visuelle « lumineuse » pour toute l'interface (radiale, lueurs, fond bleu nuit, icônes, logo) ; le booster devient 2ᵉ thème.
@@ -63,7 +63,7 @@ Aucune (plan #1 livré). Bloque #6, #7 et #2 (leurs écrans sont construits dans
 - [x] Étape 7 — Design : captures des 2 thèmes, revue de finition, DESIGN.md (thème lumineux principal + booster), mesure du temps de rendu (M · standard → Sonnet)
 - [x] Étape 8 — Retouches de validation (opérateur, 2026-11-13) : lueur du joueur actif à la place des rayons, accueil radial, écran « Nouvelle partie » (format puis joueurs), 10 formats (4 singleton, 6 construits en duel à 20 PV sans mention de commandant) (M · standard → Sonnet)
 - [x] 🧪 Tests — Rédiger et exécuter la procédure de test (avant-dernière étape, obligatoire)
-- [ ] ✅ Validation — Vérifier les résultats des tests et clôturer (dernière étape, obligatoire)
+- [x] ✅ Validation — Vérifier les résultats des tests et clôturer (dernière étape, obligatoire)
 
 ## Décisions techniques
 
@@ -358,3 +358,4 @@ grep -c "fx_ray" /srv/dev/mtg-dial/ui/ui.c; grep -rc "S_OFF\|S_PROFILE_SUB_FMT" 
 - 📝 3ᵉ retouche (opérateur) : le joueur actif est désigné par un liseré sur les trois côtés de sa zone.
 - 📝 4ᵉ retouche (opérateur) : « Dice Spark » écrit en Original Motion sur l'accueil et l'écran de démarrage (image générée, police non publiée).
 - 📝 5ᵉ retouche (opérateur) : quatre icônes fournies pour l'accueil, bouton Mise à jour ajouté (inactif).
+- ✅ Validé par l'opérateur le 2026-11-13 (« on est bon pour le moment », d'éventuelles retouches viendront plus tard). Plan clos.

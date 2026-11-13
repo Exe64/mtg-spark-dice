@@ -14,14 +14,6 @@ Backlog consolidé : plans nommés d'après leur issue GitHub (voir `doc/roadmap
 
 ## À faire
 
-### [Issue: #5] Direction visuelle lumineuse [PRIORITÉ: HAUTE] [Complexité: L] 🟢
-
-Plan : [`5-direction-lumineuse.md`](5-direction-lumineuse.md)
-
-Style lumineux pour toute l'interface (radial, lueurs, fond bleu nuit, icônes, logo) ; le booster devient 2ᵉ thème. À faire en premier ; bloque #6, #7 et #2.
-
----
-
 ### [Issue: #2] Réglages, Jeu, Appareil et mise en route [PRIORITÉ: HAUTE] [Complexité: L] 🟢
 
 Plan : [`2-reglages-jeu-appareil.md`](2-reglages-jeu-appareil.md)
@@ -81,3 +73,11 @@ Plan : [`4-joueurs-tours-minuteur.md`](4-joueurs-tours-minuteur.md)
 Plan : [`done/1-mvp-solo-arene.md`](done/1-mvp-solo-arene.md)
 
 Firmware SparkDice : Solo + Arène 1–4 (sièges orientés), tours, attaque par glisser / dégâts de commandant, poison, annulation, journal, reprise NVS, profils JSON. Logique testée sur PC (ASan/UBSan), 20 captures, build ESP32-S3 sans avertissement. Validé le 2026-11-12 (sans matériel).
+
+---
+
+### [Issue: #5] Direction visuelle lumineuse [PRIORITÉ: HAUTE] [Complexité: L] 🔵
+
+Plan : [`done/5-direction-lumineuse.md`](done/5-direction-lumineuse.md)
+
+Thème Lumineux par défaut (fond radial, sièges en verre, lueurs, icônes, logo, nom « Dice Spark »), Booster conservé en 2ᵉ thème ; accueil radial, écran « Nouvelle partie » (format puis joueurs), 10 formats Magic. Tests PC (ASan/UBSan), 32 + 26 captures, build ESP32-S3 sans avertissement. Validé le 2026-11-13 (sans matériel).
