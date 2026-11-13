@@ -164,3 +164,5 @@ bash -c 'n=0; for f in /srv/dev/mtg-dial/.impeccable/review/booster/[0-9]*.png; 
 - 🔧 Réglé en passant : la pastille d'annulation inverse aussi le signe pour `SD_CMD2`, et le journal ne prend plus la couleur d'un siège inexistant pour un état (point ouvert à l'étape 1).
 - ⚠️ Pour l'étape 3 (relevé du vérificateur) : si une validation de poison élimine le joueur pendant que son panneau est ouvert, le panneau reste ouvert sur un siège vaincu ; `R_NUM[]` de l'Arène ne va que jusqu'à 4 joueurs (à étendre avec #4).
 - 📝 Retouche (opérateur) : les icônes des marqueurs sont dessinées sans cercle, à la taille de la pastille.
+- ⏸️ En attente (choix opérateur 2026-11-13) : les 7 icônes manquantes (poison, expérience, Trésor, Nourriture, tempête, Ascension, monarque, initiative) avant l'étape 3.
+- 📋 Prochain : convertir les icônes reçues (`ui/assets/icons/` + `icons2a8.py`), puis étape 3 (affichage des marqueurs sur les sièges et en Solo).
