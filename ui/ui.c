@@ -793,9 +793,15 @@ static void draw_arena_light(lv_layer_t *l)
         fx_halo(l, CX + (int)(R_NUM[n] * cosf(a)), CY + (int)(R_NUM[n] * sinf(a)), n == 2 ? 120 : 84, T->seat[U.sel],
                 LV_OPA_20); /* kept low: white numerals need 7:1 over it */
     }
-    { /* the hub leans its light toward the active seat: a soft glow on its edge, no beam across the seat */
-        float a = seat_angle(g->active) * (float)M_PI / 180.f;
-        fx_halo(l, CX + (int)((HUB_R + 6) * cosf(a)), CY + (int)((HUB_R + 6) * sinf(a)), 44, T->ink, LV_OPA_50);
+    { /* whose turn it is: a thin line of the seat's light along the three sides of its zone (the two edges and the
+       * rim). The selected seat keeps the thick rim band, so the two marks read apart and stack on one seat. */
+        float a0 = seat_angle(g->active) - span / 2 + gap, a1 = a0 + span - 2 * gap;
+        arc(l, r_out, a0, a1, T->rule_w, T->seat[g->active], LV_OPA_COVER);
+        for (int k = 0; k < 2; k++) {
+            float a = (k ? a1 : a0) * (float)M_PI / 180.f;
+            line(l, CX + r_in * cosf(a), CY + r_in * sinf(a), CX + r_out * cosf(a), CY + r_out * sinf(a),
+                 T->seat[g->active], LV_OPA_COVER);
+        }
     }
     for (int i = 0; i < n; i++) {
         bool sel = i == U.sel, lost = sd_player_lost(g, (uint8_t)i);

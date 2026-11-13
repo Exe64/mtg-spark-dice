@@ -194,7 +194,7 @@ components:
 
 **Creative North Star: "The Well of Light"**
 
-The dial is the knob's well of light seen from above, as in the logo. The hub at the centre is the light source and everything is lit from the centre outward: a dark ground that falls from a bluish centre to a near-black rim, white ink, and seat hues that exist only as light (a tint on the seat's glass, a soft halo behind its numeral, the colour of its label). A pending change is light gathering: an arc of white light runs once around the ring in exactly 800 ms, and when it closes the change is committed. The active player is the one the light leans toward: a soft glow on the hub's edge that leans toward that seat. This is the Lumineux theme, the default (`UI_THEME_DEFAULT`).
+The dial is the knob's well of light seen from above, as in the logo. The hub at the centre is the light source and everything is lit from the centre outward: a dark ground that falls from a bluish centre to a near-black rim, white ink, and seat hues that exist only as light (a tint on the seat's glass, a soft halo behind its numeral, the colour of its label). A pending change is light gathering: an arc of white light runs once around the ring in exactly 800 ms, and when it closes the change is committed. The active player's zone is outlined: a thin line of that seat's hue along the three sides of its zone. This is the Lumineux theme, the default (`UI_THEME_DEFAULT`).
 
 Two themes share one layout and one set of gestures. Booster, the wrapper theme shipped first, is kept as theme 2: saturated seat fields on wrapper black, a silver foil that seals a pending change, straight 2 px rules, no light. Each canonical section below describes Lumineux first, then what Booster does differently under "Theme 2: Booster". A rule stated for one theme binds that theme only; rules marked shared bind both. `ui_set_theme(theme, ground)` switches at run time and the firmware reads both values at start; the settings screen that lets the user choose is not built yet.
 
@@ -205,7 +205,7 @@ Rejected by the direction contract: flat colour quadrants, a thin progress ring 
 **Key Characteristics:**
 - Two themes, one layout, one set of gestures. Lumineux is the default; Booster is theme 2.
 - Lumineux: a radial dark ground, white ink, and seat hues used as light on glass, never as paint.
-- The hub is the light source: turn marker, pending value and undo all live there, and its glow leans toward the active seat.
+- The hub is the light source: turn marker, pending value and undo all live there, and the active seat's zone is outlined in its hue.
 - Pending is always an arc or band whose drawn extent is the elapsed share of the 800 ms commit delay.
 - Condensed ExtraBold numerals and SemiBold uppercase labels, kerning off, in both themes.
 - A seat is never identified by hue alone: every seat carries its J1–J4 label and its position.
@@ -309,7 +309,7 @@ Booster is completely flat: no shadows, glows or blur. Depth is field versus gro
 Lumineux is round. Every button is a rounded-full pill, home chips are circles, the hub is a disc of radius 48, and the round bezel clips everything else. Strokes are thin white lines: 1 px for the knob ring circle and unlit glass borders, 2 px for the detent ticks, the +/− marks, the focus rule, the journal rule and a lit pill's border. The only heavier strokes are the two pending arcs (4 px on the hub, 5 px on the knob ring), which have to be seen from across the table.
 
 - **Knob ring**: a 1 px circle at radius 170 with 16 ticks (every 22.5°, 2 px, from radius 170 to 177), all in ink at 40 %. It is the logo's knurl. Present on Solo, the player sheet and the game-over screen.
-- **Active glow**: a white halo of radius 44 at 50 %, centred 6 px outside the hub edge on the active seat's axis. It replaced three rays across the seat, which the owner rejected on 2026-11-13 (two white strokes flanking the numeral).
+- **Active outline**: a 2 px line in the active seat's hue along the three sides of its zone (both edges from the hub side to the rim, and the rim arc). The selected seat keeps its 5 px rim band, so the two marks read apart and stack when one seat is both. Asked by the owner on 2026-11-13, after three rays and then a hub glow were rejected.
 - **Pending arcs**: drawn clockwise from 12 o'clock (−90°) to −90° + 360° × progress. On the hub: 4 px at radius 51, just outside the glass edge. On the knob ring: 5 px at radius 172.
 - **Line icons**: 40×40 A8 masks drawn from plain strokes (2.5 px, round caps), no fill, tinted in ink. Eight ship (settings, players, resume, game type, undo, turn, wifi, room); the current screens use one, undo, in the hub.
 - **Logo**: the owner-approved line-art mark, as two ink-tinted A8 masks (237×195 on the boot screen, 72×60 at the top of the home).
@@ -360,7 +360,7 @@ Lumineux components first; Booster's equivalents are listed at the end.
 - **At rest:** a disc of the rim colour inside the glowing ring (ink, 70 %). "TOUR n" in Label, ink, over the active seat's J# in Headline Hub in that seat's hue. Tap = next turn.
 - **Pending:** the glow drops to 30 % and the 4 px light arc closes clockwise at radius 51 over exactly the commit delay. The delta is shown in Headline Hub, ink, as its effect on life (commander damage reads −5), with "= total" in Label below. Every drag A→B is an attack and shows the two J#, each in its own seat hue, around a drawn ink triangle. Commander damage adds a CMDT tag (Label Small) above the delta, placed at y − 31 with the delta lowered to y − 3 so the tag stays clear of the ring. A hub tap toggles attack ↔ commander damage (restarting the arc), or commits a non-attack delta at once.
 - **Undo (4 s after any commit):** the hub becomes a focused round glass button with a white halo. It shows the undo line icon over the amount it reverses in Row, or "J1 › J2" after a pass. It carries no word, so players who see the hub upside down can still read it. When a hit defeated the active player and passed the turn automatically, it shows that hit; one tap reverts both.
-- **Active seat:** the hub's glow leans toward it (see Shapes) and the hub names it. The light moves clockwise with Next and skips defeated seats. Solo has no turn.
+- **Active seat:** its zone is outlined (see Shapes) and the hub names it. The outline moves clockwise with Next and skips defeated seats. Solo has no turn.
 
 **The Hub-Only Repaint Rule.** Shared. Arena seats show committed values. While only the pending value, the arc or the undo state changes, invalidate the hub box and never the turned seat layers. The box is the hub radius plus 18 px in Lumineux (the glow passes the edge) and plus 6 px in Booster.
 

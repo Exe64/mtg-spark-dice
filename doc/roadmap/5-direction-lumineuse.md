@@ -101,7 +101,7 @@ Aucune (plan #1 livré). Bloque #6, #7 et #2 (leurs écrans sont construits dans
 | Siège sélectionné | Verre à peine plus clair (46 contre 36 sur 255) et bande de 5 px en pleine teinte sur le bord du secteur | Un verre plus clair faisait passer le chiffre blanc sous 7:1 sur le siège or ; la bande signale la sélection sans toucher au contraste |
 | Halos sous les titres | Fiche joueur et fin de partie à 30 %, pastilles de l'accueil à 20 % | Signalé par l'agent de documentation : titres blancs estimés entre 2,8:1 et 5,3:1 avant correction. Les contrastes sur halo sont estimés par calcul, pas mesurés |
 | Fin de la pastille d'annulation | Redessin complet en thème lumineux | Son halo dépasse la zone du moyeu ; un redessin partiel l'aurait laissé à l'écran (invisible sur PC, où chaque capture redessine tout) |
-| Joueur actif (retouche) | Une lueur blanche sur le bord du moyeu, du côté du siège actif ; plus de rayons en travers du siège | Opérateur 2026-11-13 : les deux traits blancs autour du chiffre ne plaisent pas |
+| Joueur actif (retouche) | Un liseré fin (2 px) de la couleur du siège sur les trois côtés de sa zone ; le siège sélectionné garde sa bande épaisse sur le bord. Ni rayons ni lueur blanche | Opérateur 2026-11-13 : les rayons puis la lueur blanche écartés, liseré proposé par l'opérateur |
 | Accueil (retouche) | Radial, inspiré de la référence : Nouvelle partie au centre, Reprendre « T n \| J n » en bas, Réglages / Héberger / Rejoindre affichés mais atténués et inactifs ; pas de pastille Type de jeu | Opérateur 2026-11-13 ; les trois boutons inactifs reçoivent leur destination dans #2 et les lots 2/3 |
 | Nouvelle partie (retouche) | Après « Nouvelle partie » : le format, puis le nombre de joueurs. L'étape « jeu » est sautée tant qu'il n'existe qu'un jeu (Magic) | Opérateur 2026-11-13 (jeu puis format) ; un choix à une seule entrée coûterait un tap par partie |
 | Formats (retouche) | 10 profils JSON : Commander (40 PV, 2–4), Commander 1v1 (30 PV), Commander 2HG (60 PV par équipe, poison 15, un siège = une équipe), Duel Commander (20 PV, sans dégâts de commandant), puis Standard, Pioneer, Modern, Legacy, Pauper, Peasant (20 PV, duel, poison 10, aucune mention de commandant) | Tableaux fournis par l'opérateur 2026-11-13 |
@@ -317,6 +317,7 @@ grep -c "fx_ray" /srv/dev/mtg-dial/ui/ui.c; grep -rc "S_OFF\|S_PROFILE_SUB_FMT" 
 | 2026-11-13 | T8.5 firmware | `build_exit=0`, `0` | `build_exit=0`, `0` | ✅ PASS |
 | 2026-11-13 | T8.6 contrôle visuel (8 images) | voir T8.6 | les 8 images conformes ; lueur du côté du joueur actif mesurée sur 08c et 15 | ✅ PASS |
 | 2026-11-13 | 2ᵉ retouche de l'accueil : T8.1, T8.2, T8.4, T8.5 et T7.4 rejoués | 6/6 deux fois, `33/33`, `26/26`, `0`, `build_exit=0`, `0`, `generateur_ok` | identique | ✅ PASS (rejoués par l'exécuteur, même contexte ; pas de vérificateur indépendant pour cette retouche d'apparence) |
+| 2026-11-13 | 3ᵉ retouche (liseré du joueur actif) : T8.1, T8.2, T8.4, T8.5 rejoués | 6/6 deux fois, `33/33`, `26/26`, `0`, `build_exit=0`, `0` | identique | ✅ PASS (rejoués par l'exécuteur, même contexte) |
 
 ## Journal de session
 
@@ -350,3 +351,4 @@ grep -c "fx_ray" /srv/dev/mtg-dial/ui/ui.c; grep -rc "S_OFF\|S_PROFILE_SUB_FMT" 
 - 📝 Retouches demandées par l'opérateur à la validation → étape 8 : lueur du joueur actif à la place des rayons, accueil radial, écran « Nouvelle partie », 10 formats. Campagne T8 : PASS (vérificateur indépendant).
 - 📋 Prochain : ✅ Validation par l'opérateur sur `.impeccable/review/contact-sheet.png`, puis clôture
 - 📝 2ᵉ retouche de l'accueil (opérateur) : nom en haut, logo + START au centre, icône curseurs pour les réglages.
+- 📝 3ᵉ retouche (opérateur) : le joueur actif est désigné par un liseré sur les trois côtés de sa zone.
