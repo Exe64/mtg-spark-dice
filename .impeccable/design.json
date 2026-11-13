@@ -383,7 +383,7 @@
       {
         "name": "ray",
         "value": "pre-rendered 32×128 A8 beam, widening and fading; stretched to length, rotated",
-        "purpose": "Active seat: centre ray 72 px on the seat axis, side rays 174 px at ± clamp(span/4, 24°, 40°); ink 70 %."
+        "purpose": "Unused by the screens since 2026-11-13 (the active seat is a white halo r44 at 50 %, 6 px outside the hub edge on the seat axis); kept for the specimen sheet."
       },
       {
         "name": "glass",
@@ -561,7 +561,7 @@
           "undo": "fx_glass r48 focused; undo icon at CY−17; amount or J1 › J2 (Row) at CY+20",
           "repaint": "invalidate (CX,CY) ± 66px while only the hub changes"
         },
-        "home": "interim: logo y 40, name y 108, sub-line y 148 (80 %), chips centred y 190 from x 114 at 44px pitch, count y 228, focus rule y 164 / 244, pills y 258–304",
+        "home": "logo y 40; NOUVELLE PARTIE disc r 64 at (180, 160) with a 70 % ink ring glow when lit; dimmed settings disc r 22 at (92, 92), host and join discs r 34 at (76, 206) and (284, 206) with their label below; REPRENDRE pill x 116–244, y 276–326 with \"T n | J n\". New game (both themes): family or JOUEURS y 60, format name y 112 (64 px, 48 px beyond 9 letters), rules line y 154 (commander damage and poison only when the format has them), list dots or seat chips y 204–210 between two chevrons at x 56 / 304, back disc x 66–110 and SUIVANT / JOUER x 124–264 at y 262–310",
         "menu": "rows at y 76 + 52·i; focus pill y−24..y+23, half-width min(144, sqrt(180² − (|y−180|+24)²) − 8)",
         "sheet": "halo (180,84) r96 60 %; POISON y 152; tally y 182; pending pill x 106–254, y 208–246; CMDT y 268; columns 78px pitch, labels y 290, tallies y 314",
         "over": "halo (180,120) r170 70 %; title y 112; subline y 158; pills x 70–290 at y 200–246 and y 258–304",
@@ -580,7 +580,7 @@
           "repaint": "invalidate (CX,CY) ± 54px only while only the hub changes"
         },
         "seams": "2px, hub edge to rim",
-        "home": "name y 104, sub-line y 146, square chips y 172–208, focus rule y 162 / 242, bars y 258–304",
+        "home": "same geometry as Lumineux with square blocks; product name at y 44 instead of the logo",
         "sheet": "hue band to y 132; CMDT columns 84px pitch"
       }
     },
@@ -599,7 +599,7 @@
       "notVerified": [
         "Nothing seen on real hardware: RGB565 dithering of the ground, render cost on the ESP32-S3.",
         "Contrast of ink over halos and tinted glass is not measured; only ink on the bare ground is asserted (host/shots.c).",
-        "The Lumineux home is an interim layout that plan #2 rebuilds.",
+        "Home settings, host and join buttons are drawn dimmed and do nothing until plan #2 and the connectivity lots.",
         "Concept seed: the contract says \"seed: none (unavailable)\"."
       ],
       "renderCostPc": "host/bench.c, unoptimised build, full redraw: Lumineux ≈ 2–2.6× Booster on boot, home and menu; ≈ 5× on Solo; ≈ 1.6–1.8× in the 4-player arena"
@@ -611,7 +611,7 @@
       "name": "Glass Pill (lit)",
       "kind": "button",
       "refersTo": "glass-pill-lit",
-      "description": "Lumineux. The thing to tap right now: rim-colour glass at 215/255, 2 px ink border at 80 %. JOUER, REPRENDRE when a save exists, NOUVELLE PARTIE, the Solo undo. No hover on the device; knob focus on the home is a 2 px ink rule.",
+      "description": "Lumineux. The thing to tap right now: rim-colour glass at 215/255, 2 px ink border at 80 %. NOUVELLE PARTIE on the home, REPRENDRE when a save exists, SUIVANT and JOUER on the new-game screen, the Solo undo. No hover on the device and no knob focus mark.",
       "html": "<div class=\"ds-well\"><button class=\"ds-pill ds-lit\">JOUER</button></div>",
       "css": ".ds-well{display:inline-flex;gap:10px;align-items:center;padding:18px;background:radial-gradient(circle,#18214A,#060914);} .ds-pill{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;font-size:30px;height:46px;padding:0 28px;border-radius:9999px;background:rgba(6,9,20,.84);color:#F4F7FF;border:1px solid rgba(244,247,255,.3);} .ds-pill.ds-lit{border:2px solid rgba(244,247,255,.8);} .ds-pill:focus-visible{outline:2px solid #F4F7FF;outline-offset:4px;} .ds-pill:hover,.ds-pill:active{border-color:#F4F7FF;}"
     },
@@ -635,7 +635,7 @@
       "name": "Seat Chips",
       "kind": "chip",
       "refersTo": "seat-chip-lit",
-      "description": "Lumineux home (interim layout). Seats in play are lit: hue at 50/255 inside a 2 px hue border over a 20 % halo; the others are empty glass with a 2 px ink border at 30 %.",
+      "description": "New-game screen, table-size step. Seats in play are lit: hue at 50/255 inside a 2 px hue border over a 20 % halo; the others are empty glass with a 2 px ink border at 30 %.",
       "html": "<div class=\"ds-well\"><span class=\"ds-chip\" style=\"--h:255,122,69\">J1</span><span class=\"ds-chip\" style=\"--h:63,216,192\">J2</span><span class=\"ds-chip ds-off\">J3</span><span class=\"ds-chip ds-off\">J4</span></div>",
       "css": ".ds-well{display:inline-flex;gap:10px;align-items:center;padding:18px;background:radial-gradient(circle,#18214A,#060914);} .ds-chip{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-kerning:none;font-weight:600;font-size:20px;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#F4F7FF;background:rgba(var(--h),.35);border:2px solid rgb(var(--h));box-shadow:0 0 14px rgba(var(--h),.5);box-sizing:border-box;} .ds-chip.ds-off{background:transparent;border-color:rgba(244,247,255,.3);box-shadow:none;color:rgba(244,247,255,.4);}"
     },
@@ -706,11 +706,11 @@
   ],
   "narrative": {
     "northStar": "The Well of Light",
-    "overview": "The dial is the knob's well of light seen from above, as in the logo. The hub at the centre is the light source and everything is lit from the centre outward: a dark ground that falls from a bluish centre to a near-black rim, white ink, and seat hues that exist only as light (a tint on the seat's glass, a soft halo behind its numeral, the colour of its label). A pending change is light gathering: an arc of white light runs once around the ring in exactly 800 ms, and when it closes the change is committed. The active player is the one the light points at, with three soft rays leaving the hub. This is the Lumineux theme, the default (`UI_THEME_DEFAULT`).\n\nTwo themes share one layout and one set of gestures. Booster, the wrapper theme shipped first, is kept as theme 2: saturated seat fields on wrapper black, a silver foil that seals a pending change, straight 2 px rules, no light. Each canonical section below describes Lumineux first, then what Booster does differently under \"Theme 2: Booster\". A rule stated for one theme binds that theme only; rules marked shared bind both. `ui_set_theme(theme, ground)` switches at run time and the firmware reads both values at start; the settings screen that lets the user choose is not built yet.\n\nDensity is low and the type is loud. Every screen has one huge condensed numeral or title, one line of uppercase labels, and nothing else. Everything is drawn in code (LVGL 9.2 draw calls into one full-screen object on a 360×360 round LCD), and every layout is centred on (180, 180). The light is baked: the ground, the halos, the ring, the ray and the icons are alpha masks tinted at draw time, and no blur is computed per frame.\n\nRejected by the direction contract: flat colour quadrants, a thin progress ring on black, and the neon gamer HUD (scanlines, chrome bevels, hexagon grids). Rejected by the user (2026-11-12): any zigzag or crimped edge. The product record takes the spirit of a third-party dial app without copying its colours, icons, logo or composition. Wizards of the Coast materials are allowed by the owner (PRODUCT.md, Brand Commitments).",
+    "overview": "The dial is the knob's well of light seen from above, as in the logo. The hub at the centre is the light source and everything is lit from the centre outward: a dark ground that falls from a bluish centre to a near-black rim, white ink, and seat hues that exist only as light (a tint on the seat's glass, a soft halo behind its numeral, the colour of its label). A pending change is light gathering: an arc of white light runs once around the ring in exactly 800 ms, and when it closes the change is committed. The active player is the one the light leans toward: a soft glow on the hub's edge that leans toward that seat. This is the Lumineux theme, the default (`UI_THEME_DEFAULT`).\n\nTwo themes share one layout and one set of gestures. Booster, the wrapper theme shipped first, is kept as theme 2: saturated seat fields on wrapper black, a silver foil that seals a pending change, straight 2 px rules, no light. Each canonical section below describes Lumineux first, then what Booster does differently under \"Theme 2: Booster\". A rule stated for one theme binds that theme only; rules marked shared bind both. `ui_set_theme(theme, ground)` switches at run time and the firmware reads both values at start; the settings screen that lets the user choose is not built yet.\n\nDensity is low and the type is loud. Every screen has one huge condensed numeral or title, one line of uppercase labels, and nothing else. Everything is drawn in code (LVGL 9.2 draw calls into one full-screen object on a 360×360 round LCD), and every layout is centred on (180, 180). The light is baked: the ground, the halos, the ring, the ray and the icons are alpha masks tinted at draw time, and no blur is computed per frame.\n\nRejected by the direction contract: flat colour quadrants, a thin progress ring on black, and the neon gamer HUD (scanlines, chrome bevels, hexagon grids). Rejected by the user (2026-11-12): any zigzag or crimped edge. The product record takes the spirit of a third-party dial app without copying its colours, icons, logo or composition. Wizards of the Coast materials are allowed by the owner (PRODUCT.md, Brand Commitments).",
     "keyCharacteristics": [
       "Two themes, one layout, one set of gestures. Lumineux is the default; Booster is theme 2.",
       "Lumineux: a radial dark ground, white ink, and seat hues used as light on glass, never as paint.",
-      "The hub is the light source: turn marker, pending value and undo all live there, and three rays point at the active seat.",
+      "The hub is the light source: turn marker, pending value and undo all live there, and its glow leans toward the active seat.",
       "Pending is always an arc or band whose drawn extent is the elapsed share of the 800 ms commit delay.",
       "Condensed ExtraBold numerals and SemiBold uppercase labels, kerning off, in both themes.",
       "A seat is never identified by hue alone: every seat carries its J1–J4 label and its position.",

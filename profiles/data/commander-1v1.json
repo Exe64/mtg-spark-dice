@@ -1,0 +1,10 @@
+{
+  "name": "Commander 1v1",
+  "family": "Singleton",
+  "start_life": 30,
+  "players": 2,
+  "players_min": 2,
+  "players_max": 2,
+  "commander_damage": 21,
+  "poison": 10
+}

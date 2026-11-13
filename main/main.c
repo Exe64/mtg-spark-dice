@@ -52,20 +52,6 @@ static bool load_game(sd_game_t *g)
     return nvs_get_blob(nvs, "game", blob, &n) == ESP_OK && sd_game_load(g, blob, n);
 }
 
-static int load_profiles(sd_profile_t *out, int max)
-{
-    static const char *files[] = {"/storage/commander.json", "/storage/standard.json"};
-    int n = 0;
-    for (size_t i = 0; i < sizeof(files) / sizeof(files[0]) && n < max; i++) {
-        const char *err = "";
-        if (sd_profile_load(files[i], &out[n], &err))
-            n++;
-        else
-            ESP_LOGE(TAG, "profile %s: %s", files[i], err);
-    }
-    return n;
-}
-
 static void on_haptic(ui_haptic_t p)
 {
     haptic_play(p == UI_HAPTIC_DETENT ? HAPTIC_TICK : p == UI_HAPTIC_COMMIT ? HAPTIC_CLICK : HAPTIC_BUZZ);
@@ -292,8 +278,8 @@ void app_main(void)
     esp_vfs_littlefs_conf_t fs = {.base_path = "/storage", .partition_label = "storage"};
     ESP_ERROR_CHECK(esp_vfs_littlefs_register(&fs));
 
-    static sd_profile_t profiles[4];
-    int n_profiles = load_profiles(profiles, 4);
+    static sd_profile_t profiles[SD_PROFILES_MAX];
+    int n_profiles = sd_profiles_load("/storage", profiles, SD_PROFILES_MAX);
     static sd_game_t saved;
     bool has_saved = load_game(&saved);
     ESP_LOGI(TAG, "%d profiles, saved game: %s", n_profiles, has_saved ? "yes" : "no");

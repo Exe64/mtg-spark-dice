@@ -16,6 +16,8 @@ scope:
     - ui/
     - host/
     - .impeccable/
+    - profiles/
+    - main/
     - DESIGN.md
     - PRODUCT.md
 issue:
@@ -59,6 +61,7 @@ Aucune (plan #1 livré). Bloque #6, #7 et #2 (leurs écrans sont construits dans
 - [x] Étape 5 — Menus dans le thème lumineux : menu de partie, journal, fiche joueur, fin de partie (M · standard → Sonnet)
 - [x] Étape 6 — Logo : intégration (accueil provisoire + écran de démarrage), nom du produit centralisé (S · standard → Sonnet)
 - [x] Étape 7 — Design : captures des 2 thèmes, revue de finition, DESIGN.md (thème lumineux principal + booster), mesure du temps de rendu (M · standard → Sonnet)
+- [x] Étape 8 — Retouches de validation (opérateur, 2026-11-13) : lueur du joueur actif à la place des rayons, accueil radial, écran « Nouvelle partie » (format puis joueurs), 10 formats (4 singleton, 6 construits en duel à 20 PV sans mention de commandant) (M · standard → Sonnet)
 - [x] 🧪 Tests — Rédiger et exécuter la procédure de test (avant-dernière étape, obligatoire)
 - [ ] ✅ Validation — Vérifier les résultats des tests et clôturer (dernière étape, obligatoire)
 
@@ -98,6 +101,12 @@ Aucune (plan #1 livré). Bloque #6, #7 et #2 (leurs écrans sont construits dans
 | Siège sélectionné | Verre à peine plus clair (46 contre 36 sur 255) et bande de 5 px en pleine teinte sur le bord du secteur | Un verre plus clair faisait passer le chiffre blanc sous 7:1 sur le siège or ; la bande signale la sélection sans toucher au contraste |
 | Halos sous les titres | Fiche joueur et fin de partie à 30 %, pastilles de l'accueil à 20 % | Signalé par l'agent de documentation : titres blancs estimés entre 2,8:1 et 5,3:1 avant correction. Les contrastes sur halo sont estimés par calcul, pas mesurés |
 | Fin de la pastille d'annulation | Redessin complet en thème lumineux | Son halo dépasse la zone du moyeu ; un redessin partiel l'aurait laissé à l'écran (invisible sur PC, où chaque capture redessine tout) |
+| Joueur actif (retouche) | Une lueur blanche sur le bord du moyeu, du côté du siège actif ; plus de rayons en travers du siège | Opérateur 2026-11-13 : les deux traits blancs autour du chiffre ne plaisent pas |
+| Accueil (retouche) | Radial, inspiré de la référence : Nouvelle partie au centre, Reprendre « T n \| J n » en bas, Réglages / Héberger / Rejoindre affichés mais atténués et inactifs ; pas de pastille Type de jeu | Opérateur 2026-11-13 ; les trois boutons inactifs reçoivent leur destination dans #2 et les lots 2/3 |
+| Nouvelle partie (retouche) | Après « Nouvelle partie » : le format, puis le nombre de joueurs. L'étape « jeu » est sautée tant qu'il n'existe qu'un jeu (Magic) | Opérateur 2026-11-13 (jeu puis format) ; un choix à une seule entrée coûterait un tap par partie |
+| Formats (retouche) | 10 profils JSON : Commander (40 PV, 2–4), Commander 1v1 (30 PV), Commander 2HG (60 PV par équipe, poison 15, un siège = une équipe), Duel Commander (20 PV, sans dégâts de commandant), puis Standard, Pioneer, Modern, Legacy, Pauper, Peasant (20 PV, duel, poison 10, aucune mention de commandant) | Tableaux fournis par l'opérateur 2026-11-13 |
+| SOLO | Reste proposé à l'étape joueurs de chaque format, y compris en duel (afficher ma seule vie) | Fonction existante du plan #1 ; un duel reste un duel |
+| Commander à 2 | Autorisé (2–4) alors que le tableau dit 3 à 5+ | La partie à deux à 40 PV se joue beaucoup ; se change dans `commander.json` (`players_min`) ; 5 et 6 joueurs avec #6 |
 
 ## Tests
 
@@ -201,9 +210,29 @@ grep -c "COMPLEX_GRADIENTS\|lv_grad_radial" /srv/dev/mtg-dial/ui/ui.c /srv/dev/m
 /srv/dev/mtg-dial/host/build/bench /srv/dev/mtg-dial/profiles/data
 # T7.7 DESIGN.md décrit les deux thèmes
 grep -c -i "lumineux" /srv/dev/mtg-dial/DESIGN.md; grep -c -i "booster" /srv/dev/mtg-dial/DESIGN.md
-# T7.8 firmware
+# T7.8 firmware (T8.5 réutilise ces deux commandes)
 bash -c '. ~/esp/esp-idf/export.sh >/dev/null 2>&1 && cd /srv/dev/mtg-dial && idf.py build >/tmp/claude-1000/t7-8.log 2>&1; echo build_exit=$?'
 grep -c "warning:" /tmp/claude-1000/t7-8.log
+
+# --- T8 Retouches de validation (étape 8) — remplace T7.2 (nombres de captures) et T7.3 (l'accueil du booster a changé)
+# T8.1 tests PC et ASan/UBSan : les deux commandes de T7.1
+# T8.2 les captures de référence des deux thèmes sont celles que produit le code
+bash -c 'n=0; for f in /srv/dev/mtg-dial/.impeccable/review/[0-9]*.png /srv/dev/mtg-dial/.impeccable/review/fx-specimen.png; do cmp -s $f /srv/dev/mtg-dial/host/build/shots-out/$(basename $f) && n=$((n+1)); done; echo lumineux=$n/33'
+bash -c 'n=0; for f in /srv/dev/mtg-dial/.impeccable/review/booster/[0-9]*.png; do cmp -s $f /srv/dev/mtg-dial/host/build/shots-out/booster/$(basename $f) && n=$((n+1)); done; echo booster=$n/26'
+# T8.3 formats : 10 profils ; les 6 construits sont des duels à 20 PV, poison 10, sans dégâts de commandant
+python3 -c "
+import json,glob
+P=[json.load(open(f)) for f in sorted(glob.glob('/srv/dev/mtg-dial/profiles/data/*.json'))]
+c=[p for p in P if p['family']=='Construit']
+ok=all((p['start_life'],p['players_min'],p['players_max'],p['commander_damage'],p['poison'])==(20,2,2,0,10) for p in c)
+d={p['name']:(p['start_life'],p['players_max'],p['commander_damage'],p['poison']) for p in P}
+print(len(P),len(c),ok,d['Commander 1v1'],d['Commander 2HG'],d['Duel Commander'],d['Commander'])"
+# T8.4 plus de rayons à l'écran, plus de « CMDT — » pour un format sans dégâts de commandant
+grep -c "fx_ray" /srv/dev/mtg-dial/ui/ui.c; grep -rc "S_OFF\|S_PROFILE_SUB_FMT" /srv/dev/mtg-dial/ui/ui.c /srv/dev/mtg-dial/ui/strings_fr.h
+# T8.5 firmware : les deux commandes de T7.8
+# T8.6 contrôle visuel (ouvrir les images de /srv/dev/mtg-dial/.impeccable/review/)
+#   01-accueil.png, 07-accueil-reprendre.png, 02-nouvelle-partie-format.png, 02b-nouvelle-partie-joueurs.png,
+#   15b-format-standard.png, 15c-standard-solo.png, 08c-arene-tour-j2.png, 15-arene-2-standard.png
 ```
 
 **Résultats attendus :**
@@ -236,6 +265,12 @@ grep -c "warning:" /tmp/claude-1000/t7-8.log
 - T7.6 : un tableau de 7 écrans ; rapport lumineux/booster attendu sous 3 hors Solo, sous 6 en Solo (mesuré le 2026-11-13 : 1,7 à 2,6, et 5 en Solo).
 - T7.7 : deux nombres supérieurs à 0.
 - T7.8 : `build_exit=0`, `0` avertissement.
+- T8.1 : deux fois `100% tests passed, 0 tests failed out of 6`. Les parcours (`host/shots.c`) vérifient en plus : les boutons atténués et la molette ne font rien sur l'accueil ; Retour ramène du nombre de joueurs au format puis à l'accueil ; Reprendre rend la partie Solo à 40 PV ; Standard ne propose que SOLO et 2 et lance un duel à 20 PV sans dégâts de commandant.
+- T8.2 : `lumineux=33/33` (32 écrans et la planche des primitives) et `booster=26/26`.
+- T8.3 : `10 6 True (30, 2, 21, 10) (60, 2, 21, 15) (20, 2, 0, 10) (40, 4, 21, 10)`.
+- T8.4 : `0`, puis `0` pour chacun des 2 fichiers.
+- T8.5 : `build_exit=0`, `0` avertissement.
+- T8.6 : accueil radial (Nouvelle partie au centre, Réglages / Héberger / Rejoindre atténués, Reprendre « T1 | J1 » sur 07) ; « SINGLETON » puis « JOUEURS » au-dessus de COMMANDER ; STANDARD affiche « 20 PV · POISON 10 » sans CMDT et deux pastilles J1 J2 ; plus aucun trait blanc entre le moyeu et le bord sur 08c et 15, une lueur du côté du joueur actif.
 
 ### Résultats joués et vérifiés
 
@@ -274,6 +309,12 @@ grep -c "warning:" /tmp/claude-1000/t7-8.log
 | 2026-11-13 | T7.7 DESIGN.md | deux nombres > 0, `json_ok` | `27`, `36`, `json_ok` | ✅ PASS |
 | 2026-11-13 | T7.8 firmware | `build_exit=0`, `0` | `build_exit=0`, `0` | ✅ PASS |
 | 2026-11-13 | 🧪 Tests finaux : T7.1 à T7.8 sur le code final (ils reprennent tous les contrôles des étapes 2 à 6) + T6.1 et T6.4 rejoués | tout PASS, `logo_ok`, `1` | T7 : PASS (vérificateur indépendant) ; `logo_ok`, `1` (rejoués par l'exécuteur, même contexte) | ✅ PASS |
+| 2026-11-13 | T8.1 tests PC + ASan/UBSan | 6/6 deux fois | 6/6 deux fois, captures régénérées avant T8.2 | ✅ PASS (vérificateur indépendant) |
+| 2026-11-13 | T8.2 captures de référence | `lumineux=33/33`, `booster=26/26` | `lumineux=33/33`, `booster=26/26` | ✅ PASS |
+| 2026-11-13 | T8.3 formats | `10 6 True (30, 2, 21, 10) (60, 2, 21, 15) (20, 2, 0, 10) (40, 4, 21, 10)` | identique | ✅ PASS |
+| 2026-11-13 | T8.4 plus de rayons ni de « CMDT — » | `0`, `0` ×2 | `0`, `0` ×2 | ✅ PASS |
+| 2026-11-13 | T8.5 firmware | `build_exit=0`, `0` | `build_exit=0`, `0` | ✅ PASS |
+| 2026-11-13 | T8.6 contrôle visuel (8 images) | voir T8.6 | les 8 images conformes ; lueur du côté du joueur actif mesurée sur 08c et 15 | ✅ PASS |
 
 ## Journal de session
 
@@ -304,3 +345,5 @@ grep -c "warning:" /tmp/claude-1000/t7-8.log
 - 🚧 À vérifier sur matériel : tramage du fond en RGB565 (code compilé pour le firmware seulement), coût réel du rendu
 - ✅ Fait : 🧪 Tests finaux (campagne T7 sur le code final, vérificateur indépendant : PASS).
 - 📋 Prochain : ✅ Validation par l'opérateur, sur la planche `.impeccable/review/contact-sheet.png`, puis clôture (plan vers `done/`, roadmap, issue #5)
+- 📝 Retouches demandées par l'opérateur à la validation → étape 8 : lueur du joueur actif à la place des rayons, accueil radial, écran « Nouvelle partie », 10 formats. Campagne T8 : PASS (vérificateur indépendant).
+- 📋 Prochain : ✅ Validation par l'opérateur sur `.impeccable/review/contact-sheet.png`, puis clôture

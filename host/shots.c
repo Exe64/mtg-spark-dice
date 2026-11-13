@@ -69,6 +69,20 @@ static void snap(const char *name)
     printf("  %s\n", path);
 }
 
+/* From home: NOUVELLE PARTIE, `formats` knob steps on the format, SUIVANT, `sizes` steps on the table size, JOUER. */
+#define NEW_OK 194, 286
+static void new_game(int formats, int sizes)
+{
+    assert(ui_screen() == UI_SCR_HOME);
+    ui_tap(180, 160, t);
+    assert(ui_screen() == UI_SCR_NEW);
+    ui_knob(formats, t);
+    ui_tap(NEW_OK, t);
+    ui_knob(sizes, t);
+    ui_tap(NEW_OK, t);
+    assert(ui_screen() == UI_SCR_GAME);
+}
+
 /* seat centres for n players (J1 bottom, clockwise), matching ui.c geometry */
 static void seat_xy(int n, int i, int *x, int *y)
 {
@@ -83,18 +97,16 @@ int main(int argc, char **argv)
     assert(argc == 3 || argc == 4);
     out_dir = argv[2];
     char path[512];
-    sd_profile_t prof[2];
-    const char *err = NULL;
-    snprintf(path, sizeof(path), "%s/commander.json", argv[1]);
-    assert(sd_profile_load(path, &prof[0], &err));
-    snprintf(path, sizeof(path), "%s/standard.json", argv[1]);
-    assert(sd_profile_load(path, &prof[1], &err));
+    static sd_profile_t prof[SD_PROFILES_MAX];
+    int n_prof = sd_profiles_load(argv[1], prof, SD_PROFILES_MAX);
+    assert(n_prof == 10); /* 0 Commander, 1 Commander 1v1, 2 Commander 2HG, 3 Duel Commander, 4 Standard, ... */
+    (void)path;
 
     shot_init();
     ui_hooks_t hooks = {.haptic = on_haptic, .save = on_save};
     if (argc == 4)
         ui_set_theme(UI_THEME_BOOSTER, 0);
-    ui_init(&hooks, prof, 2, NULL);
+    ui_init(&hooks, prof, n_prof, NULL);
 
     /* --- boot: the logo shows for UI_BOOT_MS from the first tick, then home */
     assert(ui_screen() == UI_SCR_BOOT);
@@ -116,15 +128,33 @@ int main(int argc, char **argv)
     t += 1;
     ui_tick(t);
 
-    /* --- home: Commander, 4 players */
+    /* --- home: one lit action, NOUVELLE PARTIE; the dimmed buttons and the knob do nothing */
     assert(ui_screen() == UI_SCR_HOME);
     snap("01-accueil");
+    ui_tap(92, 92, t);        /* settings */
+    ui_tap(76, 206, t);       /* host */
+    ui_tap(284, 206, t);      /* join */
+    ui_tap(180, 300, t);      /* where REPRENDRE would be: no saved game */
+    ui_knob(2, t);
+    assert(ui_screen() == UI_SCR_HOME && haptics[UI_HAPTIC_DETENT] == 0);
 
-    /* --- solo: 1 player via knob on the players row */
-    ui_tap(180, 200, t);      /* focus players row */
-    ui_knob(-3, t);           /* 4 -> 1 */
-    snap("02-accueil-1-joueur");
-    ui_tap(180, 280, t);      /* JOUER */
+    /* --- new game: the format first (Commander), then the table size; back walks the same way home */
+    ui_tap(180, 160, t);
+    assert(ui_screen() == UI_SCR_NEW);
+    snap("02-nouvelle-partie-format");
+    ui_tap(88, 286, t);       /* back -> home */
+    assert(ui_screen() == UI_SCR_HOME);
+    ui_tap(180, 160, t);
+    ui_tap(NEW_OK, t);        /* SUIVANT */
+    snap("02b-nouvelle-partie-joueurs");
+    ui_tap(88, 286, t);       /* back -> format */
+    ui_tap(88, 286, t);       /* back -> home */
+    assert(ui_screen() == UI_SCR_HOME);
+    ui_tap(180, 160, t);
+    ui_tap(NEW_OK, t);
+    ui_knob(-3, t);           /* 4 -> 3 -> 2 -> SOLO */
+    snap("02c-nouvelle-partie-solo");
+    ui_tap(NEW_OK, t);        /* JOUER */
     assert(ui_screen() == UI_SCR_GAME && ui_game()->n_players == 1 && ui_game()->p[0].life == 40);
     assert(saves == 1);
     snap("03-solo");
@@ -156,10 +186,12 @@ int main(int argc, char **argv)
     ui_tap(180, 232, t);      /* NOUVELLE PARTIE */
     assert(ui_screen() == UI_SCR_HOME);
     snap("07-accueil-reprendre");
-    ui_tap(180, 200, t);      /* focus players row (home resets focus to profile) */
-    ui_knob(3, t);            /* 1 -> 4 */
-    ui_tap(100, 280, t);      /* JOUER (left button) */
-    assert(ui_screen() == UI_SCR_GAME && ui_game()->n_players == 4);
+    ui_tap(180, 300, t);      /* REPRENDRE: the solo game comes back as it was */
+    assert(ui_screen() == UI_SCR_GAME && ui_game()->n_players == 1 && ui_game()->p[0].life == 40);
+    ui_long_press(180, 180, t);
+    ui_tap(180, 232, t);
+    new_game(0, 3);           /* same format, SOLO -> 4 */
+    assert(ui_game()->n_players == 4 && ui_game()->p[3].life == 40);
     snap("08-arene-4");
 
     /* turns: a hub tap passes the turn clockwise; the undo pill (4 s) takes it back */
@@ -277,9 +309,19 @@ int main(int argc, char **argv)
     /* --- 2 and 3 player arenas (Standard profile, no commander damage) */
     ui_long_press(180, 180, t);
     ui_tap(180, 232, t);
-    ui_tap(180, 104, t);      /* profile row already focused -> next profile */
-    ui_tap(100, 280, t);
-    assert(ui_game()->n_players == 2 && ui_game()->p[0].life == 20);
+    ui_tap(180, 160, t);
+    ui_knob(1, t);            /* Commander 1v1: 30 life, commander damage, two seats only */
+    snap("15a-format-commander-1v1");
+    ui_knob(3, t);            /* -> Standard, a constructed format: 20 life, a duel, no commander damage */
+    snap("15b-format-standard");
+    ui_tap(NEW_OK, t);
+    ui_knob(1, t);            /* a duel has two sizes: SOLO (my life only) and 2 */
+    snap("15c-standard-solo");
+    ui_tap(300, 112, t);      /* a tap on the right steps like the knob: back to 2 */
+    ui_knob(2, t);            /* and round again */
+    ui_tap(NEW_OK, t);
+    assert(ui_screen() == UI_SCR_GAME && ui_game()->n_players == 2 && ui_game()->p[0].life == 20);
+    assert(ui_game()->rules.cmd_lethal == 0 && ui_game()->rules.poison_lethal == 10);
     seat_xy(2, 0, &x, &y);
     seat_xy(2, 1, &x2, &y2);
     ui_drag(x, y, x2, y2, t); /* J1 attacks J2 */
@@ -291,10 +333,8 @@ int main(int argc, char **argv)
     snap("15-arene-2-standard");
     ui_long_press(180, 180, t);
     ui_tap(180, 232, t);
-    ui_tap(180, 200, t);
-    ui_knob(1, t);            /* 2 -> 3 */
-    ui_tap(100, 280, t);
-    assert(ui_game()->n_players == 3);
+    new_game(-4, -1);         /* back to Commander, 4 -> 3 */
+    assert(ui_game()->n_players == 3 && ui_game()->p[0].life == 40);
     seat_xy(3, 2, &x, &y);
     ui_tap(x, y, t);
     assert(ui_selected() == 2);

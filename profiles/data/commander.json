@@ -1,7 +1,10 @@
 {
   "name": "Commander",
+  "family": "Singleton",
   "start_life": 40,
   "players": 4,
+  "players_min": 2,
+  "players_max": 4,
   "commander_damage": 21,
   "poison": 10
 }

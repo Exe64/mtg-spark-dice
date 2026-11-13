@@ -35,7 +35,7 @@ Dépend de #5 (direction visuelle lumineuse : l'accueil radial, les réglages et
 ## Périmètre
 
 ### Inclus
-- Accueil refondu : Nouvelle partie (action principale) → écran « Nouvelle partie » (nombre de joueurs + écran de jeu Solo/Arène) ; Reprendre avec « T{tour} | J{joueurs} » ; pastille Type de jeu « MAGIC · 40 PV » → choix du profil et des règles ; bouton Réglages ; la molette déplace le focus entre ces actions, tap/appui = lancer ; places réservées (cachées) pour Héberger/Rejoindre (lot 3) et le badge Mise à jour (lot 2)
+- Accueil refondu : Nouvelle partie (action principale) → écran « Nouvelle partie » (nombre de joueurs + écran de jeu Solo/Arène) ; Reprendre avec « T{tour} | J{joueurs} » ; pas de pastille Type de jeu : le jeu puis le format se choisissent après « Nouvelle partie » (décision opérateur 2026-11-13, livré dans #5 étape 8) ; bouton Réglages ; la molette déplace le focus entre ces actions, tap/appui = lancer ; Héberger/Rejoindre affichés atténués et inactifs jusqu'au lot 3 et le badge Mise à jour (lot 2)
 - Cadre : grille de 6 sections défilante à la molette, listes éditables (molette = valeur, tap = entrer/revenir), accès depuis l'accueil et le menu de partie, réglages en NVS versionnés
 - Jeu : type de jeu (Magic), écran de jeu Solo/Arène (Solo = ma seule vie en plein écran, même à plusieurs), ordre du tour (horaire/inversé), PV de départ, clics/point (1–12), démarrer sur (accueil/partie), inverser les chiffres (sièges tournés on/off), KO auto, victoire auto, PV du commandant, attaque glissée = cmdt, seuils KO cmdt et poison, affichage cmdt (cible/source), réinitialiser la partie
 - Appareil : version + date de build, langue (FR/EN, changement immédiat), nom de l'appareil (généré au hasard selon la langue, régénérable, modifiable à la molette), assistant de configuration, PIN 4 chiffres (démarrage + protection des réglages ; stocké pour l'appairage futur), message du propriétaire (écran de verrouillage), sens de l'encodeur, intensité haptique, réinitialisation d'usine (double tap)
@@ -56,7 +56,7 @@ Dépend de #5 (direction visuelle lumineuse : l'accueil radial, les réglages et
 
 - [ ] Étape 1 — Cœur : `sd_settings` (défauts, bornes, sérialisation NVS versionnée) + règles paramétrables dans `core/` (KO auto, victoire auto, PV du commandant, ordre du tour, attaque = cmdt, clics/point, délai de validation) + tests host (M · standard → Sonnet)
 - [ ] Étape 2 — Traductions : remplacer les macros de `strings_fr.h` par des tables par langue (`strings_fr.c`, `strings_en.c`), sélection à chaud, test host qui vérifie que chaque chaîne existe dans chaque langue (M · standard → Sonnet)
-- [ ] Étape 3 — Accueil : Nouvelle partie (+ écran nombre de joueurs et Solo/Arène), Reprendre « T n | J n », pastille Type de jeu → profils, bouton Réglages, focus à la molette ; remplace l'accueil du plan #1 (M · reasoning → Opus)
+- [ ] Étape 3 — Accueil : l'accueil radial et l'écran « Nouvelle partie » (format puis joueurs) existent depuis #5 (étape 8) ; reste à brancher le bouton Réglages, le focus à la molette et le choix Solo/Arène ; pas de pastille Type de jeu (S · standard → Sonnet)
 - [ ] Étape 4 — Cadre Réglages : grille 6 sections, listes éditables, protection PIN, accès accueil/menu (M · standard → Sonnet)
 - [ ] Étape 5 — Section Jeu : tous les réglages listés + vue Solo « ma seule vie » à plusieurs joueurs (M · standard → Sonnet)
 - [ ] Étape 6 — Section Appareil : version, langue, nom (aléatoire par langue + Régénérer + saisie molette), PIN + écran de verrouillage avec message, sens encodeur, haptique, réinitialisation d'usine (M · standard → Sonnet)
@@ -77,7 +77,7 @@ Dépend de #5 (direction visuelle lumineuse : l'accueil radial, les réglages et
 | Type de jeu | Magic seul ; l'étape choisit le profil par défaut | Choix opérateur (itération 1) |
 | Nom du produit | SparkDice (pas SparkDial) | Confirmé par l'opérateur (itération 1) |
 | Style de l'accueil | Esprit de la référence (radial, lueur, fond bleu nuit, icônes) via le thème lumineux du plan #5, logo de l'opérateur | Choix opérateur (itération 3) |
-| Accueil | Fonctions de l'accueil de référence (Réglages, Nouvelle partie, Reprendre T/J, Type de jeu), apparence SparkDice ; Héberger/Rejoindre cachés jusqu'au lot 3, badge Mise à jour au lot 2 | Choix opérateur (itération 2) |
+| Accueil | Fonctions de l'accueil de référence (Réglages, Nouvelle partie, Reprendre T/J), apparence SparkDice ; sans Type de jeu (2026-11-13) ; Héberger/Rejoindre atténués jusqu'au lot 3, badge Mise à jour au lot 2 | Choix opérateur (itération 2) |
 | Molette sur l'accueil | Déplace le focus entre les actions ; tap/appui lance | Choix opérateur (itération 2) : utilisable sans toucher l'écran |
 | Nouvelle partie | Nombre de joueurs + écran de jeu Solo/Arène au lancement | Choix opérateur (itération 2) |
 | Découpage | 3 plans : #2 (ce plan), #3 Affichage et veille, #4 Joueurs, tours et minuteur | Choix opérateur 2026-11-12 |

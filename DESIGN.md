@@ -194,7 +194,7 @@ components:
 
 **Creative North Star: "The Well of Light"**
 
-The dial is the knob's well of light seen from above, as in the logo. The hub at the centre is the light source and everything is lit from the centre outward: a dark ground that falls from a bluish centre to a near-black rim, white ink, and seat hues that exist only as light (a tint on the seat's glass, a soft halo behind its numeral, the colour of its label). A pending change is light gathering: an arc of white light runs once around the ring in exactly 800 ms, and when it closes the change is committed. The active player is the one the light points at, with three soft rays leaving the hub. This is the Lumineux theme, the default (`UI_THEME_DEFAULT`).
+The dial is the knob's well of light seen from above, as in the logo. The hub at the centre is the light source and everything is lit from the centre outward: a dark ground that falls from a bluish centre to a near-black rim, white ink, and seat hues that exist only as light (a tint on the seat's glass, a soft halo behind its numeral, the colour of its label). A pending change is light gathering: an arc of white light runs once around the ring in exactly 800 ms, and when it closes the change is committed. The active player is the one the light leans toward: a soft glow on the hub's edge that leans toward that seat. This is the Lumineux theme, the default (`UI_THEME_DEFAULT`).
 
 Two themes share one layout and one set of gestures. Booster, the wrapper theme shipped first, is kept as theme 2: saturated seat fields on wrapper black, a silver foil that seals a pending change, straight 2 px rules, no light. Each canonical section below describes Lumineux first, then what Booster does differently under "Theme 2: Booster". A rule stated for one theme binds that theme only; rules marked shared bind both. `ui_set_theme(theme, ground)` switches at run time and the firmware reads both values at start; the settings screen that lets the user choose is not built yet.
 
@@ -205,7 +205,7 @@ Rejected by the direction contract: flat colour quadrants, a thin progress ring 
 **Key Characteristics:**
 - Two themes, one layout, one set of gestures. Lumineux is the default; Booster is theme 2.
 - Lumineux: a radial dark ground, white ink, and seat hues used as light on glass, never as paint.
-- The hub is the light source: turn marker, pending value and undo all live there, and three rays point at the active seat.
+- The hub is the light source: turn marker, pending value and undo all live there, and its glow leans toward the active seat.
 - Pending is always an arc or band whose drawn extent is the elapsed share of the 800 ms commit delay.
 - Condensed ExtraBold numerals and SemiBold uppercase labels, kerning off, in both themes.
 - A seat is never identified by hue alone: every seat carries its J1–J4 label and its position.
@@ -281,7 +281,7 @@ Rhythm is set by fixed pitches, not by a spacing scale. Action pills and bars ar
 **The Parted By Ground Rule.** Lumineux only. Seats are separated by a wedge of ground (2° trimmed from each side of each sector, in whole degrees), never by a drawn line.
 
 ### Theme 2: Booster
-Booster uses the same geometry with painted sectors that touch: the selected seat is a full-radius wedge, and straight 2 px seams run from the hub edge to the rim between seats. Inset content keeps clear of the round bezel with fixed boxes: menu focus x 36–323, journal rows x 70–310, game-over buttons x 70–290, the Solo undo bar x 100–260 (y 282–318). The Booster home has no logo: profile name at y 104, square chips at y 172–208.
+Booster uses the same geometry with painted sectors that touch: the selected seat is a full-radius wedge, and straight 2 px seams run from the hub edge to the rim between seats. Inset content keeps clear of the round bezel with fixed boxes: menu focus x 36–323, journal rows x 70–310, game-over buttons x 70–290, the Solo undo bar x 100–260 (y 282–318). The Booster home and new-game screens use the Lumineux geometry with square blocks: the product name replaces the logo, the primary action is an ink-filled block, the others are 2 px outlines.
 
 ## Elevation & Depth
 
@@ -291,7 +291,7 @@ Lumineux has depth, and all of it is light. There are no drop shadows and no off
 - **Well**: the radial ground, computed once per ground colour into a screen-sized buffer in the display's pixel format and then copied. On 16-bit displays it is ordered-dithered (4×4 Bayer) against banding. If the buffer cannot be allocated the ground falls back to the flat centre colour.
 - **Halo** (`fx_halo`): a soft disc of light, a Gaussian that reaches zero at its radius. One A8 mask is computed per radius at its drawn size and cached (6 radii, least recently used evicted). Used behind the Solo numeral (radius 150, 40 %), behind the selected arena numeral (radius 120 for 2 players, 84 for 3–4, 20 %), behind the sheet title (radius 96, 30 %), for the winner (radius 170, 30 %), behind lit home chips (radius 30, 20 %), as the journal's seat point (radius 14, 100 %), and in ink behind the boot logo (radius 150, 20 %).
 - **Glowing ring** (`fx_ring`): a pre-rendered 128×128 A8 ring, scaled to the hub radius. The hub's glow: ink at 70 % at rest, 30 % while a delta is pending.
-- **Ray** (`fx_ray`): a pre-rendered 32×128 A8 beam that widens and fades as it travels, stretched to its length and rotated.
+- **Ray** (`fx_ray`): a pre-rendered 32×128 A8 beam that widens and fades as it travels, stretched to its length and rotated. No screen draws it since 2026-11-13; it remains in the primitives and on the specimen sheet.
 - **Glass**: the rim colour at 215/255 with a rounded-full outline (pills), or at 190/255 with a 1 px border and a 1 px highlight arc on the upper edge (the round `fx_glass`, used for the hub undo). Lit or focused glass gets a brighter white border, and the round button a white halo of twice its radius at 80 %.
 
 ### Named Rules
@@ -309,7 +309,7 @@ Booster is completely flat: no shadows, glows or blur. Depth is field versus gro
 Lumineux is round. Every button is a rounded-full pill, home chips are circles, the hub is a disc of radius 48, and the round bezel clips everything else. Strokes are thin white lines: 1 px for the knob ring circle and unlit glass borders, 2 px for the detent ticks, the +/− marks, the focus rule, the journal rule and a lit pill's border. The only heavier strokes are the two pending arcs (4 px on the hub, 5 px on the knob ring), which have to be seen from across the table.
 
 - **Knob ring**: a 1 px circle at radius 170 with 16 ticks (every 22.5°, 2 px, from radius 170 to 177), all in ink at 40 %. It is the logo's knurl. Present on Solo, the player sheet and the game-over screen.
-- **Rays**: three beams from the hub centre toward the active seat. The centre ray follows the seat axis and stops at 72 px, short of the numeral. The two side rays sit at ± a quarter of the seat span, clamped to 24–40° (24° with 4 players, 30° with 3, 40° with 2), run to 174 px, and flank the numeral. Ink at 70 %.
+- **Active glow**: a white halo of radius 44 at 50 %, centred 6 px outside the hub edge on the active seat's axis. It replaced three rays across the seat, which the owner rejected on 2026-11-13 (two white strokes flanking the numeral).
 - **Pending arcs**: drawn clockwise from 12 o'clock (−90°) to −90° + 360° × progress. On the hub: 4 px at radius 51, just outside the glass edge. On the knob ring: 5 px at radius 172.
 - **Line icons**: 40×40 A8 masks drawn from plain strokes (2.5 px, round caps), no fill, tinted in ink. Eight ship (settings, players, resume, game type, undo, turn, wifi, room); the current screens use one, undo, in the hub.
 - **Logo**: the owner-approved line-art mark, as two ink-tinted A8 masks (237×195 on the boot screen, 72×60 at the top of the home).
@@ -331,13 +331,13 @@ Lumineux components first; Booster's equivalents are listed at the end.
 
 ### Glass pills (buttons)
 - **Shape:** rounded-full, 46 px tall, filled with the rim colour at 215/255.
-- **Lit:** the thing to tap right now. A 2 px ink border at 80 %. JOUER on the home; REPRENDRE when a saved game exists (JOUER would replace it, so it becomes unlit); NOUVELLE PARTIE on the game-over screen; the Solo undo.
+- **Lit:** the thing to tap right now. A 2 px ink border at 80 %. NOUVELLE PARTIE on the home; REPRENDRE when a saved game exists (a new game would replace it, so NOUVELLE PARTIE becomes unlit); SUIVANT and JOUER on the new-game screen; NOUVELLE PARTIE on the game-over screen; the Solo undo.
 - **Unlit:** a 1 px ink border at 30 %. Text is ink at full opacity in both states.
-- **Focus:** there is no hover. The knob-driven focus on the home is a straight 140 px, 2 px ink rule under the active row.
+- **Focus:** there is no hover and, since the 2026-11-13 home, no knob focus mark: the lit pill is the only emphasis.
 
 ### Seat chips (home)
 - **Style:** 36 px circles at a 44 px pitch, each labelled J1–J4 in ink. A seat in play is lit: its hue at 50/255 inside a 2 px border in its hue, over a halo at 20 %. A seat not in play is empty glass: a 2 px ink border at 30 %.
-- The home is an interim layout (the logo, then the same rows and tap zones as the Booster home). Do not derive new screens from it.
+- Seat chips now live on the new-game screen's table-size step: as many chips as the format allows, lit up to the chosen size; SOLO lights J1 only.
 
 ### Menu
 - **Style:** five centred Row-text rows at a 52 px pitch. The focused row sits in a lit glass pill, 47 px tall, whose half-width is the widest that stays 8 px inside the round bezel, capped at 144 px. Unfocused rows are ink at 70 %.
@@ -360,7 +360,7 @@ Lumineux components first; Booster's equivalents are listed at the end.
 - **At rest:** a disc of the rim colour inside the glowing ring (ink, 70 %). "TOUR n" in Label, ink, over the active seat's J# in Headline Hub in that seat's hue. Tap = next turn.
 - **Pending:** the glow drops to 30 % and the 4 px light arc closes clockwise at radius 51 over exactly the commit delay. The delta is shown in Headline Hub, ink, as its effect on life (commander damage reads −5), with "= total" in Label below. Every drag A→B is an attack and shows the two J#, each in its own seat hue, around a drawn ink triangle. Commander damage adds a CMDT tag (Label Small) above the delta, placed at y − 31 with the delta lowered to y − 3 so the tag stays clear of the ring. A hub tap toggles attack ↔ commander damage (restarting the arc), or commits a non-attack delta at once.
 - **Undo (4 s after any commit):** the hub becomes a focused round glass button with a white halo. It shows the undo line icon over the amount it reverses in Row, or "J1 › J2" after a pass. It carries no word, so players who see the hub upside down can still read it. When a hit defeated the active player and passed the turn automatically, it shows that hit; one tap reverts both.
-- **Active seat:** three rays from the hub (see Shapes). The light moves clockwise with Next and skips defeated seats. Solo has no rays and no turn.
+- **Active seat:** the hub's glow leans toward it (see Shapes) and the hub names it. The light moves clockwise with Next and skips defeated seats. Solo has no turn.
 
 **The Hub-Only Repaint Rule.** Shared. Arena seats show committed values. While only the pending value, the arc or the undo state changes, invalidate the hub box and never the turned seat layers. The box is the hub radius plus 18 px in Lumineux (the glow passes the edge) and plus 6 px in Booster.
 
@@ -379,7 +379,7 @@ Lumineux components first; Booster's equivalents are listed at the end.
 - **Style:** the ground, the logo mask in the theme's ink, and the product name in Headline Hub. Lumineux adds a soft ink halo behind the logo. The name comes from one constant, `UI_PRODUCT_NAME`.
 
 ### Theme 2: Booster
-- **Buttons:** square, 46 px tall. Primary is ink-inverse (Wrapper Ink fill, Wrapper Black Row text); secondary is a 2 px ink outline with Label text. With a saved game, REPRENDRE is primary and JOUER secondary. On a seat field (game over) the "ink" is the field's own text colour: ANNULER is a 2 px black outline, NOUVELLE PARTIE a solid black bar with text in the field hue.
+- **Buttons:** square, 46 px tall. Primary is ink-inverse (Wrapper Ink fill, Wrapper Black Row text); secondary is a 2 px ink outline with Label text. With a saved game, REPRENDRE is primary and NOUVELLE PARTIE secondary. On a seat field (game over) the "ink" is the field's own text colour: ANNULER is a 2 px black outline, NOUVELLE PARTIE a solid black bar with text in the field hue.
 - **Seat chips:** 36 px squares. In-game seats are filled with their hue and carry black text; unused seats are a 2 px outline in their hue.
 - **Menu:** the focused row is an ink-inverse bar (47 px tall, x 36–323).
 - **Seat field:** selected, the hue fills the sector (or the whole screen in Solo) with black numeral and label; unselected, numeral and label in the hue on the ground; defeated, never filled, the skull mark in full seat hue replaces the total.
@@ -430,12 +430,12 @@ Every raster the firmware ships is recorded in `ui/assets/README.md`. Nothing is
 ## Open Questions
 
 - **Finish review.** A finish review ran on 2026-11-13 against the direction contract (`.impeccable/surfaces/ui-ui-c.md`), with the verdict "ship after fixes", as reported by the build session; the repository holds no review file. The fixes are in the code: less light under numerals (Solo halo 40 %, selected glass 46/255, seat halo 20 %, sheet and game-over halos 30 %); rays that flank the numeral (side rays at ±24–40°, centre ray stopping at 72 px) at 70 %; the selected seat's label and the game-over subline in ink; a defeated seat's ink at 60 %; the CMDT tag kept clear of the hub ring and the pending arc drawn at radius 51; arena seat labels at 30 px and the hub's secondary text at 24 px; whole-degree gaps between seats.
-- **Contrast over light is estimated, not measured.** The only automated check is ink on the bare ground. A linear-blend estimate at the halo centre on Nuit, after the levels were lowered on 2026-11-13, gives about 7.3:1 under the Solo numeral, about 7:1 or more under a selected arena numeral for every seat (Gold is the tightest), about 8:1 or more under the sheet and winner titles, and about 6.6:1 or more for a lit home chip's J#. An unlit home chip's J# (ink at 40 %) is about 3.5:1; the home is an interim screen. These are estimates on a PC render, to be re-checked on the display.
+- **Contrast over light is estimated, not measured.** The only automated check is ink on the bare ground. A linear-blend estimate at the halo centre on Nuit, after the levels were lowered on 2026-11-13, gives about 7.3:1 under the Solo numeral, about 7:1 or more under a selected arena numeral for every seat (Gold is the tightest), about 8:1 or more under the sheet and winner titles, and about 6.6:1 or more for a lit home chip's J#. An unlit chip's J# and the home's three inactive buttons (ink at 40 %) are about 3.5:1: they are not available actions. These are estimates on a PC render, to be re-checked on the display.
 - **Departures from the contract.** The contract's seat glass is a 12–18 % lift; the build uses 14 % at rest and 25 % when selected. The contract's strokes are round-capped, 2 or 3 px; the build draws 1, 2, 4 and 5 px strokes with LVGL's default caps, and only the icons are round-capped. The contract's chrome is glass buttons with line icons; the build's buttons carry text, and one icon (undo) is used.
 - **Nothing has been seen on real hardware.** The dithering of the ground in RGB565 is compiled only for the firmware and has not been looked at. The render cost on the ESP32-S3 has not been measured.
 - **Render cost, PC only.** `host/bench.c` (unoptimised build, full 360×360 redraw) puts Lumineux at about 2–2.6 times Booster on the boot, home and menu screens, about 5 times on Solo, and about 1.6–1.8 times in the 4-player arena. The ratio is expected to carry over; the absolute times are the PC's.
 - **Undo halo and partial repaint.** The hub undo's white halo has a radius of 96 px, but the hub-only repaint box is 66 px. Whether a trace of the halo stays on screen when the undo expires has not been checked on a partial-refresh display.
-- **The home is interim.** Plan #2 rebuilds it. Its chips, rule focus and layout are recorded as built, not as a pattern.
+- **Home and new game (2026-11-13).** The home is radial: logo y 40; NOUVELLE PARTIE disc r 64 at (180, 160) with a 70 % ink ring glow when lit; dimmed settings disc r 22 at (92, 92), host and join discs r 34 at (76, 206) and (284, 206) with their label below; REPRENDRE pill x 116–244, y 276–326 with "T n | J n". Settings, host and join are drawn at 40 % and do nothing until plan #2 and the connectivity lots; the knob does nothing on the home. New game (both themes): family or JOUEURS y 60, format name y 112 (64 px, 48 px beyond 9 letters), rules line y 154 (commander damage and poison only when the format has them), list dots or seat chips y 204–210 between two chevrons at x 56 / 304, back disc x 66–110 and SUIVANT / JOUER x 124–264 at y 262–310. The knob, or a tap left or right of centre above y 240, changes the value. Formats come from `profiles/data` (Singleton: Commander, Commander 1v1, Commander 2HG, Duel Commander; Construit: Standard, Pioneer, Modern, Legacy, Pauper, Peasant); a constructed format is a 20-life duel with no commander damage, and its only table sizes are SOLO and 2.
 - **Concept seed.** The contract says "seed: none (unavailable)" and that there was no direction roll, so the seed could not be checked. `.impeccable/questions/roll.json` holds a roll with a seed; its relation to this build is not established.
 - **Unused tokens.** `ui_theme_lumineux` still defines `seat_ink` and the three foil tokens, which no Lumineux screen reads. `ui/fx.c` draws glass borders and the focus halo in pure white rather than Light Ink.
 - **Theme selector.** `ui_set_theme` and the six grounds exist; the settings screen that exposes them is plan #3.

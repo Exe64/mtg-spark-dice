@@ -20,9 +20,10 @@ typedef struct {
     void (*save)(const sd_game_t *g);    /* called after every committed delta, undo and new game; may be NULL */
 } ui_hooks_t;
 
-typedef enum { UI_SCR_HOME, UI_SCR_GAME, UI_SCR_MENU, UI_SCR_LOG, UI_SCR_SHEET, UI_SCR_OVER, UI_SCR_BOOT } ui_screen_t;
+typedef enum { UI_SCR_HOME, UI_SCR_GAME, UI_SCR_MENU, UI_SCR_LOG, UI_SCR_SHEET, UI_SCR_OVER, UI_SCR_BOOT, UI_SCR_NEW } ui_screen_t;
 
-/* Call after lv_init() and display creation. `resume` (may be NULL) is offered as "REPRENDRE" on the home screen. */
+/* Call after lv_init() and display creation. `resume` (may be NULL) is offered as "REPRENDRE" on the home screen.
+ * Home starts a game in two steps on UI_SCR_NEW: the format (one of `profiles`), then the table size. */
 void ui_init(const ui_hooks_t *hooks, const sd_profile_t *profiles, int n_profiles, const sd_game_t *resume);
 
 /* Theme (ui_theme_id_t, see theme.h) and ground hue (index in ui_grounds[], used by themes that let the user pick).

@@ -36,7 +36,7 @@ int main(int argc, char **argv)
     if (argc != 2)
         return 2;
     char path[512];
-    sd_profile_t prof[1];
+    static sd_profile_t prof[1]; /* the UI keeps the pointer */
     const char *err = NULL;
     snprintf(path, sizeof(path), "%s/commander.json", argv[1]);
     if (!sd_profile_load(path, &prof[0], &err))
@@ -48,16 +48,20 @@ int main(int argc, char **argv)
     row("boot");
     ui_tap(180, 180, t); /* skip the logo */
     row("home");
-    ui_tap(180, 280, t); /* JOUER: Commander, 4 players */
+    ui_tap(180, 160, t); /* NOUVELLE PARTIE */
+    row("new game, format");
+    ui_tap(194, 286, t); /* SUIVANT */
+    ui_tap(194, 286, t); /* JOUER: Commander, 4 players */
     row("arena 4, at rest");
     ui_knob(-3, t);
     row("arena 4, pending");
     ui_long_press(180, 180, t);
     row("menu");
     ui_tap(180, 232, t); /* NOUVELLE PARTIE -> home */
-    ui_tap(180, 200, t); /* players row */
-    ui_knob(-3, t);      /* 4 -> 1 */
-    ui_tap(100, 280, t); /* JOUER */
+    ui_tap(180, 160, t); /* NOUVELLE PARTIE */
+    ui_tap(194, 286, t); /* SUIVANT */
+    ui_knob(-3, t);      /* 4 -> SOLO */
+    ui_tap(194, 286, t); /* JOUER */
     row("solo, at rest");
     ui_knob(-3, t);
     row("solo, pending");

@@ -20,7 +20,7 @@
 #define UNDO_PILL_MS 4000
 #define PM_TAP 26 /* |local x| beyond which a tap on the selected seat is - or + */
 
-enum { HOME_PROFILE, HOME_PLAYERS };
+enum { NEW_FORMAT, NEW_PLAYERS }; /* the two steps of UI_SCR_NEW */
 enum { MENU_UNDO, MENU_LOG, MENU_SHEET, MENU_NEW, MENU_BACK };
 
 static const ui_theme_t *const THEMES[UI_THEME_COUNT] = {[UI_THEME_BOOSTER] = &ui_theme_booster,
@@ -32,7 +32,7 @@ static struct {
     ui_hooks_t hooks;
     const sd_profile_t *profiles;
     int n_profiles;
-    int profile, players, home_focus;
+    int profile, players, new_step;
     bool has_resume;
     sd_game_t resume;
     sd_game_t g;
@@ -391,7 +391,9 @@ static void start_game(const sd_game_t *resume)
         snprintf(U.profile_name, sizeof(U.profile_name), "%s", p->name);
         save();
     }
-    /* recover the profile name for a resumed game from its rules */
+    /* recover the profile name for a resumed game from its rules.
+     * ponytail: formats with the same rules (all constructed ones) resume under the first one's name; store the
+     * format in the save when its layout changes (plan #6). */
     for (int i = 0; resume && i < U.n_profiles; i++)
         if (!memcmp(&U.profiles[i].rules, &U.g.rules, sizeof(sd_rules_t)))
             snprintf(U.profile_name, sizeof(U.profile_name), "%s", U.profiles[i].name);
@@ -406,7 +408,6 @@ static void go_home(void)
     flush();
     U.resume = U.g; /* "Nouvelle partie" never destroys the game: it stays resumable */
     U.has_resume = true;
-    U.home_focus = HOME_PROFILE;
     U.scr = UI_SCR_HOME;
 }
 
@@ -792,10 +793,10 @@ static void draw_arena_light(lv_layer_t *l)
         fx_halo(l, CX + (int)(R_NUM[n] * cosf(a)), CY + (int)(R_NUM[n] * sinf(a)), n == 2 ? 120 : 84, T->seat[U.sel],
                 LV_OPA_20); /* kept low: white numerals need 7:1 over it */
     }
-    /* signature: the light points at the active seat, three rays from the hub */
-    float side = span / 4 < 24.f ? 24.f : span / 4 > 40.f ? 40.f : span / 4; /* the side rays flank the numeral */
-    for (int k = -1; k <= 1; k++) /* the centre ray stops short of it */
-        fx_ray(l, CX, CY, seat_angle(g->active) + k * side, k ? R - 6 : 72, T->ink, LV_OPA_70);
+    { /* the hub leans its light toward the active seat: a soft glow on its edge, no beam across the seat */
+        float a = seat_angle(g->active) * (float)M_PI / 180.f;
+        fx_halo(l, CX + (int)((HUB_R + 6) * cosf(a)), CY + (int)((HUB_R + 6) * sinf(a)), 44, T->ink, LV_OPA_50);
+    }
     for (int i = 0; i < n; i++) {
         bool sel = i == U.sel, lost = sd_player_lost(g, (uint8_t)i);
         lv_opa_t opa = lost ? LV_OPA_60 : LV_OPA_COVER;
@@ -835,51 +836,6 @@ static void draw_arena_light(lv_layer_t *l)
         }
     }
     draw_hub_light(l);
-}
-
-static void draw_home(lv_layer_t *l)
-{
-    const sd_profile_t *p = &U.profiles[U.profile];
-    char buf[48];
-    ground(l);
-    /* profile */
-    char cmd[8], poison[8];
-    snprintf(cmd, sizeof(cmd), "%d", p->rules.cmd_lethal);
-    snprintf(poison, sizeof(poison), "%d", p->rules.poison_lethal);
-    char name[24];
-    snprintf(name, sizeof(name), "%s", p->name);
-    upper(name);
-    text(l, U.f_title, T->ink, LV_OPA_COVER, CX, 104, name);
-    snprintf(buf, sizeof(buf), S_PROFILE_SUB_FMT, p->rules.start_life, p->rules.cmd_lethal ? cmd : S_OFF,
-             p->rules.poison_lethal ? poison : S_OFF);
-    text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 146, buf);
-    /* players */
-    for (int i = 0; i < SD_MAX_PLAYERS; i++) {
-        int x = CX - 86 + i * 44, y = 172;
-        if (i < U.players)
-            fill(l, x, y, x + 36, y + 36, T->seat[i], 0);
-        else
-            outline(l, x, y, x + 36, y + 36, T->seat[i]);
-        snprintf(buf, sizeof(buf), S_SEAT_FMT, i + 1);
-        text(l, U.f_small, i < U.players ? T->seat_ink[i] : T->seat[i], LV_OPA_COVER, x + 18, y + 18, buf);
-    }
-    snprintf(buf, sizeof(buf), S_PLAYERS_FMT, U.players, U.players > 1 ? "S" : "");
-    text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 226, buf);
-    /* focus: a rule under the row the knob drives */
-    int fy = U.home_focus == HOME_PROFILE ? 162 : 242;
-    line(l, CX - 70, fy, CX + 70, fy, T->ink, LV_OPA_COVER);
-    /* actions */
-    int y1 = 258, y2 = 304;
-    /* primary = ink-inverse fill. With a saved game, REPRENDRE is primary: JOUER would replace it. */
-    if (U.has_resume) {
-        outline(l, 52, y1, 174, y2, T->ink);
-        text(l, U.f_label, T->ink, LV_OPA_COVER, 113, (y1 + y2) / 2, S_PLAY);
-        fill(l, 186, y1, 308, y2, T->ink, 0);
-        text(l, U.f_label, T->ground, LV_OPA_COVER, 247, (y1 + y2) / 2, S_RESUME);
-    } else {
-        fill(l, 110, y1, 250, y2, T->ink, 0);
-        text(l, U.f_row, T->ground, LV_OPA_COVER, CX, (y1 + y2) / 2, S_PLAY);
-    }
 }
 
 static int menu_row_y(int i) { return 76 + i * 52; }
@@ -1136,52 +1092,135 @@ static void draw_boot(lv_layer_t *l)
 }
 
 /* Interim home in the luminous style: same rows and tap zones as draw_home (plan #2 rebuilds this screen). */
-static void draw_home_light(lv_layer_t *l)
+/* Button of both themes: a glass pill (lit when primary) or the booster's flat block. Returns the ink to write on it. */
+static uint32_t button(lv_layer_t *l, int x1, int y1, int x2, int y2, bool primary)
+{
+    if (T->light) {
+        pill(l, x1, y1, x2, y2, primary);
+        return T->ink;
+    }
+    if (primary)
+        fill(l, x1, y1, x2, y2, T->ink, 0);
+    else
+        outline(l, x1, y1, x2, y2, T->ink);
+    return primary ? T->ground : T->ink;
+}
+
+/* Home, radial: NOUVELLE PARTIE at the centre, REPRENDRE below when a game is saved. Settings, host and join are
+ * shown dimmed and do nothing yet (plan #2 and the connectivity lots give them a destination). */
+#define NEW_Y 160
+#define NEW_R 64
+#define RESUME_X1 116
+#define RESUME_Y1 276
+#define RESUME_X2 244
+#define RESUME_Y2 326
+static void draw_home(lv_layer_t *l)
+{
+    static const struct {
+        fx_icon_t icon;
+        int x, y, r;
+        const char *label;
+    } off[] = {{FX_ICON_SETTINGS, 92, 92, 22, NULL},
+               {FX_ICON_WIFI, 76, 206, 34, S_HOST},
+               {FX_ICON_PLAYERS, 284, 206, 34, S_JOIN}};
+    char buf[24];
+    ground(l);
+    if (T->light)
+        fx_image(l, &ui_logo_small_a8, CX, 40, T->ink, LV_OPA_COVER);
+    else
+        text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 44, UI_PRODUCT_NAME);
+    for (size_t i = 0; i < sizeof(off) / sizeof(off[0]); i++) {
+        button(l, off[i].x - off[i].r, off[i].y - off[i].r, off[i].x + off[i].r, off[i].y + off[i].r, false);
+        fx_icon(l, off[i].icon, off[i].x, off[i].y, T->ink, LV_OPA_40);
+        if (off[i].label)
+            text(l, U.f_small, T->ink, LV_OPA_40, off[i].x, off[i].y + off[i].r + 16, off[i].label);
+    }
+    /* with a saved game REPRENDRE is the lit action: a new game would replace it */
+    if (T->light && !U.has_resume)
+        fx_ring(l, CX, NEW_Y, NEW_R, T->ink, LV_OPA_70);
+    uint32_t ink = button(l, CX - NEW_R, NEW_Y - NEW_R, CX + NEW_R, NEW_Y + NEW_R, !U.has_resume);
+    fx_icon(l, FX_ICON_GAME, CX, NEW_Y - 30, ink, LV_OPA_COVER);
+    text(l, U.f_label, ink, LV_OPA_COVER, CX, NEW_Y + 8, S_NEW_1);
+    text(l, U.f_label, ink, LV_OPA_COVER, CX, NEW_Y + 32, S_NEW_2);
+    if (U.has_resume) {
+        ink = button(l, RESUME_X1, RESUME_Y1, RESUME_X2, RESUME_Y2, true);
+        text(l, U.f_small, ink, LV_OPA_COVER, CX, RESUME_Y1 + 15, S_RESUME);
+        snprintf(buf, sizeof(buf), S_RESUME_SUB_FMT, U.resume.turn, U.resume.n_players);
+        text(l, U.f_small, ink, LV_OPA_COVER, CX, RESUME_Y1 + 36, buf);
+    }
+}
+
+/* New game, step 1: the format, step 2: the table size. The knob (or a tap on either side) changes the value. */
+#define NEW_BTN_Y1 262
+#define NEW_BTN_Y2 310
+static void players_step(int d) /* SOLO, then the sizes the format allows */
 {
     const sd_profile_t *p = &U.profiles[U.profile];
-    char buf[48], cmd[8], poison[8], name[24];
+    int n = p->players_max - p->players_min + 2;
+    int i = U.players == 1 ? 0 : U.players - p->players_min + 1;
+    i = ((i + d) % n + n) % n;
+    U.players = i ? p->players_min + i - 1 : 1;
+}
+
+static void draw_new(lv_layer_t *l)
+{
+    const sd_profile_t *p = &U.profiles[U.profile];
+    char buf[64], name[24];
     ground(l);
-    fx_image(l, &ui_logo_small_a8, CX, 40, T->ink, LV_OPA_COVER);
-    snprintf(cmd, sizeof(cmd), "%d", p->rules.cmd_lethal);
-    snprintf(poison, sizeof(poison), "%d", p->rules.poison_lethal);
+    if (T->light)
+        knob_ring(l);
+    snprintf(buf, sizeof(buf), "%s", p->family);
+    upper(buf);
+    text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 60, U.new_step == NEW_PLAYERS ? S_PLAYERS : buf[0] ? buf : S_FORMAT);
     snprintf(name, sizeof(name), "%s", p->name);
     upper(name);
-    text(l, U.f_title, T->ink, LV_OPA_COVER, CX, 108, name);
-    snprintf(buf, sizeof(buf), S_PROFILE_SUB_FMT, p->rules.start_life, p->rules.cmd_lethal ? cmd : S_OFF,
-             p->rules.poison_lethal ? poison : S_OFF);
-    text(l, U.f_small, T->ink, LV_OPA_80, CX, 148, buf);
-    for (int i = 0; i < SD_MAX_PLAYERS; i++) { /* seats in play are lit, the others are empty glass */
-        int x = CX - 66 + i * 44, y = 190;
-        bool on = i < U.players;
-        lv_draw_rect_dsc_t d;
-        lv_draw_rect_dsc_init(&d);
-        d.radius = LV_RADIUS_CIRCLE;
-        d.bg_color = C(T->seat[i]);
-        d.bg_opa = on ? 50 : LV_OPA_TRANSP;
-        d.border_color = C(on ? T->seat[i] : T->ink);
-        d.border_opa = on ? LV_OPA_COVER : LV_OPA_30;
-        d.border_width = 2;
-        lv_area_t a = {x - 18, y - 18, x + 18, y + 18};
-        if (on)
-            fx_halo(l, x, y, 30, T->seat[i], LV_OPA_20);
-        lv_draw_rect(l, &d, &a);
-        snprintf(buf, sizeof(buf), S_SEAT_FMT, i + 1);
-        text(l, U.f_small, T->ink, on ? LV_OPA_COVER : LV_OPA_40, x, y, buf);
-    }
-    snprintf(buf, sizeof(buf), S_PLAYERS_FMT, U.players, U.players > 1 ? "S" : "");
-    text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 228, buf);
-    int fy = U.home_focus == HOME_PROFILE ? 164 : 244; /* focus: a rule under the row the knob drives */
-    line(l, CX - 70, fy, CX + 70, fy, T->ink, LV_OPA_COVER);
-    const int y1 = 258, y2 = 304;
-    if (U.has_resume) { /* with a saved game, REPRENDRE is the lit action: JOUER would replace it */
-        pill(l, 52, y1, 174, y2, false);
-        text(l, U.f_label, T->ink, LV_OPA_COVER, 113, (y1 + y2) / 2, S_PLAY);
-        pill(l, 186, y1, 308, y2, true);
-        text(l, U.f_label, T->ink, LV_OPA_COVER, 247, (y1 + y2) / 2, S_RESUME);
+    text(l, strlen(name) > 9 ? U.f_hub : U.f_title, T->ink, LV_OPA_COVER, CX, 112, name);
+    /* only the rules the format has: no commander damage, no mention of it */
+    int n = snprintf(buf, sizeof(buf), S_LIFE_FMT, p->rules.start_life);
+    if (p->rules.cmd_lethal)
+        n += snprintf(buf + n, sizeof(buf) - (size_t)n, S_DOT S_CMD " %d", p->rules.cmd_lethal);
+    if (p->rules.poison_lethal)
+        snprintf(buf + n, sizeof(buf) - (size_t)n, S_DOT S_POISON " %d", p->rules.poison_lethal);
+    text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 154, buf);
+    if (U.new_step == NEW_FORMAT) {
+        for (int i = 0; i < U.n_profiles; i++) { /* where we are in the list */
+            int x = CX - (U.n_profiles - 1) * 7 + i * 14;
+            fill(l, x - 3, 207, x + 3, 213, T->ink, T->light ? LV_RADIUS_CIRCLE : 0);
+            if (i != U.profile)
+                fill(l, x - 2, 208, x + 2, 212, T->ground, T->light ? LV_RADIUS_CIRCLE : 0);
+        }
     } else {
-        pill(l, 110, y1, 250, y2, true);
-        text(l, U.f_row, T->ink, LV_OPA_COVER, CX, (y1 + y2) / 2, S_PLAY);
+        for (int i = 0; i < p->players_max; i++) { /* seats in play are lit, the others are empty */
+            int x = CX - (p->players_max - 1) * 22 + i * 44, y = 204;
+            bool on = i < U.players;
+            lv_draw_rect_dsc_t d;
+            lv_draw_rect_dsc_init(&d);
+            d.radius = T->light ? LV_RADIUS_CIRCLE : 0;
+            d.bg_color = C(T->seat[i]);
+            d.bg_opa = !on ? LV_OPA_TRANSP : T->light ? 50 : LV_OPA_COVER;
+            d.border_color = C(on || !T->light ? T->seat[i] : T->ink);
+            d.border_opa = on || !T->light ? LV_OPA_COVER : LV_OPA_30;
+            d.border_width = 2;
+            lv_area_t a = {x - 18, y - 18, x + 18, y + 18};
+            if (on && T->light)
+                fx_halo(l, x, y, 30, T->seat[i], LV_OPA_20);
+            lv_draw_rect(l, &d, &a);
+            snprintf(buf, sizeof(buf), S_SEAT_FMT, i + 1);
+            text(l, U.f_small, T->light ? T->ink : on ? T->seat_ink[i] : T->seat[i],
+                 on || !T->light ? LV_OPA_COVER : LV_OPA_40, x, y, buf);
+        }
+        if (U.players == 1)
+            snprintf(buf, sizeof(buf), S_SOLO);
+        else
+            snprintf(buf, sizeof(buf), S_PLAYERS_FMT, U.players, "S");
+        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 240, buf);
     }
+    for (int k = -1; k <= 1; k += 2) /* chevrons: a tap on either side steps like the knob */
+        text(l, U.f_row, T->ink, LV_OPA_60, CX + k * 124, 206, k < 0 ? "\xE2\x80\xB9" : "\xE2\x80\xBA");
+    button(l, 66, NEW_BTN_Y1 + 2, 110, NEW_BTN_Y2 - 2, false); /* back */
+    fx_icon(l, FX_ICON_UNDO, 88, (NEW_BTN_Y1 + NEW_BTN_Y2) / 2, T->ink, LV_OPA_COVER);
+    uint32_t ink = button(l, 124, NEW_BTN_Y1, 264, NEW_BTN_Y2, true);
+    text(l, U.f_row, ink, LV_OPA_COVER, 194, (NEW_BTN_Y1 + NEW_BTN_Y2) / 2, U.new_step == NEW_FORMAT ? S_NEXT : S_PLAY);
 }
 
 static void draw_cb(lv_event_t *e)
@@ -1189,7 +1228,8 @@ static void draw_cb(lv_event_t *e)
     lv_layer_t *l = lv_event_get_layer(e);
     switch (U.scr) {
     case UI_SCR_BOOT: draw_boot(l); break;
-    case UI_SCR_HOME: T->light ? draw_home_light(l) : draw_home(l); break;
+    case UI_SCR_HOME: draw_home(l); break;
+    case UI_SCR_NEW: draw_new(l); break;
     case UI_SCR_GAME:
         if (U.g.n_players == 1)
             T->light ? draw_solo_light(l) : draw_solo(l);
@@ -1263,13 +1303,13 @@ void ui_knob(int detents, uint32_t now)
         return;
     switch (U.scr) {
     case UI_SCR_BOOT: U.scr = UI_SCR_HOME; break; /* any input skips the logo */
-    case UI_SCR_HOME:
-        if (U.home_focus == HOME_PROFILE && U.n_profiles) {
+    case UI_SCR_HOME: return; /* two actions, both a tap away: the knob has nothing to drive here yet */
+    case UI_SCR_NEW:
+        if (U.new_step == NEW_FORMAT) {
             U.profile = ((U.profile + detents) % U.n_profiles + U.n_profiles) % U.n_profiles;
             U.players = U.profiles[U.profile].players;
-        } else if (U.home_focus == HOME_PLAYERS) {
-            U.players = ((U.players - 1 + detents) % SD_MAX_PLAYERS + SD_MAX_PLAYERS) % SD_MAX_PLAYERS + 1;
-        }
+        } else
+            players_step(detents);
         haptic(UI_HAPTIC_DETENT);
         break;
     case UI_SCR_GAME: {
@@ -1326,19 +1366,28 @@ void ui_tap(int x, int y, uint32_t now)
     switch (U.scr) {
     case UI_SCR_BOOT: U.scr = UI_SCR_HOME; break;
     case UI_SCR_HOME:
-        if (y >= 70 && y < 166) {
-            if (U.home_focus == HOME_PROFILE)
-                ui_knob(1, now);
-            U.home_focus = HOME_PROFILE;
-        } else if (y >= 166 && y < 250) {
-            if (U.home_focus == HOME_PLAYERS)
-                ui_knob(1, now);
-            U.home_focus = HOME_PLAYERS;
-        } else if (y >= 250 && y < 316 && U.n_profiles) {
-            if (U.has_resume && x >= CX)
-                start_game(&U.resume);
-            else
-                start_game(NULL);
+        if ((x - CX) * (x - CX) + (y - NEW_Y) * (y - NEW_Y) <= NEW_R * NEW_R && U.n_profiles) {
+            U.new_step = NEW_FORMAT;
+            U.scr = UI_SCR_NEW;
+        } else if (U.has_resume && x >= RESUME_X1 && x <= RESUME_X2 && y >= RESUME_Y1 && y <= RESUME_Y2)
+            start_game(&U.resume);
+        break;
+    case UI_SCR_NEW:
+        if (y >= NEW_BTN_Y1 - 8 && y <= NEW_BTN_Y2 + 8) {
+            if (x >= 124 && x <= 264) {
+                if (U.new_step == NEW_PLAYERS)
+                    start_game(NULL);
+                else
+                    U.new_step = NEW_PLAYERS;
+            } else if (x >= 58 && x < 118) { /* back: one step, then home */
+                if (U.new_step == NEW_PLAYERS)
+                    U.new_step = NEW_FORMAT;
+                else
+                    U.scr = UI_SCR_HOME;
+            }
+        } else if (y < 240 && (x < 110 || x >= 250)) {
+            ui_knob(x < 110 ? -1 : 1, now);
+            return;
         }
         break;
     case UI_SCR_GAME:
