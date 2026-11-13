@@ -14,11 +14,11 @@ Backlog consolidé : plans nommés d'après leur issue GitHub (voir `doc/roadmap
 
 ## À faire
 
-### [Issue: #8] Police Sucker Brush pour les PV et les titres [PRIORITÉ: HAUTE] [Complexité: S] 🟢
+### [Issue: #8] Noms de format en Original Motion (Sucker Brush abandonnée) [PRIORITÉ: HAUTE] [Complexité: S] 🟢
 
 Plan : [`8-police-sucker-brush.md`](8-police-sucker-brush.md)
 
-Sucker Brush remplace Barlow Condensed ExtraBold pour les PV, le centre et les titres ; libellés et logo inchangés. Le .ttf (usage personnel) n'est pas committé. Indépendant.
+Noms de format en Original Motion, comme le nom « Dice Spark » ; chiffres et autres titres restés en Barlow (Sucker Brush essayée puis retirée : « 1 » illisible). Le .ttf (usage personnel) n'est pas committé. Indépendant.
 
 ---
 

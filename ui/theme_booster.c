@@ -1,7 +1,7 @@
 #include "theme.h"
 
-/* Sucker Brush (display, ui/display_font.cmake) and Barlow Condensed (labels, OFL, ui/assets/OFL.txt), embedded by the build */
-extern const uint8_t _binary_Sucker_Brush_ttf_start[], _binary_Sucker_Brush_ttf_end[];
+/* Barlow Condensed (OFL, ui/assets/OFL.txt), embedded as binary objects by the build */
+extern const uint8_t _binary_BarlowCondensed_ExtraBold_ttf_start[], _binary_BarlowCondensed_ExtraBold_ttf_end[];
 extern const uint8_t _binary_BarlowCondensed_SemiBold_ttf_start[], _binary_BarlowCondensed_SemiBold_ttf_end[];
 
 
@@ -15,8 +15,8 @@ const ui_theme_t ui_theme_booster = {
     .foil_b = 0xF3F4F6,
     .foil_ink = 0x121014,
     .rule_w = 2,
-    .display_ttf = _binary_Sucker_Brush_ttf_start,
-    .display_ttf_end = _binary_Sucker_Brush_ttf_end,
+    .display_ttf = _binary_BarlowCondensed_ExtraBold_ttf_start,
+    .display_ttf_end = _binary_BarlowCondensed_ExtraBold_ttf_end,
     .label_ttf = _binary_BarlowCondensed_SemiBold_ttf_start,
     .label_ttf_end = _binary_BarlowCondensed_SemiBold_ttf_end,
 };

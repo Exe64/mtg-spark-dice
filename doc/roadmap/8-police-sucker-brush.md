@@ -6,7 +6,7 @@ plan:
 status: active
 date: 2026-11-13
 description: >
-  Police Sucker Brush pour les PV, le centre et les titres, à la place de Barlow Condensed ExtraBold ; libellés et logo inchangés.
+  Noms de format en Original Motion (comme le logo) ; Sucker Brush essayée à l'étape 1 puis abandonnée, chiffres et autres titres revenus en Barlow.
 priority: high
 complexity: S
 intent: null
@@ -24,6 +24,8 @@ issue:
 ## Objectif
 
 Donner aux PV et aux titres de Dice Spark le style pinceau de Sucker Brush (https://www.dafont.com/fr/sucker-brush.font), choisi par l'opérateur le 2026-11-13.
+
+**Recadrage 2026-11-14 (opérateur)** : dans Sucker Brush, le « 1 » se lit « I » (« J1 » → « JI »). Les noms de format passent en Original Motion, alignés sur le nom « Dice Spark ». Les PV, les chiffres et les autres titres reviennent en Barlow Condensed ExtraBold. Sucker Brush est retirée.
 
 ## Dépendances
 
@@ -47,6 +49,8 @@ Aucune. Indépendant des plans en cours ; touche les mêmes fichiers de thème q
 
 - [x] Étape 1 — Intégrer Sucker Brush comme police display : vérification des glyphes (0-9, signe moins, lettres des titres), `strip_gpos.py` si nécessaire, embarquement firmware + host, README (S · standard → Sonnet)
 - [x] 🧪 Tests — Rédiger et exécuter la procédure de test (avant-dernière étape, obligatoire)
+- [x] Étape 2 — Recadrage : Barlow ExtraBold revient pour les chiffres et les titres (tailles d'origine) ; noms de format en Original Motion embarquée (garde-fou build, `strip_gpos.py`) ; Sucker Brush retirée ; doc (S · standard → Sonnet)
+- [x] 🧪 Tests (étape 2) — Rejouer la procédure adaptée
 - [ ] ✅ Validation — Vérifier les résultats des tests et clôturer (dernière étape, obligatoire)
 
 ## Décisions techniques
@@ -58,6 +62,8 @@ Aucune. Indépendant des plans en cours ; touche les mêmes fichiers de thème q
 | Logo | Inchangé (Original Motion) | Hors demande |
 | Tailles | Solo 200→170, arène 3 92→84, arène 4 80→72, titre 64→56 ; titres longs : 56/48/32 px selon la largeur mesurée (≤ 300 px) ; marques −/+ en arène 3 à 74 px | Le pinceau est ~20 % plus large que Barlow condensé : « COMMANDER » passait sur deux lignes, « 199 » touchait les marques |
 | Barlow ExtraBold | Supprimée du dépôt et du firmware | Plus utilisée |
+| Recadrage (2026-11-14) | Original Motion pour les noms de format uniquement ; Barlow pour tout le reste, tailles d'origine ; Sucker Brush retirée | Choix opérateur : « 1 » illisible en pinceau ; « Barlow partout » pour les autres titres |
+| Original Motion embarquée | `.ttf` git-ignoré dans `ui/assets/licensed/`, embarqué dans le firmware ; garde-fou CMake conservé | Jusque-là seul le rendu du logo était dans le dépôt ; même contrainte de licence qu'avant pour une distribution |
 | Garde-fous build | `ui/display_font.cmake` (firmware + host) : arrêt si la police manque ou garde sa table GPOS | Un .ttf retéléchargé sans `strip_gpos.py` lirait hors buffer |
 
 ## Tests
@@ -113,6 +119,22 @@ git check-ignore -q "$F" && echo ignored; git ls-files ui/assets | grep -c "Suck
 | T7 | `ignored` ; `0` |
 | T8 | chiffres et titres au pinceau ; aucun titre coupé ni sur deux lignes ; total à 3 chiffres sans chevauchement des marques − / + |
 
+### Procédure de test — étape 2 (recadrage)
+
+Même procédure que ci-dessus, avec `F="ui/assets/licensed/Original Motion.ttf"` pour T5/T6, et :
+
+```bash
+# T4 — symboles embarqués
+for s in Original_Motion BarlowCondensed_ExtraBold BarlowCondensed_SemiBold Sucker_Brush; do
+  echo "$s=$(nm build/sparkdice.elf | grep -c _binary_${s}_ttf_start)"; done
+# T7 — aucune police sous licence suivie par git ; Barlow ExtraBold restaurée
+git check-ignore -q "$F" && echo ignored; git ls-files ui/assets | grep -c "licensed/.*ttf"
+# T8 — visuel : 15a-format-commander-1v1.png, 02b-nouvelle-partie-joueurs.png (Original Motion, casse du profil),
+#      14-fin-de-partie.png, 08-arene-4.png, 03-solo.png (Barlow ExtraBold)
+```
+
+**Résultats attendus (étape 2) :** T1–T3 inchangés ; T4 `build_exit=0`, 0 avertissement, binaire ≈ 1,1 Mo, `Original_Motion=1 BarlowCondensed_ExtraBold=1 BarlowCondensed_SemiBold=1 Sucker_Brush=0` ; T5 `Missing …/Original Motion.ttf` ; T6 message GPOS puis `reconfigure_ok` ; T7 `ignored`, `0` ; T8 noms de format en Original Motion sur une ligne et dans le cadran (largeurs mesurées à 48 px : « Duel Commander » 290, « Commander 2HG » 286 ≤ 300), chiffres et autres titres en Barlow.
+
 ### Résultats joués et vérifiés
 
 | Date | Test | Attendu | Observé | Verdict |
@@ -125,6 +147,14 @@ git check-ignore -q "$F" && echo ignored; git ls-files ui/assets | grep -c "Suck
 | 2026-11-13 | T6 GPOS non masqué | message GPOS puis reconfigure_ok | idem (1er passage : grep coupé par le retour à la ligne de CMake, rejoué) | ✅ |
 | 2026-11-13 | T7 licence | ignored, 0 | ignored, 0 | ✅ |
 | 2026-11-13 | T8 visuel (vérificateur indépendant) | pinceau, aucun titre coupé, − / + dégagés | conforme sur 7 images ; constat : le « 1 » de la police ressemble à un « I » (« J1 » → « JI », « 1V1 » → « IVI ») | ✅ |
+| 2026-11-14 | Étape 2 — T1 host | 0 avert., 6/6 | 0, 6/6 | ✅ |
+| 2026-11-14 | Étape 2 — T2 ASan/UBSan | 0 avert., 6/6 | 0, 6/6 | ✅ |
+| 2026-11-14 | Étape 2 — T3 parcours + captures | all flows passed, 38 | all flows passed, 38 | ✅ |
+| 2026-11-14 | Étape 2 — T4 firmware | exit 0, 0 avert., ≈ 1,1 Mo, OM=1 EB=1 SB=1 Sucker=0 | exit 0, 0, 1 109 760 o, 1/1/1/0 | ✅ |
+| 2026-11-14 | Étape 2 — T5 police absente | `Missing …/Original Motion.ttf` | idem | ✅ |
+| 2026-11-14 | Étape 2 — T6 GPOS non masqué | message GPOS puis reconfigure_ok | idem | ✅ |
+| 2026-11-14 | Étape 2 — T7 git | ignored, 0 | ignored, 0 | ✅ |
+| 2026-11-14 | Étape 2 — T8 visuel (vérificateur indépendant) | formats en Original Motion, chiffres/titres en Barlow, « 1 » lisible | conforme sur 6 images | ✅ |
 
 ## Journal de session
 
@@ -134,4 +164,8 @@ git check-ignore -q "$F" && echo ignored; git ls-files ui/assets | grep -c "Suck
 - 📋 Prochain : étape 1
 - 🚧 Blocages : —
 - ✅ Fait (suite) : étape 1 (police display, tailles ajustées, garde-fous build, doc), 🧪 Tests T1–T8 PASS (vérificateur indépendant)
-- 📋 Prochain : ✅ Validation : avis de l'opérateur sur le « 1 » qui ressemble à un « I »
+- 📋 Prochain (alors) : avis de l'opérateur sur le « 1 » qui ressemble à un « I »
+
+### Session 2026-11-14
+- ✅ Fait : recadrage (formats en Original Motion, Barlow partout ailleurs, Sucker Brush retirée), étape 2, 🧪 Tests T1–T8 PASS (vérificateur indépendant)
+- 📋 Prochain : ✅ Validation par l'opérateur et clôture

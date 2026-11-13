@@ -43,8 +43,8 @@ target_link_libraries(test_shot shot)
 add_test(NAME shot COMMAND test_shot ${CMAKE_CURRENT_BINARY_DIR}/test_shot.png)
 
 # UI (shared with firmware) + embedded fonts. Fonts become _binary_<name>_ttf_start/_end symbols, as IDF EMBED_FILES does.
-include(${ROOT}/ui/display_font.cmake)
-set(FONTS "${SD_DISPLAY_TTF}" ${ROOT}/ui/assets/BarlowCondensed-SemiBold.ttf)
+include(${ROOT}/ui/name_font.cmake)
+set(FONTS ${ROOT}/ui/assets/BarlowCondensed-ExtraBold.ttf ${ROOT}/ui/assets/BarlowCondensed-SemiBold.ttf "${SD_NAME_TTF}")
 set(FONT_OBJS)
 foreach(f ${FONTS})
   get_filename_component(name "${f}" NAME_WE)
