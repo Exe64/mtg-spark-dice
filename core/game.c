@@ -2,7 +2,7 @@
 
 #include <string.h>
 
-#define SAVE_MAGIC 0x53444733u /* "SDG3": 6 players, partner commander, counters, states, format name */
+#define SAVE_MAGIC 0x53444734u /* "SDG4": SDG3 (6 players, partner, counters, states, format name) + rule options */
 #define PERSIST_SIZE offsetof(sd_game_t, pending)
 
 typedef struct {
@@ -13,7 +13,7 @@ typedef struct {
 static int clampi(int v, int lo, int hi) { return v < lo ? lo : v > hi ? hi : v; }
 
 /* Apply an action to a player; returns the effective amount after clamping. */
-static int16_t apply(sd_player_t *p, const sd_action_t *a)
+static int16_t apply(const sd_game_t *g, sd_player_t *p, const sd_action_t *a)
 {
     int before, after;
     switch (a->kind) {
@@ -28,7 +28,8 @@ static int16_t apply(sd_player_t *p, const sd_action_t *a)
         before = *c;
         after = clampi(before + a->amount, 0, SD_COUNTER_MAX);
         *c = (uint8_t)after;
-        p->life = (int16_t)(p->life - (after - before)); /* commander damage is also life loss */
+        if (!(g->rules.opts & SD_OPT_CMD_APART))
+            p->life = (int16_t)(p->life - (after - before)); /* commander damage is also life loss */
         return (int16_t)(after - before);
     }
     case SD_ASCEND:
@@ -74,7 +75,7 @@ bool sd_game_flush(sd_game_t *g)
         return false;
     g->has_pending = false;
     sd_action_t a = g->pending;
-    a.amount = apply(&g->p[a.player], &a);
+    a.amount = apply(g, &g->p[a.player], &a);
     if (a.amount == 0)
         return false;
     log_push(g, a);
@@ -105,9 +106,9 @@ bool sd_game_adjust(sd_game_t *g, uint8_t player, sd_kind_t kind, uint8_t src, i
 bool sd_game_next_turn(sd_game_t *g)
 {
     sd_game_flush(g);
-    int from = g->active, to = -1;
-    for (int k = 1; k <= g->n_players; k++) {
-        int j = (from + k) % g->n_players;
+    int n = g->n_players, from = g->active, to = -1, dir = g->rules.opts & SD_OPT_COUNTER_CW ? n - 1 : 1;
+    for (int k = 1; k <= n; k++) {
+        int j = (from + k * dir) % n;
         if (!sd_player_lost(g, (uint8_t)j)) {
             to = j;
             break;
@@ -115,7 +116,9 @@ bool sd_game_next_turn(sd_game_t *g)
     }
     if (to < 0)
         return false;
-    sd_action_t a = {.player = (uint8_t)from, .kind = SD_TURN, .src = (uint8_t)to, .amount = to <= from ? 1 : 0};
+    /* a seat's place in the round: seat 0 opens it in both directions */
+    int pf = dir == 1 ? from : (n - from) % n, pt = dir == 1 ? to : (n - to) % n;
+    sd_action_t a = {.player = (uint8_t)from, .kind = SD_TURN, .src = (uint8_t)to, .amount = pt <= pf ? 1 : 0};
     log_push(g, a); /* logged under the turn it ends */
     g->active = (uint8_t)to;
     g->turn = (uint16_t)(g->turn + a.amount);
@@ -159,7 +162,7 @@ bool sd_game_set(sd_game_t *g, sd_kind_t kind, uint8_t value)
         *st = value;
     } else {
         a.amount = g->p[value].ascended ? -1 : 1;
-        apply(&g->p[value], &a);
+        apply(g, &g->p[value], &a);
     }
     log_push(g, a);
     return true;
@@ -167,7 +170,7 @@ bool sd_game_set(sd_game_t *g, sd_kind_t kind, uint8_t value)
 
 bool sd_game_tick(sd_game_t *g, uint32_t now_ms)
 {
-    if (!g->has_pending || (uint32_t)(now_ms - g->pending_since) < SD_COMMIT_MS)
+    if (!g->has_pending || (uint32_t)(now_ms - g->pending_since) < sd_commit_ms(g))
         return false;
     return sd_game_flush(g);
 }
@@ -189,7 +192,7 @@ bool sd_game_undo(sd_game_t *g)
         return true;
     }
     a.amount = (int16_t)-a.amount;
-    apply(&g->p[a.player], &a);
+    apply(g, &g->p[a.player], &a);
     return true;
 }
 
@@ -197,13 +200,15 @@ sd_player_t sd_game_view(const sd_game_t *g, uint8_t i)
 {
     sd_player_t p = g->p[i];
     if (g->has_pending && g->pending.player == i)
-        apply(&p, &g->pending);
+        apply(g, &p, &g->pending);
     return p;
 }
 
 bool sd_player_lost(const sd_game_t *g, uint8_t i)
 {
     const sd_player_t *p = &g->p[i];
+    if (g->rules.opts & SD_OPT_MANUAL_KO)
+        return false;
     if (p->life <= 0)
         return true;
     if (g->rules.poison_lethal && sd_counter(p, SD_POISON) >= g->rules.poison_lethal)
@@ -230,6 +235,8 @@ bool sd_game_over(const sd_game_t *g)
 {
     int last;
     int alive = alive_count(g, &last);
+    if (g->rules.opts & SD_OPT_MANUAL_WIN)
+        return false;
     return g->n_players == 1 ? alive == 0 : alive <= 1;
 }
 
@@ -265,7 +272,7 @@ bool sd_game_load(sd_game_t *g, const void *buf, size_t len)
     memset(&tmp, 0, sizeof(tmp));
     memcpy(&tmp, (const uint8_t *)buf + sizeof(h), PERSIST_SIZE);
     if (tmp.n_players < 1 || tmp.n_players > SD_MAX_PLAYERS || tmp.log_len > SD_LOG_MAX || tmp.turn < 1 ||
-        tmp.active >= tmp.n_players || tmp.format[sizeof(tmp.format) - 1] ||
+        tmp.active >= tmp.n_players || tmp.format[sizeof(tmp.format) - 1] || tmp.rules.opts > SD_OPT_ALL ||
         !state_valid(&tmp, SD_MONARCH, tmp.monarch) || !state_valid(&tmp, SD_INITIATIVE, tmp.initiative) ||
         !state_valid(&tmp, SD_DAYNIGHT, tmp.daynight))
         return false;

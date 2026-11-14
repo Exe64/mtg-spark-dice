@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "game.h"
+#include "settings.h"
 
 static const sd_rules_t CMDR = {.start_life = 40, .cmd_lethal = 21, .poison_lethal = 10};
 
@@ -384,12 +385,150 @@ static void test_states(void)
     sd_game_save(&bad, buf, sizeof(buf));
     assert(!sd_game_load(&h, buf, n));
 
-    /* a save of the previous layout ("SDG2") is not migrated: refused, whatever its size */
+    /* a save of a previous layout ("SDG3") is not migrated: refused, whatever its size */
     sd_game_save(&g, buf, sizeof(buf));
-    buf[0] = '2'; /* little-endian magic: 'SDG3' is stored 3 G D S */
+    buf[0] = '3'; /* little-endian magic: 'SDG4' is stored 4 G D S */
     assert(!sd_game_load(&h, buf, n) && !sd_game_load(&h, buf, 1412));
-    buf[0] = '3';
+    buf[0] = '4';
     assert(sd_game_load(&h, buf, n));
+}
+
+static void test_rule_options(void)
+{
+    sd_game_t g;
+    sd_rules_t r = CMDR;
+
+    /* counter-clockwise: J1 -> J4 -> J3 -> J2 -> J1, the turn number moves when J1 is back */
+    r.opts = SD_OPT_COUNTER_CW;
+    sd_game_new(&g, &r, 4);
+    static const uint8_t order[] = {3, 2, 1, 0, 3};
+    static const uint16_t turn[] = {1, 1, 1, 2, 2};
+    for (int i = 0; i < 5; i++) {
+        assert(sd_game_next_turn(&g) && g.active == order[i] && g.turn == turn[i]);
+    }
+    sd_game_adjust(&g, 2, SD_LIFE, 2, -40, 0); /* J3 out: J4 -> J2 skips it */
+    sd_game_flush(&g);
+    assert(sd_game_next_turn(&g) && g.active == 1 && g.turn == 2);
+    assert(sd_game_undo(&g) && g.active == 3 && g.turn == 2);
+
+    /* commander damage counted apart: the tally moves, the life total does not; still lethal at the threshold */
+    r.opts = SD_OPT_CMD_APART;
+    sd_game_new(&g, &r, 2);
+    sd_game_adjust(&g, 0, SD_CMD, 1, 20, 0);
+    assert(sd_game_view(&g, 0).life == 40 && sd_game_view(&g, 0).cmd[1][0] == 20);
+    sd_game_flush(&g);
+    assert(g.p[0].life == 40 && g.p[0].cmd[1][0] == 20 && !sd_player_lost(&g, 0));
+    sd_game_adjust(&g, 0, SD_CMD, 1, 1, 0);
+    sd_game_flush(&g);
+    assert(g.p[0].life == 40 && sd_player_lost(&g, 0) && sd_game_over(&g));
+    assert(sd_game_undo(&g) && sd_game_undo(&g) && g.p[0].life == 40 && g.p[0].cmd[1][0] == 0);
+
+    /* manual KO: nobody is defeated, so nothing ends and no turn is skipped */
+    r.opts = SD_OPT_MANUAL_KO;
+    sd_game_new(&g, &r, 2);
+    sd_game_adjust(&g, 0, SD_LIFE, 0, -45, 0);
+    sd_game_flush(&g);
+    assert(g.p[0].life == -5 && !sd_player_lost(&g, 0) && !sd_game_over(&g) && g.active == 0 && g.log_len == 1);
+
+    /* manual win: players are defeated and skipped, the game goes on even with one left */
+    r.opts = SD_OPT_MANUAL_WIN;
+    sd_game_new(&g, &r, 2);
+    sd_game_adjust(&g, 0, SD_LIFE, 0, -40, 0);
+    sd_game_flush(&g);
+    assert(sd_player_lost(&g, 0) && !sd_game_over(&g) && sd_game_winner(&g) == 1 && g.active == 1);
+
+    /* commit delay from the rules; 0 keeps SD_COMMIT_MS */
+    r.opts = 0;
+    r.commit_ms = 1500;
+    sd_game_new(&g, &r, 1);
+    sd_game_adjust(&g, 0, SD_LIFE, 0, -1, 1000);
+    assert(!sd_game_tick(&g, 2499) && sd_game_tick(&g, 2500));
+    assert(sd_commit_ms(&g) == 1500);
+
+    /* options survive a save; unknown option bits are refused */
+    uint8_t buf[sizeof(sd_game_t) + 16];
+    sd_game_t h;
+    r.opts = SD_OPT_COUNTER_CW | SD_OPT_CMD_APART;
+    sd_game_new(&g, &r, 3);
+    assert(sd_game_save(&g, buf, sizeof(buf)) && sd_game_load(&h, buf, sd_game_save_size()));
+    assert(h.rules.opts == r.opts && h.rules.commit_ms == 1500);
+    g.rules.opts = SD_OPT_ALL + 1;
+    sd_game_save(&g, buf, sizeof(buf));
+    assert(!sd_game_load(&h, buf, sd_game_save_size()));
+}
+
+static void test_settings(void)
+{
+    sd_settings_t s, l;
+    uint8_t buf[256];
+    sd_settings_defaults(&s);
+    for (int i = 0; i < SD_S_COUNT; i++) { /* every setting has bounds and a default inside them */
+        assert(sd_setting_min(i) < sd_setting_max(i));
+        assert(s.v[i] >= sd_setting_min(i) && s.v[i] <= sd_setting_max(i));
+    }
+    assert(s.v[SD_S_CLICKS] == 1 && s.v[SD_S_AUTO_KO] && s.v[SD_S_COMMIT_MS] == SD_COMMIT_MS && !s.pin[0]);
+
+    /* clamped on set */
+    sd_setting_set(&s, SD_S_CLICKS, 40);
+    assert(s.v[SD_S_CLICKS] == 12);
+    sd_setting_set(&s, SD_S_CLICKS, -3);
+    assert(s.v[SD_S_CLICKS] == 1);
+
+    /* round trip */
+    sd_setting_set(&s, SD_S_START_LIFE, 30);
+    sd_setting_set(&s, SD_S_HAPTIC, 1);
+    strcpy(s.name, "DRAGON ROUGE");
+    strcpy(s.owner_msg, "A JU");
+    strcpy(s.pin, "0429");
+    size_t n = sd_settings_save(&s, buf, sizeof(buf));
+    assert(n == sd_settings_save_size() && n <= sizeof(buf) && !sd_settings_save(&s, buf, n - 1));
+    assert(sd_settings_load(&l, buf, n) && !memcmp(&l, &s, sizeof(s)));
+
+    /* a save from an older firmware (two settings fewer): they take their defaults, the rest is kept */
+    uint16_t fewer = SD_S_COUNT - 2;
+    uint8_t old[256];
+    memcpy(old, buf, n);
+    memcpy(old + 4, &fewer, sizeof(fewer)); /* header: magic, then the count */
+    assert(sd_settings_load(&l, old, n - 2 * sizeof(int16_t)));
+    assert(l.v[SD_S_START_LIFE] == 30 && !strcmp(l.name, "DRAGON ROUGE") && l.v[SD_S_HAPTIC] == 3 && !l.v[SD_S_SETUP_DONE]);
+
+    /* out-of-range values are clamped, a malformed PIN is dropped, garbage gives the defaults */
+    int16_t big = 30000;
+    memcpy(old, buf, n);
+    memcpy(old + n - sizeof(s.v) + SD_S_CLICKS * sizeof(int16_t), &big, sizeof(big));
+    memcpy(old + 4 + 2 + sizeof(s.name) + sizeof(s.owner_msg), "12a4", 5);
+    assert(sd_settings_load(&l, old, n) && l.v[SD_S_CLICKS] == 12 && !l.pin[0]);
+    buf[0] ^= 0xFF;
+    assert(!sd_settings_load(&l, buf, n) && l.v[SD_S_CLICKS] == 1 && !l.name[0]);
+    buf[0] ^= 0xFF;
+    assert(!sd_settings_load(&l, buf, n - 1) && !sd_settings_load(&l, buf, 3));
+    assert(sd_pin_valid("") && sd_pin_valid("0000") && !sd_pin_valid("123") && !sd_pin_valid("12345") && !sd_pin_valid("12 4"));
+
+    /* settings -> rules of a new game */
+    sd_rules_t r = CMDR, std = {.start_life = 20, .poison_lethal = 10};
+    sd_settings_defaults(&s);
+    sd_settings_rules(&s, &r);
+    assert(r.start_life == 40 && r.cmd_lethal == 21 && r.poison_lethal == 10 && r.opts == 0 && r.commit_ms == SD_COMMIT_MS);
+    sd_setting_set(&s, SD_S_START_LIFE, 30);
+    sd_setting_set(&s, SD_S_CMD_LETHAL, 16);
+    sd_setting_set(&s, SD_S_POISON_LETHAL, 15);
+    sd_setting_set(&s, SD_S_AUTO_KO, 0);
+    sd_setting_set(&s, SD_S_AUTO_WIN, 0);
+    sd_setting_set(&s, SD_S_CMD_LIFE, 0);
+    sd_setting_set(&s, SD_S_TURN_ORDER, 1);
+    sd_setting_set(&s, SD_S_COMMIT_MS, 1200);
+    sd_settings_rules(&s, &r);
+    assert(r.start_life == 30 && r.cmd_lethal == 16 && r.poison_lethal == 15 && r.opts == SD_OPT_ALL && r.commit_ms == 1200);
+    sd_settings_rules(&s, &std); /* a format without commander damage stays without it */
+    assert(std.start_life == 30 && std.cmd_lethal == 0 && std.poison_lethal == 15);
+
+    /* clicks per point: 3 detents make one point, the remainder is kept, both ways */
+    int16_t rest = 0;
+    assert(sd_clicks_to_points(&rest, 1, 3) == 0 && sd_clicks_to_points(&rest, 1, 3) == 0);
+    assert(sd_clicks_to_points(&rest, 1, 3) == 1 && rest == 0);
+    assert(sd_clicks_to_points(&rest, 7, 3) == 2 && rest == 1);
+    assert(sd_clicks_to_points(&rest, -4, 3) == -1 && rest == 0);
+    assert(sd_clicks_to_points(&rest, -5, 1) == -5 && rest == 0);
 }
 
 int main(void)
@@ -403,6 +542,8 @@ int main(void)
     test_six_players_partner();
     test_counters();
     test_states();
+    test_rule_options();
+    test_settings();
     puts("core: all tests passed");
     return 0;
 }

@@ -291,8 +291,8 @@ static uint32_t log_hue(const sd_action_t *a)
 
 static float pending_progress(void)
 {
-    uint32_t el = U.now - U.g.pending_since;
-    return el >= SD_COMMIT_MS ? 1.f : (float)el / SD_COMMIT_MS;
+    uint32_t el = U.now - U.g.pending_since, ms = sd_commit_ms(&U.g);
+    return el >= ms ? 1.f : (float)el / ms;
 }
 
 /* ---------- geometry ---------- */

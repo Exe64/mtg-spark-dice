@@ -7,7 +7,7 @@
 #define SD_MAX_PLAYERS 6
 #define SD_CMD_SLOTS 2 /* commanders per player: a partner pair deals damage that is counted apart */
 #define SD_LOG_MAX 128
-#define SD_COMMIT_MS 800 /* knob inactivity before a pending delta is committed */
+#define SD_COMMIT_MS 800 /* knob inactivity before a pending delta is committed, unless the rules say otherwise */
 #define SD_LIFE_MIN (-999)
 #define SD_LIFE_MAX 999
 #define SD_COUNTER_MAX 99
@@ -40,7 +40,14 @@ typedef struct {
     int16_t start_life;
     uint8_t cmd_lethal;    /* 0 = commander damage disabled */
     uint8_t poison_lethal; /* 0 = poison disabled */
+    uint8_t opts;          /* SD_OPT_*, 0 = the rules as printed */
+    uint16_t commit_ms;    /* 0 = SD_COMMIT_MS */
 } sd_rules_t;
+#define SD_OPT_MANUAL_KO 1  /* nobody is defeated automatically: totals go to 0 and below, the table decides */
+#define SD_OPT_MANUAL_WIN 2 /* the game never ends by itself */
+#define SD_OPT_CMD_APART 4  /* commander damage is counted without touching the life total */
+#define SD_OPT_COUNTER_CW 8 /* turns pass counter-clockwise */
+#define SD_OPT_ALL 15
 
 typedef struct {
     int16_t life;
@@ -81,19 +88,22 @@ typedef struct {
 
 void sd_game_new(sd_game_t *g, const sd_rules_t *r, uint8_t n_players);
 
+static inline uint16_t sd_commit_ms(const sd_game_t *g) { return g->rules.commit_ms ? g->rules.commit_ms : SD_COMMIT_MS; }
+
 /* Accumulate `step` into the pending delta (life, commander damage and counters; not SD_TURN, not the states). A pending delta on another target is committed first.
  * Returns true if that implicit commit happened (caller should persist). */
 bool sd_game_adjust(sd_game_t *g, uint8_t player, sd_kind_t kind, uint8_t src, int16_t step, uint32_t now_ms);
 
-/* Commit the pending delta once SD_COMMIT_MS elapsed since the last adjust. True if committed. */
+/* Commit the pending delta once sd_commit_ms() elapsed since the last adjust. True if committed. */
 bool sd_game_tick(sd_game_t *g, uint32_t now_ms);
 
 /* Commit the pending delta now. True if something was committed. If the commit defeats the active player (and the
  * game goes on), the turn passes automatically; undo reverts both at once. */
 bool sd_game_flush(sd_game_t *g);
 
-/* Pass the turn clockwise to the next player still in the game (defeated players are skipped). The turn number
- * increments when play wraps around to a lower seat. Flushes any pending delta first; logged, so undoable. */
+/* Pass the turn to the next player still in the game (defeated players are skipped), clockwise unless
+ * SD_OPT_COUNTER_CW. The turn number increments when play comes back round to (or past) the first seat. Flushes any
+ * pending delta first; logged, so undoable. */
 bool sd_game_next_turn(sd_game_t *g);
 
 /* Switch the pending delta between combat damage (SD_LIFE from another player) and commander damage (SD_CMD),

@@ -7,7 +7,7 @@ add_compile_options(-Wall -Wextra -Werror)
 set(ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 enable_testing()
 
-add_library(sd_core ${ROOT}/core/game.c)
+add_library(sd_core ${ROOT}/core/game.c ${ROOT}/core/settings.c)
 target_include_directories(sd_core PUBLIC ${ROOT}/core)
 add_executable(test_core test_core.c)
 target_link_libraries(test_core sd_core)
