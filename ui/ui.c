@@ -48,6 +48,9 @@ static struct {
     int profile, players, new_step, home_focus;
     int marker; /* focused chip of the markers panel: kind - SD_POISON */
     bool has_resume;
+    bool in_game;     /* U.g is the game being played (otherwise the one to change is U.resume, if any) */
+    int sheet_src;    /* player sheet: the commander column the knob drives, -1 = poison */
+    int16_t click_rest; /* knob detents not yet worth a point (SD_S_CLICKS) */
     bool dirty; /* a setting changed and the HAL has not been told yet */
     sd_game_t resume;
     sd_game_t g;
@@ -340,12 +343,15 @@ static float pending_progress(void)
 
 /* ---------- geometry ---------- */
 
+/* One life total fills the dial: a game alone, or my life alone at a table of several (SD_VIEW_SOLO; seat 0 is mine). */
+static bool solo(void) { return U.g.n_players == 1 || S.v[SD_S_VIEW] == SD_VIEW_SOLO; }
+
 static float seat_span(void) { return 360.f / U.g.n_players; }
 static float seat_angle(int i) { return 90.f + i * seat_span(); } /* J1 sits at the bottom, then clockwise */
 
 static int seat_at(int x, int y)
 {
-    if (U.g.n_players == 1)
+    if (solo())
         return 0;
     float dx = x - CX, dy = y - CY;
     if (dx * dx + dy * dy < HUB_R * HUB_R || dx * dx + dy * dy > R * R)
@@ -377,7 +383,7 @@ static void redraw(void) { lv_obj_invalidate(U.dial); }
  * seat layers (each is an ARGB8888 layer, costly on the S3). */
 static void redraw_hub(void)
 {
-    if (U.scr != UI_SCR_GAME || U.g.n_players == 1) {
+    if (U.scr != UI_SCR_GAME || solo()) {
         redraw();
         return;
     }
@@ -448,7 +454,7 @@ static void next_turn(void)
 }
 
 /* Selected seat's local frame: seats face their owner (rotation = seat angle - 90°). */
-static float seat_rot(int i) { return U.g.n_players == 1 ? 0.f : seat_angle(i) - 90.f; }
+static float seat_rot(int i) { return solo() || !S.v[SD_S_ROTATE_SEATS] ? 0.f : seat_angle(i) - 90.f; }
 static const float R_NUM[] = {0, 0, 96, 104, 108};
 static float seat_local_x(int i, int x, int y)
 {
@@ -480,6 +486,8 @@ static void start_game(const sd_game_t *resume)
     }
     upper(U.profile_name);
     U.sel = 0;
+    U.click_rest = 0;
+    U.in_game = true;
     U.has_resume = false;
     U.scr = sd_game_over(&U.g) ? UI_SCR_OVER : UI_SCR_GAME;
 }
@@ -489,16 +497,63 @@ static void go_home(void)
     flush();
     U.resume = U.g; /* "Nouvelle partie" never destroys the game: it stays resumable */
     U.has_resume = true;
+    U.in_game = false;
     U.home_focus = HOME_RESUME;
     U.scr = UI_SCR_HOME;
 }
 
-/* Hand the settings to the HAL if the user changed any since the last time. */
+/* The game the settings act on: the one being played, else the one REPRENDRE would bring back. */
+static sd_game_t *live_game(void) { return U.in_game ? &U.g : U.has_resume ? &U.resume : NULL; }
+
+/* Settings that change the game under way reach it at once: the rule options and the commit delay. Starting life
+ * and thresholds wait for the next game (or RÉINITIALISER LA PARTIE). */
+static void apply_live(void)
+{
+    sd_game_t *g = live_game();
+    sd_rules_t r = {0};
+    sd_settings_rules(&S, &r);
+    if (S.v[SD_S_VIEW] == SD_VIEW_SOLO)
+        U.sel = 0;
+    if (!g || (g->rules.opts == r.opts && g->rules.commit_ms == r.commit_ms))
+        return;
+    g->rules.opts = r.opts;
+    g->rules.commit_ms = r.commit_ms;
+    if (U.hooks.save)
+        U.hooks.save(g);
+}
+
+/* Apply the settings and hand them to the HAL, if the user changed any since the last time. */
 static void settings_save(void)
 {
-    if (U.dirty && U.hooks.save_settings)
-        U.hooks.save_settings(&S);
+    if (!U.dirty)
+        return;
     U.dirty = false;
+    apply_live();
+    if (U.hooks.save_settings)
+        U.hooks.save_settings(&S);
+}
+
+/* Start the game under way again: same format, same table, today's settings. */
+static void restart_game(void)
+{
+    sd_game_t *g = live_game();
+    if (!g)
+        return;
+    sd_rules_t r = g->rules;
+    char format[sizeof(g->format)];
+    uint8_t n = g->n_players;
+    memcpy(format, g->format, sizeof(format));
+    for (int i = 0; i < U.n_profiles; i++)
+        if (!strcmp(U.profiles[i].name, format))
+            r = U.profiles[i].rules;
+    sd_settings_rules(&S, &r);
+    sd_game_new(g, &r, n);
+    memcpy(g->format, format, sizeof(format));
+    U.sel = 0;
+    U.undo_until = 0;
+    if (U.hooks.save)
+        U.hooks.save(g);
+    haptic(UI_HAPTIC_COMMIT);
 }
 
 /* ---------- screens: drawing ---------- */
@@ -508,7 +563,7 @@ static void settings_save(void)
 #define MARKERS_BTN_R 17
 static void markers_btn_xy(int *x, int *y)
 {
-    if (U.g.n_players == 1) {
+    if (solo()) {
         *x = 296;
         *y = 262;
         return;
@@ -964,6 +1019,36 @@ static void draw_arena_light(lv_layer_t *l)
     draw_hub_light(l);
 }
 
+/* Player sheet, commander columns: one per other seat. The tally of column seat `s` is the damage the sheet's player
+ * received from s, or (SD_S_CMD_SHOW = source) dealt to s. */
+static void sheet_cell(int s, uint8_t *player, uint8_t *src)
+{
+    *player = S.v[SD_S_CMD_SHOW] ? (uint8_t)s : U.sel;
+    *src = S.v[SD_S_CMD_SHOW] ? U.sel : (uint8_t)s;
+}
+static int sheet_col_x(int k, int cols) { return CX + (int)((k - (cols - 1) / 2.f) * (T->light ? 78 : 84)); }
+
+static uint32_t button(lv_layer_t *l, int x1, int y1, int x2, int y2, bool primary);
+
+/* One column: the seat (a lit chip when the knob drives it) over its tally, pending delta included. */
+static void sheet_col(lv_layer_t *l, int s, int x, int y)
+{
+    const sd_game_t *g = &U.g;
+    uint8_t p, src;
+    char buf[16];
+    sheet_cell(s, &p, &src);
+    int v = sd_game_view(g, p).cmd[src][0];
+    uint32_t ink = T->seat[s];
+    if (s == U.sheet_src)
+        ink = button(l, x - 22, y - 13, x + 22, y + 13, true);
+    text(l, U.f_small, ink, LV_OPA_COVER, x, y, seat(s));
+    if (v + 5 >= g->rules.cmd_lethal) /* "/ 21" once within 5 of lethal */
+        snprintf(buf, sizeof(buf), "%d / %d", v, g->rules.cmd_lethal);
+    else
+        snprintf(buf, sizeof(buf), "%d", v);
+    text(l, U.f_row, T->ink, LV_OPA_COVER, x, y + (T->light ? 24 : 26), buf);
+}
+
 static int menu_row_y(int i) { return 70 + i * 44; }
 
 /* Text of menu row `i` (the undo row previews what it would undo). */
@@ -1061,21 +1146,11 @@ static void draw_sheet(lv_layer_t *l)
         snprintf(buf, sizeof(buf), "%d", sd_counter(p, SD_POISON));
     text(l, U.f_hub, T->ink, LV_OPA_COVER, CX, 182, buf);
     if (g->n_players > 1 && g->rules.cmd_lethal) {
-        /* one column per source seat: seat label in its hue over the tally; "/ 21" once within 5 of lethal */
-        text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 272, TR(CMD));
+        text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 272, S.v[SD_S_CMD_SHOW] ? TR(CMD_OUT) : TR(CMD));
         int cols = g->n_players - 1, k = 0;
-        for (int s = 0; s < g->n_players; s++) {
-            if (s == U.sel)
-                continue;
-            int x = CX + (k++ - (cols - 1) / 2.f) * 84;
-            snprintf(buf, sizeof(buf), TR(SEAT_FMT), s + 1);
-            text(l, U.f_small, T->seat[s], LV_OPA_COVER, x, 294, buf);
-            if (p->cmd[s][0] + 5 >= g->rules.cmd_lethal)
-                snprintf(buf, sizeof(buf), "%d / %d", p->cmd[s][0], g->rules.cmd_lethal);
-            else
-                snprintf(buf, sizeof(buf), "%d", p->cmd[s][0]);
-            text(l, U.f_row, T->ink, LV_OPA_COVER, x, 320, buf);
-        }
+        for (int s = 0; s < g->n_players; s++)
+            if (s != U.sel)
+                sheet_col(l, s, sheet_col_x(k++, cols), 294);
     }
     if (g->has_pending && g->pending.player == U.sel && g->pending.kind == SD_POISON) {
         const int y1 = 212, y2 = 244;
@@ -1160,21 +1235,13 @@ static void draw_sheet_light(lv_layer_t *l)
         snprintf(buf, sizeof(buf), "%d", sd_counter(p, SD_POISON));
     text(l, U.f_hub, T->ink, LV_OPA_COVER, CX, 182, buf);
     if (g->n_players > 1 && g->rules.cmd_lethal) {
-        /* one column per source seat: seat label in its hue over the tally; "/ 21" once within 5 of lethal */
-        text(l, U.f_label, T->seat[U.sel], LV_OPA_COVER, CX, 268, TR(CMD));
+        text(l, U.f_label, T->seat[U.sel], LV_OPA_COVER, CX, 268, S.v[SD_S_CMD_SHOW] ? TR(CMD_OUT) : TR(CMD));
         int cols = g->n_players - 1, k = 0;
-        for (int s = 0; s < g->n_players; s++) {
-            if (s == U.sel)
-                continue;
-            int x = CX + (k++ - (cols - 1) / 2.f) * 78;
-            snprintf(buf, sizeof(buf), TR(SEAT_FMT), s + 1);
-            text(l, U.f_small, T->seat[s], LV_OPA_COVER, x, 290, buf);
-            if (p->cmd[s][0] + 5 >= g->rules.cmd_lethal)
-                snprintf(buf, sizeof(buf), "%d / %d", p->cmd[s][0], g->rules.cmd_lethal);
-            else
-                snprintf(buf, sizeof(buf), "%d", p->cmd[s][0]);
-            text(l, U.f_row, T->ink, LV_OPA_COVER, x, 314, buf);
-        }
+        for (int s = 0; s < g->n_players; s++)
+            if (s != U.sel)
+                sheet_col(l, s, sheet_col_x(k++, cols), 290);
+        if (g->has_pending && g->pending.kind == SD_CMD) /* the same closing arc as for poison */
+            arc(l, KNOB_R + 2, -90.f, -90.f + 360.f * pending_progress(), 5, T->ink, LV_OPA_COVER);
     }
     if (g->has_pending && g->pending.player == U.sel && g->pending.kind == SD_POISON) {
         char d[12];
@@ -1573,6 +1640,8 @@ static const struct {
     [SEC_NETWORK] = {STR_SEC_NETWORK, NULL, 0},              [SEC_DEVICE] = {STR_SEC_DEVICE, NULL, 0},
 };
 
+static void unlocked(void);
+
 /* text / PIN entry: the knob picks a character, a tap on it appends it */
 enum { ED_GATE, ED_BOOT, ED_PIN_NEW, ED_NAME, ED_MSG }; /* the first three take a PIN */
 static const char ALPHA[] = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-'!?"; /* ponytail: no accents, add them when asked */
@@ -1616,7 +1685,9 @@ static void edit_done(void)
             U.ed.len = 0;
             U.ed.buf[0] = '\0';
             haptic(UI_HAPTIC_DEFEAT);
-        } else
+        } else if (U.ed.purpose == ED_BOOT)
+            unlocked();
+        else
             U.scr = UI_SCR_SETTINGS;
         return;
     default: U.scr = U.ed.back; return;
@@ -1651,7 +1722,8 @@ static void settings_activate(int i)
 {
     if (i == SET_BACK) {
         settings_save();
-        U.scr = U.set_from_game ? UI_SCR_MENU : UI_SCR_HOME;
+        /* a rule changed under the game may have ended it */
+        U.scr = !U.set_from_game ? UI_SCR_HOME : sd_game_over(&U.g) ? UI_SCR_OVER : UI_SCR_MENU;
     } else if (SECTIONS[i].rows) {
         U.section = i;
         U.row = 0;
@@ -1708,7 +1780,12 @@ static void row_change(const row_t *r, int d)
         default_profile();
 }
 
-static void row_action(const row_t *r) { (void)r; }
+static void row_action(const row_t *r)
+{
+    switch (r->id) {
+    case ACT_RESET_GAME: restart_game(); break;
+    }
+}
 
 /* The focused row sits in the middle, large; two rows above and below show what is around it. */
 #define LIST_Y1 142
@@ -1862,7 +1939,7 @@ static void draw_cb(lv_event_t *e)
     case UI_SCR_LIST: draw_list(l); break;
     case UI_SCR_EDIT: draw_edit(l); break;
     case UI_SCR_GAME:
-        if (U.g.n_players == 1)
+        if (solo())
             T->light ? draw_solo_light(l) : draw_solo(l);
         else
             T->light ? draw_arena_light(l) : draw_arena(l);
@@ -1891,11 +1968,22 @@ void ui_set_theme(int theme, int ground_idx)
     }
 }
 
-/* The logo is over. */
-static void boot_done(void)
+/* Past the logo and the lock: home, or straight back into the saved game. */
+static void unlocked(void)
 {
     U.home_focus = U.has_resume ? HOME_RESUME : HOME_START;
     U.scr = UI_SCR_HOME;
+    if (S.v[SD_S_START_ON] && U.has_resume)
+        start_game(&U.resume);
+}
+
+/* The logo is over. */
+static void boot_done(void)
+{
+    if (S.pin[0] && S.v[SD_S_PIN_BOOT])
+        edit_open(ED_BOOT, NULL, 4);
+    else
+        unlocked();
 }
 
 void ui_set_settings(const sd_settings_t *s)
@@ -1905,8 +1993,10 @@ void ui_set_settings(const sd_settings_t *s)
     else
         sd_settings_defaults(&S);
     s_ready = true;
-    if (U.dial)
+    if (U.dial) {
+        apply_live();
         redraw();
+    }
 }
 
 const sd_settings_t *ui_settings(void) { return &S; }
@@ -1953,9 +2043,9 @@ void ui_init(const ui_hooks_t *hooks, const sd_profile_t *profiles, int n_profil
     redraw();
 }
 
-void ui_knob(int detents, uint32_t now)
+/* One knob step as the screen up understands it; also what a tap on a - / + or a chevron does. */
+static void knob(int detents)
 {
-    U.now = now;
     if (!detents)
         return;
     switch (U.scr) {
@@ -1993,7 +2083,14 @@ void ui_knob(int detents, uint32_t now)
         }
         break;
     }
-    case UI_SCR_SHEET: adjust(U.sel, SD_POISON, U.sel, detents); break;
+    case UI_SCR_SHEET:
+        if (U.sheet_src >= 0) {
+            uint8_t p, src;
+            sheet_cell(U.sheet_src, &p, &src);
+            adjust(p, SD_CMD, src, detents);
+        } else
+            adjust(U.sel, SD_POISON, U.sel, detents);
+        break;
     case UI_SCR_MARKERS: marker_change(detents); break;
     case UI_SCR_MENU:
         U.menu_focus = ((U.menu_focus + detents) % MENU_ROWS + MENU_ROWS) % MENU_ROWS;
@@ -2026,6 +2123,15 @@ void ui_knob(int detents, uint32_t now)
     redraw();
 }
 
+void ui_knob(int detents, uint32_t now)
+{
+    U.now = now;
+    /* where the knob counts points, it takes SD_S_CLICKS detents to make one */
+    if (U.scr == UI_SCR_GAME || U.scr == UI_SCR_SHEET || U.scr == UI_SCR_MARKERS)
+        detents = sd_clicks_to_points(&U.click_rest, detents, S.v[SD_S_CLICKS]);
+    knob(detents);
+}
+
 static void menu_activate(int row)
 {
     switch (row) {
@@ -2037,7 +2143,10 @@ static void menu_activate(int row)
         U.log_scroll = 0;
         U.scr = UI_SCR_LOG;
         break;
-    case MENU_SHEET: U.scr = UI_SCR_SHEET; break;
+    case MENU_SHEET:
+        U.sheet_src = -1;
+        U.scr = UI_SCR_SHEET;
+        break;
     case MENU_NEW: go_home(); break;
     case MENU_SETTINGS: open_settings(true); break;
     default: U.scr = UI_SCR_GAME; break;
@@ -2047,6 +2156,7 @@ static void menu_activate(int row)
 void ui_tap(int x, int y, uint32_t now)
 {
     U.now = now;
+    U.click_rest = 0;
     switch (U.scr) {
     case UI_SCR_BOOT: boot_done(); break;
     case UI_SCR_HOME:
@@ -2075,7 +2185,7 @@ void ui_tap(int x, int y, uint32_t now)
                     U.new_step--;
             }
         } else if (y < 240 && (x < 110 || x >= 250)) {
-            ui_knob(x < 110 ? -1 : 1, now);
+            knob(x < 110 ? -1 : 1);
             return;
         }
         break;
@@ -2086,11 +2196,11 @@ void ui_tap(int x, int y, uint32_t now)
                 U.marker = 0;
                 U.scr = UI_SCR_MARKERS;
             }
-        } else if (U.g.n_players == 1) {
+        } else if (solo()) {
             if (undo_pill() && y >= 276 && y < 324 && x >= 100 && x < 260)
                 undo();
             else if (x < 110 || x >= 250)
-                ui_knob(x < 110 ? -1 : 1, now);
+                knob(x < 110 ? -1 : 1);
         } else if (in_hub(x, y)) {
             if (sd_game_pending_toggle_cmd(&U.g)) { /* attack <-> commander damage */
                 U.g.pending_since = now;
@@ -2109,7 +2219,7 @@ void ui_tap(int x, int y, uint32_t now)
             } else if (s >= 0) { /* selected seat: - / + on either side of the number, in the seat's own frame */
                 float lx = seat_local_x(s, x, y);
                 if (lx < -PM_TAP || lx > PM_TAP)
-                    ui_knob(lx < 0 ? -1 : 1, now);
+                    knob(lx < 0 ? -1 : 1);
             }
         }
         break;
@@ -2121,11 +2231,20 @@ void ui_tap(int x, int y, uint32_t now)
             }
         break;
     case UI_SCR_LOG: U.scr = UI_SCR_MENU; break;
-    case UI_SCR_SHEET:
-        flush();
-        if (U.scr == UI_SCR_SHEET)
+    case UI_SCR_SHEET: {
+        int col = -1, cols = U.g.n_players - 1;
+        for (int s = 0, k = 0; s < U.g.n_players && y >= 262 && U.g.rules.cmd_lethal; s++)
+            if (s != U.sel && abs(x - sheet_col_x(k++, cols)) <= 36)
+                col = s;
+        flush(); /* a pending tally is committed before the knob changes target or the sheet closes */
+        if (U.scr != UI_SCR_SHEET)
+            break;
+        if (col >= 0)
+            U.sheet_src = col == U.sheet_src ? -1 : col; /* a commander column takes the knob; again = poison */
+        else
             U.scr = UI_SCR_GAME;
         break;
+    }
     case UI_SCR_MARKERS: {
         int hit = -1;
         for (int i = 0; i < N_MARKERS && hit < 0; i++) {
@@ -2191,13 +2310,15 @@ void ui_long_press(int x, int y, uint32_t now)
 void ui_drag(int x0, int y0, int x1, int y1, uint32_t now)
 {
     U.now = now;
-    if (U.scr != UI_SCR_GAME || U.g.n_players < 2)
+    if (U.scr != UI_SCR_GAME || solo())
         return;
     int a = seat_at(x0, y0), b = seat_at(x1, y1);
     if (a < 0 || b < 0 || a == b)
         return;
     U.sel = (uint8_t)b; /* A attacks B: combat damage, the knob sets the amount, a hub tap makes it commander damage */
     adjust((uint8_t)b, SD_LIFE, (uint8_t)a, -1);
+    if (S.v[SD_S_DRAG_CMD])
+        sd_game_pending_toggle_cmd(&U.g); /* a no-op in a format without commander damage */
     redraw();
 }
 

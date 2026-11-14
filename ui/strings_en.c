@@ -80,6 +80,7 @@ static const char *const STR[STR_COUNT] = {
     [STR_V_SOURCE] = "SOURCE",
     [STR_R_COMMIT] = "COMMIT DELAY",
     [STR_R_RESET_GAME] = "RESET THE GAME",
+    [STR_CMD_OUT] = "CMDR DEALT",
     [STR_MK_POISON] = "POISON",
     [STR_MK_ENERGY] = "ENERGY",
     [STR_MK_EXPERIENCE] = "EXPERIENCE",

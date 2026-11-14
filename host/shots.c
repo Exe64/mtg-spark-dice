@@ -616,6 +616,133 @@ int main(int argc, char **argv)
         assert(ui_screen() == UI_SCR_HOME && settings_saves == ss + 4);
     }
 
+    /* --- game settings at work (set as the HAL would, at once; the lists that edit them are tested above) */
+    {
+        sd_settings_t st = *ui_settings();
+        const sd_game_t *g = ui_game();
+
+        /* my life alone at a table of four: the Solo dial, and the sheet takes the commander damage */
+        st.v[SD_S_VIEW] = SD_VIEW_SOLO;
+        ui_set_settings(&st);
+        new_game(0, 0);           /* Commander at four, as the format proposes */
+        assert(g->n_players == 4);
+        snap("20-solo-a-quatre");
+        ui_tap(300, 160, t);      /* + */
+        ui_knob(-4, t);
+        t += 900;
+        ui_tick(t);
+        assert(g->p[0].life == 37 && ui_selected() == 0);
+        seat_xy(4, 2, &x, &y);
+        seat_xy(4, 0, &x2, &y2);
+        ui_drag(x, y, x2, y2, t); /* no seats to drag between */
+        assert(!g->has_pending);
+        ui_long_press(180, 180, t);
+        ui_tap(MENU_ROW(2), t);
+        assert(ui_screen() == UI_SCR_SHEET);
+        ui_tap(180, 300, t);      /* the middle column of three: J3 */
+        ui_knob(5, t);
+        assert(g->pending.kind == SD_CMD && g->pending.player == 0 && g->pending.src == 2 && g->pending.amount == 5);
+        snap("20a-fiche-degats-commandant");
+        ui_tap(180, 300, t);      /* the same column again: committed, the knob is back on poison */
+        assert(ui_screen() == UI_SCR_SHEET && g->p[0].cmd[2][0] == 5 && g->p[0].life == 32);
+        ui_knob(1, t);
+        assert(g->pending.kind == SD_POISON);
+        ui_knob(-1, t);
+        st.v[SD_S_CMD_SHOW] = 1;  /* source: the same sheet shows what J1 dealt */
+        ui_set_settings(&st);
+        ui_tap(180 - (argc == 4 ? 84 : 78), 300, t); /* first column: J2 */
+        ui_knob(3, t);
+        snap("20b-fiche-degats-infliges");
+        ui_tap(180, 100, t);      /* leaving commits */
+        assert(ui_screen() == UI_SCR_GAME && g->p[1].cmd[0][0] == 3 && g->p[1].life == 37);
+        st.v[SD_S_CMD_SHOW] = 0;
+
+        /* back to the arena, same game: three clicks make a point, a tap is always worth one */
+        st.v[SD_S_VIEW] = SD_VIEW_ARENA;
+        st.v[SD_S_CLICKS] = 3;
+        ui_set_settings(&st);
+        t += 4100;
+        ui_tick(t);
+        ui_knob(-2, t);
+        assert(!g->has_pending);
+        ui_knob(-1, t);
+        assert(g->has_pending && g->pending.amount == -1);
+        seat_xy(4, 0, &x, &y);
+        ui_tap(x + 50, y, t);     /* + of J1 */
+        assert(g->pending.amount == 0);
+        st.v[SD_S_CLICKS] = 1;
+
+        /* seats not turned: every numeral upright, - and + on its left and right on the screen */
+        st.v[SD_S_ROTATE_SEATS] = 0;
+        ui_set_settings(&st);
+        seat_xy(4, 1, &x, &y);
+        ui_tap(x, y, t);
+        ui_tap(x + 50, y, t);
+        assert(ui_selected() == 1 && g->pending.player == 1 && g->pending.amount == 1);
+        snap("20c-arene-sieges-droits");
+        ui_knob(-1, t);
+        st.v[SD_S_ROTATE_SEATS] = 1;
+
+        /* a dragged attack starts as commander damage; the hub tap still switches it */
+        st.v[SD_S_DRAG_CMD] = 1;
+        ui_set_settings(&st);
+        seat_xy(4, 2, &x, &y);
+        seat_xy(4, 0, &x2, &y2);
+        ui_drag(x, y, x2, y2, t);
+        assert(g->pending.kind == SD_CMD && g->pending.amount == 1 && g->pending.src == 2 && g->pending.player == 0);
+        ui_tap(180, 180, t);
+        assert(g->pending.kind == SD_LIFE && g->pending.amount == -1);
+        ui_knob(1, t);            /* back to nothing */
+        st.v[SD_S_DRAG_CMD] = 0;
+
+        /* rule options reach the game under way: turns the other way round, nobody defeated */
+        t += 4100;
+        ui_tick(t);
+        assert(g->active == 0 && !g->has_pending);
+        st.v[SD_S_TURN_ORDER] = 1;
+        st.v[SD_S_AUTO_KO] = 0;
+        ui_set_settings(&st);
+        assert(saved.rules.opts == (SD_OPT_COUNTER_CW | SD_OPT_MANUAL_KO)); /* and the game was saved with them */
+        ui_tap(180, 180, t);      /* hub: J1 -> J4 */
+        assert(g->active == 3);
+        seat_xy(4, 1, &x, &y);
+        ui_tap(x, y, t);
+        ui_knob(-60, t);
+        t += 900;
+        ui_tick(t);
+        assert(g->p[1].life < 0 && !sd_player_lost(g, 1) && ui_screen() == UI_SCR_GAME);
+        snap("20d-ko-manuel");
+        st.v[SD_S_TURN_ORDER] = 0;
+        st.v[SD_S_AUTO_KO] = 1;
+        ui_set_settings(&st);
+        assert(sd_player_lost(g, 1) && saved.rules.opts == 0);
+
+        /* RÉINITIALISER LA PARTIE asks twice, then the same table starts again */
+        ui_long_press(180, 180, t);
+        ui_tap(MENU_ROW(4), t);
+        ui_tap(108, 118, t);      /* JEU */
+        ui_knob(16, t);
+        ui_tap(180, 180, t);
+        snap("20e-reinitialiser-confirmer");
+        assert(g->log_len > 0);
+        ui_knob(-1, t);           /* moving away disarms it */
+        ui_knob(1, t);
+        ui_tap(180, 180, t);
+        assert(g->log_len > 0);
+        ui_tap(180, 180, t);
+        assert(g->log_len == 0 && g->n_players == 4 && g->p[1].life == 40 && g->p[0].cmd[2][0] == 0 &&
+               !strcmp(g->format, "Commander") && saved.log_len == 0);
+        ui_knob(1, t);
+        ui_tap(180, 180, t);      /* RETOUR */
+        ui_tap(180, 304, t);      /* the grid's back button: the menu again */
+        assert(ui_screen() == UI_SCR_MENU);
+        ui_tap(MENU_ROW(5), t);
+        assert(ui_screen() == UI_SCR_GAME);
+        ui_long_press(180, 180, t);
+        ui_tap(MENU_ROW(3), t);
+        assert(ui_screen() == UI_SCR_HOME);
+    }
+
     printf("shots: all flows passed (%d saves, %d detents, %d commits, %d defeats)\n", saves,
            haptics[UI_HAPTIC_DETENT], haptics[UI_HAPTIC_COMMIT], haptics[UI_HAPTIC_DEFEAT]);
     return 0;

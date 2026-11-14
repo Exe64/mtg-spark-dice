@@ -58,7 +58,7 @@ Dépend de #5 (direction visuelle lumineuse : l'accueil radial, les réglages et
 - [x] Étape 2 — Traductions : remplacer les macros de `strings_fr.h` par des tables par langue (`strings_fr.c`, `strings_en.c`), sélection à chaud, test host qui vérifie que chaque chaîne existe dans chaque langue (M · standard → Sonnet)
 - [x] Étape 3 — Accueil : l'accueil radial et l'écran « Nouvelle partie » (format puis joueurs) existent depuis #5 (étape 8) ; reste à brancher le bouton Réglages, le focus à la molette et le choix Solo/Arène ; pas de pastille Type de jeu (S · standard → Sonnet)
 - [x] Étape 4 — Cadre Réglages : grille 6 sections, listes éditables, protection PIN, accès accueil/menu (M · standard → Sonnet)
-- [ ] Étape 5 — Section Jeu : tous les réglages listés + vue Solo « ma seule vie » à plusieurs joueurs (M · standard → Sonnet)
+- [x] Étape 5 — Section Jeu : tous les réglages listés + vue Solo « ma seule vie » à plusieurs joueurs (M · standard → Sonnet)
 - [ ] Étape 6 — Section Appareil : version, langue, nom (aléatoire par langue + Régénérer + saisie molette), PIN + écran de verrouillage avec message, sens encodeur, haptique, réinitialisation d'usine (M · standard → Sonnet)
 - [ ] Étape 7 — Mise en route : langue, bienvenue, type de jeu/profil, nom, calibrage molette, test tactile + mire, tutoriel des gestes ; relance depuis Appareil (L · reasoning → Opus)
 - [ ] Étape 8 — HAL : appliquer sens/impulsions de l'encodeur et intensité haptique, PIN au démarrage, version de build (S · standard → Sonnet)
@@ -89,6 +89,9 @@ Dépend de #5 (direction visuelle lumineuse : l'accueil radial, les réglages et
 | Cadre Réglages | Grille 2 × 3 de pastilles + bouton retour (7 crans de molette) ; une section = une liste en carrousel, ligne focalisée au centre ; tap = entrer/sortir de l'édition, molette = valeur ; tap hors bouton = action focalisée | Tout se fait à la molette et d'un tap, comme sur l'accueil |
 | Lignes de réglage | Tables de données (`row_t`) : libellé, type, réglage, pas ; les bornes viennent du cœur | Ajouter un réglage = une ligne ; #3 et #4 n'ont qu'à fournir leurs tables |
 | PIN | Saisi chiffre par chiffre à la molette, sans limite d'essais, stocké en clair | Garde-fou de table de jeu, pas une protection contre un attaquant |
+| Vue Solo à plusieurs | Le cadran Solo montre le siège J1 ; les dégâts de commandant reçus se saisissent sur la fiche (tap sur la colonne du joueur, molette) ; pas de moyeu, donc pas de passage de tour | Chaque joueur suit sa vie sur son boîtier ; les autres totaux viendront du multijoueur (lot 3) |
+| Portée des réglages de règles | Options (KO auto, victoire auto, cmdt/PV, ordre du tour) et délai : appliqués tout de suite à la partie en cours ; PV de départ et seuils : à la prochaine partie ou par « Réinitialiser la partie » | Un seuil « du format » ne peut pas être retrouvé en cours de partie |
+| Clics par point | S'applique aux écrans où la molette compte des points (partie, fiche, marqueurs) ; un tap sur − / + vaut toujours 1 | Les listes et menus restent à un cran par ligne |
 | Découpage | 3 plans : #2 (ce plan), #3 Affichage et veille, #4 Joueurs, tours et minuteur | Choix opérateur 2026-11-12 |
 | Ordre | #5 → #2 → #6 → #7 → #4 → #3 | Choix opérateur 2026-11-14 : #2 est lancé sans attendre #6 (8 icônes en attente) ni #7 ; remplace l'ordre du 2026-11-13 |
 
@@ -120,6 +123,7 @@ cd /srv/dev/mtg-dial
 | 2026-11-14 | Étape 2 — host + ASan/UBSan (`strings`, bascule FR→EN à chaud dans `ui_flows`, capture `18-nouvelle-partie-en`) | 0 avert., 7/7 deux fois, écran en anglais | 0, 7/7, 7/7, « CONSTRUCTED / 20 LIFE · POISON 10 / NEXT » (auto-check) | ✅ |
 | 2026-11-14 | Étape 3 — host + ASan/UBSan (`ui_flows` : focus molette START/REPRENDRE/Réglages, tap hors bouton = action focalisée, 3ᵉ pas « écran de jeu ») ; captures `01b`, `15d`, `15e` relues | 0 avert., 7/7 deux fois ; bouton Réglages allumé au focus ; ARÈNE/SOLO lisibles dans les deux thèmes | 0, 7/7, 7/7 ; conforme (auto-check) | ✅ |
 | 2026-11-14 | Étape 4 — host + ASan/UBSan (`ui_flows` : grille, section « bientôt », liste, édition molette/chevrons, bornes, PIN refusé puis accepté, abandon, accès depuis le menu) ; captures `19`–`19g` relues dans les deux thèmes | 0 avert., 7/7 deux fois ; 4 enregistrements de réglages ; écrans lisibles | 0, 7/7, 7/7 ; 4 ; conforme. Constat : la ligne ANNULER du menu déborde de sa pastille quand le libellé est long (déjà le cas avant, à reprendre avec le menu de #7) (auto-check) | ✅ |
+| 2026-11-14 | Étape 5 — host + ASan/UBSan (`ui_flows` : Solo à 4, dégâts de commandant par la fiche, affichage source, 3 clics/point, sièges droits, attaque = cmdt, ordre inversé et KO manuel appliqués à la partie en cours, réinitialisation en deux taps ; `boot_start-on-*`) ; captures `20`–`20e` relues | 0 avert., 10/10 deux fois | 0, 10/10, 10/10 ; conforme. Constat : sièges non tournés, les marques − / + des sièges de gauche et de droite touchent le bord et le moyeu (les zones de tap restent justes) (auto-check) | ✅ |
 
 ## Journal de session
 
