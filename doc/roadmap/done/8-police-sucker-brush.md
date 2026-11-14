@@ -2,8 +2,8 @@
 plan:
   id: '8'
   name: 8-police-sucker-brush.md
-  link: https://github.com/Exe64/mtg-spark-dice/blob/main/doc/roadmap/8-police-sucker-brush.md
-status: active
+  link: https://github.com/Exe64/mtg-spark-dice/blob/main/doc/roadmap/done/8-police-sucker-brush.md
+status: done
 date: 2026-11-13
 description: >
   Noms de format en Original Motion (comme le logo) ; Sucker Brush essayée à l'étape 1 puis abandonnée, chiffres et autres titres revenus en Barlow.
@@ -51,7 +51,7 @@ Aucune. Indépendant des plans en cours ; touche les mêmes fichiers de thème q
 - [x] 🧪 Tests — Rédiger et exécuter la procédure de test (avant-dernière étape, obligatoire)
 - [x] Étape 2 — Recadrage : Barlow ExtraBold revient pour les chiffres et les titres (tailles d'origine) ; noms de format en Original Motion embarquée (garde-fou build, `strip_gpos.py`) ; Sucker Brush retirée ; doc (S · standard → Sonnet)
 - [x] 🧪 Tests (étape 2) — Rejouer la procédure adaptée
-- [ ] ✅ Validation — Vérifier les résultats des tests et clôturer (dernière étape, obligatoire)
+- [x] ✅ Validation — Vérifier les résultats des tests et clôturer (dernière étape, obligatoire)
 
 ## Décisions techniques
 
@@ -168,4 +168,4 @@ git check-ignore -q "$F" && echo ignored; git ls-files ui/assets | grep -c "lice
 
 ### Session 2026-11-14
 - ✅ Fait : recadrage (formats en Original Motion, Barlow partout ailleurs, Sucker Brush retirée), étape 2, 🧪 Tests T1–T8 PASS (vérificateur indépendant)
-- 📋 Prochain : ✅ Validation par l'opérateur et clôture
+- ✅ Validation : opérateur, 2026-11-14 (« tout bon » sur les captures des formats) ; plan clôturé

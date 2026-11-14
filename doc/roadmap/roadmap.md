@@ -1,26 +1,18 @@
 # Roadmap SparkDice
 
 > Backlog actif. L'historique détaillé est archivé dans `_archives/`.
-> Dernière mise à jour : 2026-11-13.
+> Dernière mise à jour : 2026-11-14.
 
 ## Contexte
 
 Backlog consolidé : plans nommés d'après leur issue GitHub (voir `doc/roadmap/`).
 - « À faire » : travaux restants, triés par priorité.
 - « Fait » : ce qui a été livré et validé.
-- Ordre d'exécution (décidé le 2026-11-13) : #5 → #6 → #7 → #2 → #4 → #3 ; #8 (police) indépendant.
+- Ordre d'exécution (décidé le 2026-11-13) : #5 → #6 → #7 → #2 → #4 → #3 .
 
 ---
 
 ## À faire
-
-### [Issue: #8] Noms de format en Original Motion (Sucker Brush abandonnée) [PRIORITÉ: HAUTE] [Complexité: S] 🟢
-
-Plan : [`8-police-sucker-brush.md`](8-police-sucker-brush.md)
-
-Noms de format en Original Motion, comme le nom « Dice Spark » ; chiffres et autres titres restés en Barlow (Sucker Brush essayée puis retirée : « 1 » illisible). Le .ttf (usage personnel) n'est pas committé. Indépendant.
-
----
 
 ### [Issue: #2] Réglages, Jeu, Appareil et mise en route [PRIORITÉ: HAUTE] [Complexité: L] 🟢
 
@@ -89,3 +81,11 @@ Firmware SparkDice : Solo + Arène 1–4 (sièges orientés), tours, attaque par
 Plan : [`done/5-direction-lumineuse.md`](done/5-direction-lumineuse.md)
 
 Thème Lumineux par défaut (fond radial, sièges en verre, lueurs, icônes, logo, nom « Dice Spark »), Booster conservé en 2ᵉ thème ; accueil radial, écran « Nouvelle partie » (format puis joueurs), 10 formats Magic. Tests PC (ASan/UBSan), 32 + 26 captures, build ESP32-S3 sans avertissement. Validé le 2026-11-13 (sans matériel).
+
+---
+
+### [Issue: #8] Noms de format en Original Motion (Sucker Brush abandonnée) [PRIORITÉ: HAUTE] [Complexité: S] 🔵
+
+Plan : [`done/8-police-sucker-brush.md`](done/8-police-sucker-brush.md)
+
+Noms de format en Original Motion, comme le nom « Dice Spark » ; chiffres et autres titres en Barlow. Sucker Brush essayée puis retirée (« 1 » lu « I »). Polices sous licence hors dépôt, garde-fou de build. Tests PC (ASan/UBSan), 38 captures, build ESP32-S3 sans avertissement. Validé le 2026-11-14 (sans matériel).
