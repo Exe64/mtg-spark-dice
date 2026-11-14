@@ -42,6 +42,10 @@ int main(int argc, char **argv)
     if (!sd_profile_load(path, &prof[0], &err))
         return 1;
     shot_init();
+    sd_settings_t st;
+    sd_settings_defaults(&st);
+    st.v[SD_S_SETUP_DONE] = 1; /* past the first-start assistant */
+    ui_set_settings(&st);
     ui_init(NULL, prof, 1, NULL);
     uint32_t t = 1000;
     printf("%-22s %8s %8s %8s   (ms per full redraw, %d frames)\n", "screen", "booster", "lumineux", "ratio", FRAMES);
@@ -51,13 +55,14 @@ int main(int argc, char **argv)
     ui_tap(180, 160, t); /* NOUVELLE PARTIE */
     row("new game, format");
     ui_tap(194, 286, t); /* SUIVANT */
-    ui_tap(194, 286, t); /* JOUER: Commander, 4 players */
+    ui_tap(194, 286, t); /* SUIVANT: Commander, 4 players */
+    ui_tap(194, 286, t); /* JOUER: in the arena */
     row("arena 4, at rest");
     ui_knob(-3, t);
     row("arena 4, pending");
     ui_long_press(180, 180, t);
     row("menu");
-    ui_tap(180, 232, t); /* NOUVELLE PARTIE -> home */
+    ui_tap(180, 202, t); /* NOUVELLE PARTIE -> home */
     ui_tap(180, 160, t); /* NOUVELLE PARTIE */
     ui_tap(194, 286, t); /* SUIVANT */
     ui_knob(-3, t);      /* 4 -> SOLO */

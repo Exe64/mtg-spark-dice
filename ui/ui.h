@@ -30,6 +30,7 @@ typedef enum {
     UI_SCR_SETTINGS, /* the six sections */
     UI_SCR_LIST,     /* the settings of one section */
     UI_SCR_EDIT,     /* text or PIN entry */
+    UI_SCR_SETUP,    /* first-start assistant */
 } ui_screen_t;
 
 /* Call after lv_init() and display creation. `resume` (may be NULL) is offered as "REPRENDRE" on the home screen.

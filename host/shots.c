@@ -79,7 +79,15 @@ static void snap(const char *name)
 }
 
 /* From home: NOUVELLE PARTIE, `formats` knob steps on the format, SUIVANT, `sizes` steps on the table size, JOUER. */
-#define AFTER_FACTORY_RESET /* step 7 puts the assistant here */
+/* The assistant with nothing changed: language, welcome, format, name, knob passed, touch passed, gestures. */
+static void assistant_quick(void)
+{
+    assert(ui_screen() == UI_SCR_SETUP);
+    for (int i = 0; i < 5; i++)
+        ui_tap(194, 286, t);
+    ui_tap(180, 190, t);
+    ui_tap(194, 286, t);
+}
 #define NEW_OK 194, 286
 #define MENU_ROW(i) 180, 70 + (i) * 44 /* undo, log, sheet, new game, settings, back */
 static void new_game(int formats, int sizes)
@@ -161,6 +169,69 @@ int main(int argc, char **argv)
     assert(ui_screen() == UI_SCR_BOOT);
     t += 1;
     ui_tick(t);
+
+    /* --- first start: the assistant, before anything else */
+    assert(ui_screen() == UI_SCR_SETUP);
+    snap("00a-assistant-langue");
+    ui_tap(88, 286, t);       /* no way back from the first step */
+    ui_knob(1, t);            /* English, shown at once; round to French */
+    assert(ui_settings()->v[SD_S_LANG] == 1 && ui_screen() == UI_SCR_SETUP);
+    ui_tap(300, 140, t);
+    assert(ui_settings()->v[SD_S_LANG] == 0);
+    ui_tap(NEW_OK, t);
+    snap("00b-assistant-bienvenue");
+    ui_tap(88, 286, t);       /* back to the language, and forward again */
+    ui_tap(NEW_OK, t);
+    ui_tap(NEW_OK, t);        /* DÉMARRER */
+    snap("00c-assistant-format");
+    ui_knob(4, t);            /* Standard as the format "new game" opens on */
+    assert(ui_settings()->v[SD_S_PROFILE] == 4);
+    ui_knob(-4, t);
+    assert(!ui_settings()->name[0]);
+    ui_tap(NEW_OK, t);        /* the device gets a name in the chosen language */
+    assert(strchr(ui_settings()->name, ' '));
+    {
+        char first[24];
+        strcpy(first, ui_settings()->name);
+        t += 53;
+        ui_tap(118, 188, t);  /* AU HASARD */
+        assert(strcmp(first, ui_settings()->name));
+        snap("00d-assistant-nom");
+        strcpy(first, ui_settings()->name);
+        ui_tap(242, 188, t);  /* MODIFIER: the knob text entry, and back here */
+        assert(ui_screen() == UI_SCR_EDIT);
+        ui_tap(194, 286, t);
+        assert(ui_screen() == UI_SCR_SETUP && !strcmp(first, ui_settings()->name));
+    }
+    ui_tap(NEW_OK, t);
+    snap("00e-assistant-molette");
+    ui_knob(-5, t);           /* ten clicks to the right arrive as five to the left: wired backwards, 2 counts a click */
+    ui_tap(NEW_OK, t);
+    assert(saved_settings.v[SD_S_KNOB_REVERSE] == 1 && saved_settings.v[SD_S_KNOB_COUNTS] == 2);
+    snap("00f-assistant-tactile");
+    {
+        int c = haptics[UI_HAPTIC_COMMIT];
+        ui_tap(180, 52, t);   /* top and right targets */
+        ui_tap(308, 180, t);
+        ui_tap(180, 52, t);   /* a target counts once */
+        assert(haptics[UI_HAPTIC_COMMIT] == c + 2);
+    }
+    snap("00g-assistant-tactile-2-sur-4");
+    ui_tap(180, 308, t);
+    ui_tap(52, 180, t);
+    ui_tap(180, 190, t);      /* SUIVANT */
+    snap("00h-assistant-gestes");
+    assert(!ui_settings()->v[SD_S_SETUP_DONE]);
+    ui_tap(NEW_OK, t);        /* TERMINER */
+    assert(ui_screen() == UI_SCR_HOME && saved_settings.v[SD_S_SETUP_DONE] == 1 && saved_settings.name[0]);
+    { /* the rest of the flows runs on a knob wired as the host drives it, and counts from here */
+        sd_settings_t st = *ui_settings();
+        st.v[SD_S_KNOB_REVERSE] = 0;
+        st.v[SD_S_KNOB_COUNTS] = 4;
+        st.name[0] = 0;
+        ui_set_settings(&st);
+        settings_saves = haptics[UI_HAPTIC_DETENT] = haptics[UI_HAPTIC_COMMIT] = 0;
+    }
 
     /* --- home: START is lit; the dimmed buttons do nothing; the knob moves the focus between START and settings
      * (no saved game: REPRENDRE is skipped) */
@@ -851,14 +922,23 @@ int main(int argc, char **argv)
         ui_tap(180, 180, t);
         assert(saved_settings.v[SD_S_HAPTIC] == 3 && saved_settings.v[SD_S_KNOB_COUNTS] == 4);
 
-        ui_knob(1, t);            /* RÉINITIALISATION D'USINE: two taps, then nothing is left */
+        ui_knob(-6, t);           /* ASSISTANT: the first-start steps again, from here and back here */
+        ui_tap(180, 180, t);
+        assert(ui_screen() == UI_SCR_SETUP);
+        ui_tap(88, 286, t);       /* back on the first step leaves it */
+        assert(ui_screen() == UI_SCR_LIST);
+        ui_tap(180, 180, t);
+        assistant_quick();
+        assert(ui_screen() == UI_SCR_LIST && !strcmp(s->name, "JU")); /* a name already given is kept */
+        ui_knob(7, t);            /* RÉINITIALISATION D'USINE: two taps, then nothing is left */
         ui_tap(180, 180, t);
         snap("21f-usine-confirmer");
         assert(factory_resets == 0 && s->name[0]);
         ui_tap(180, 180, t);
         assert(factory_resets == 1 && !s->name[0] && !s->owner_msg[0] && !saved_settings.name[0]);
-        AFTER_FACTORY_RESET
-        assert(ui_screen() == UI_SCR_HOME);
+        assert(ui_screen() == UI_SCR_SETUP && !s->v[SD_S_SETUP_DONE]); /* as out of the box */
+        assistant_quick();
+        assert(ui_screen() == UI_SCR_HOME && s->v[SD_S_SETUP_DONE] && s->name[0] && s->v[SD_S_KNOB_COUNTS] == 4);
         ui_tap(180, 300, t);      /* no game to resume any more: bare ground, START is focused */
         assert(ui_screen() == UI_SCR_NEW);
         ui_tap(88, 286, t);

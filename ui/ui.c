@@ -68,6 +68,10 @@ static struct {
         ui_screen_t back;
     } ed;
     uint32_t now, undo_until, boot_until, seed;
+    /* first-start assistant */
+    int setup_step, cal; /* cal: detents counted by the knob step */
+    bool setup_first;    /* run at power-on (ends on the home screen) rather than from the settings */
+    uint8_t touched;     /* touch step: the targets hit so far, one bit each */
     lv_obj_t *dial;
     lv_font_t *f_solo, *f_arena[SD_MAX_PLAYERS + 1], *f_hub, *f_title, *f_name[2], *f_row, *f_label, *f_small;
 } U;
@@ -1657,6 +1661,7 @@ static const struct {
 };
 
 static void unlocked(void);
+static void boot_done(void);
 
 /* text / PIN entry: the knob picks a character, a tap on it appends it */
 enum { ED_GATE, ED_BOOT, ED_PIN_NEW, ED_NAME, ED_MSG }; /* the first three take a PIN */
@@ -1745,7 +1750,7 @@ static void factory_reset(void)
     default_profile();
     if (U.hooks.save_settings) /* the HAL takes the defaults back too (knob, haptics) */
         U.hooks.save_settings(&S);
-    unlocked();
+    boot_done(); /* as out of the box: the assistant */
 }
 
 static void settings_sec_xy(int i, int *x, int *y)
@@ -1841,6 +1846,8 @@ static void row_change(const row_t *r, int d)
         default_profile();
 }
 
+static void setup_open(bool first);
+
 static void row_action(const row_t *r)
 {
     switch (r->id) {
@@ -1859,6 +1866,7 @@ static void row_action(const row_t *r)
             edit_open(ED_PIN_NEW, NULL, 4);
         break;
     case ACT_MSG: edit_open(ED_MSG, S.owner_msg, sizeof(S.owner_msg) - 1); break;
+    case ACT_SETUP: setup_open(false); break;
     case ACT_FACTORY: factory_reset(); break;
     }
 }
@@ -2006,6 +2014,222 @@ static void edit_tap(int x, int y)
         edit_knob(x < 110 ? -1 : 1);
 }
 
+/* ---------- first-start assistant: language, welcome, default format, device name, then three steps one may pass
+ * (knob calibration, touch test, gestures). Run again from the settings (APPAREIL > ASSISTANT). ---------- */
+
+enum { SU_LANG, SU_WELCOME, SU_FORMAT, SU_NAME, SU_KNOB, SU_TOUCH, SU_GESTURES };
+#define SU_TARGET_R 128 /* touch targets: top, right, bottom, left, at this distance from the centre */
+#define SU_NAME_Y 188
+
+static void setup_open(bool first)
+{
+    U.setup_first = first;
+    U.setup_step = SU_LANG;
+    U.scr = UI_SCR_SETUP;
+}
+
+static void setup_target(int i, int *x, int *y)
+{
+    static const int dx[] = {0, 1, 0, -1}, dy[] = {-1, 0, 1, 0};
+    *x = CX + dx[i] * SU_TARGET_R;
+    *y = CY + dy[i] * SU_TARGET_R;
+}
+
+static void setup_next(void)
+{
+    switch (U.setup_step) {
+    case SU_KNOB:
+        /* The owner turned 10 clicks to the right. Fewer or more detents came in: the counts per detent are off by
+         * that ratio; they came in negative: the knob is wired the other way. Nothing turned = step passed. */
+        if (U.cal) {
+            if (U.cal < 0)
+                sd_setting_set(&S, SD_S_KNOB_REVERSE, !S.v[SD_S_KNOB_REVERSE]);
+            sd_setting_set(&S, SD_S_KNOB_COUNTS, (abs(U.cal) * S.v[SD_S_KNOB_COUNTS] + 5) / 10);
+            U.dirty = true;
+            settings_save(); /* the HAL applies it at once: the rest of the assistant already feels right */
+        }
+        break;
+    case SU_GESTURES:
+        sd_setting_set(&S, SD_S_SETUP_DONE, 1);
+        U.dirty = true;
+        settings_save();
+        if (U.setup_first)
+            unlocked();
+        else
+            U.scr = UI_SCR_LIST;
+        return;
+    }
+    U.setup_step++;
+    U.cal = 0;
+    U.touched = 0;
+    if (U.setup_step == SU_NAME && !S.name[0])
+        random_name();
+}
+
+static void setup_knob(int d)
+{
+    switch (U.setup_step) {
+    case SU_LANG:
+        sd_setting_set(&S, SD_S_LANG, ((S.v[SD_S_LANG] + d) % UI_LANG_COUNT + UI_LANG_COUNT) % UI_LANG_COUNT);
+        break;
+    case SU_FORMAT:
+        if (!U.n_profiles)
+            return;
+        sd_setting_set(&S, SD_S_PROFILE, ((S.v[SD_S_PROFILE] + d) % U.n_profiles + U.n_profiles) % U.n_profiles);
+        default_profile();
+        break;
+    case SU_NAME: random_name(); break;
+    case SU_KNOB: U.cal += d; break;
+    default: return;
+    }
+    U.dirty = true;
+    haptic(UI_HAPTIC_DETENT);
+}
+
+/* where we are in a short list: one dot per entry, the current one full */
+static void dots(lv_layer_t *l, int n, int cur)
+{
+    for (int i = 0; i < n; i++) {
+        int x = CX - (n - 1) * 7 + i * 14;
+        fill(l, x - 3, 207, x + 3, 213, T->ink, T->light ? LV_RADIUS_CIRCLE : 0);
+        if (i != cur)
+            fill(l, x - 2, 208, x + 2, 212, T->ground, T->light ? LV_RADIUS_CIRCLE : 0);
+    }
+}
+
+static void draw_setup(lv_layer_t *l)
+{
+    const int mid = (NEW_BTN_Y1 + NEW_BTN_Y2) / 2;
+    const char *go = TR(NEXT);
+    char buf[64];
+    bool chevrons = false;
+    uint32_t ink;
+    ground(l);
+    if (T->light)
+        knob_ring(l);
+    switch (U.setup_step) {
+    case SU_LANG: /* the one screen that cannot know its language: the title says it in each */
+        buf[0] = '\0';
+        for (int i = 0; i < UI_LANG_COUNT; i++)
+            appendf(buf, sizeof(buf), "%s%s", i ? " / " : "", ui_langs[i]->str[STR_R_LANG]);
+        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 60, buf);
+        text(l, U.f_hub, T->ink, LV_OPA_COVER, CX, 136, ui_langs[S.v[SD_S_LANG] % UI_LANG_COUNT]->name);
+        dots(l, UI_LANG_COUNT, S.v[SD_S_LANG] % UI_LANG_COUNT);
+        chevrons = true;
+        break;
+    case SU_WELCOME:
+        fx_image(l, &ui_wordmark_small_a8, CX, 52, T->ink, LV_OPA_COVER);
+        fx_image(l, &ui_logo_small_a8, CX, 128, T->ink, LV_OPA_COVER);
+        text(l, U.f_hub, T->ink, LV_OPA_COVER, CX, 208, TR(WELCOME));
+        go = TR(SETUP_START);
+        break;
+    case SU_FORMAT: {
+        snprintf(buf, sizeof(buf), "%s" DOT "%s", TR(MAGIC), TR(R_DEFAULT_FORMAT));
+        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 60, buf);
+        if (!U.n_profiles)
+            break;
+        const sd_profile_t *p = &U.profiles[U.profile];
+        const lv_font_t *nf = U.f_name[lv_text_get_width(p->name, strlen(p->name), U.f_name[0], 0) > 300];
+        text(l, nf, T->ink, LV_OPA_COVER, CX, 112, p->name);
+        snprintf(buf, sizeof(buf), TR(LIFE_FMT), p->rules.start_life);
+        if (p->rules.cmd_lethal)
+            appendf(buf, sizeof(buf), DOT "%s %d", TR(CMD), p->rules.cmd_lethal);
+        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 154, buf);
+        dots(l, U.n_profiles, U.profile);
+        chevrons = true;
+        break;
+    }
+    case SU_NAME:
+        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 60, TR(DEVICE_NAME));
+        text(l, U.f_row, T->ink, LV_OPA_COVER, CX, 116, S.name);
+        ink = button(l, 62, SU_NAME_Y - 22, 174, SU_NAME_Y + 22, false);
+        text(l, U.f_small, ink, LV_OPA_COVER, 118, SU_NAME_Y, TR(RANDOM));
+        ink = button(l, 186, SU_NAME_Y - 22, 298, SU_NAME_Y + 22, false);
+        text(l, U.f_small, ink, LV_OPA_COVER, 242, SU_NAME_Y, TR(EDIT));
+        break;
+    case SU_KNOB:
+        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 60, TR(SETUP_KNOB));
+        text(l, U.f_small, T->ink, LV_OPA_70, CX, 100, TR(SETUP_KNOB_1));
+        text(l, U.f_small, T->ink, LV_OPA_70, CX, 124, TR(SETUP_KNOB_2));
+        snprintf(buf, sizeof(buf), "%d", abs(U.cal));
+        text(l, U.f_title, T->ink, LV_OPA_COVER, CX, 190, buf);
+        if (!U.cal)
+            go = TR(SKIP);
+        break;
+    case SU_TOUCH: /* a test card: rings, the four seat colours, and four targets to hit */
+        arc(l, 96, 0.f, 360.f, 1, T->ink, LV_OPA_40);
+        arc(l, 150, 0.f, 360.f, 1, T->ink, LV_OPA_40);
+        for (int i = 0; i < 4; i++) {
+            int x, y;
+            float a = (45.f + i * 90.f) * (float)M_PI / 180.f;
+            x = CX + (int)(SU_TARGET_R * cosf(a));
+            y = CY + (int)(SU_TARGET_R * sinf(a));
+            fill(l, x - 12, y - 12, x + 12, y + 12, T->seat[i], T->light ? LV_RADIUS_CIRCLE : 0);
+            setup_target(i, &x, &y);
+            bool hit = U.touched >> i & 1;
+            if (hit && T->light)
+                fx_halo(l, x, y, 44, T->ink, LV_OPA_50);
+            ink = button(l, x - 20, y - 20, x + 20, y + 20, hit);
+            line(l, x - 8, y, x + 8, y, ink, LV_OPA_COVER);
+            line(l, x, y - 8, x, y + 8, ink, LV_OPA_COVER);
+        }
+        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 136, TR(SETUP_TOUCH));
+        ink = button(l, CX - 66, 166, CX + 66, 214, true);
+        text(l, U.f_row, ink, LV_OPA_COVER, CX, 190, U.touched == 15 ? TR(NEXT) : TR(SKIP));
+        return; /* its button is in the middle: the bottom belongs to a target */
+    case SU_GESTURES:
+        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 60, TR(SETUP_GESTURES));
+        for (int i = 0; i < 4; i++)
+            text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 104 + i * 34, tr(STR_GESTURE_1 + i));
+        go = TR(FINISH);
+        break;
+    }
+    if (chevrons)
+        for (int k = -1; k <= 1; k += 2)
+            text(l, U.f_row, T->ink, LV_OPA_60, CX + k * 124, 206, k < 0 ? "\xE2\x80\xB9" : "\xE2\x80\xBA");
+    if (U.setup_step || !U.setup_first) { /* back; at power-on the first step has nowhere to go back to */
+        button(l, 66, NEW_BTN_Y1 + 2, 110, NEW_BTN_Y2 - 2, false);
+        fx_icon(l, FX_ICON_UNDO, 88, mid, T->ink, LV_OPA_COVER);
+    }
+    ink = button(l, 124, NEW_BTN_Y1, 264, NEW_BTN_Y2, true);
+    text(l, U.f_row, ink, LV_OPA_COVER, 194, mid, go);
+}
+
+static void setup_tap(int x, int y)
+{
+    if (U.setup_step == SU_TOUCH) {
+        for (int i = 0; i < 4; i++) {
+            int tx, ty;
+            setup_target(i, &tx, &ty);
+            if ((x - tx) * (x - tx) + (y - ty) * (y - ty) <= 34 * 34 && !(U.touched >> i & 1)) {
+                U.touched |= (uint8_t)(1 << i);
+                haptic(UI_HAPTIC_COMMIT);
+            }
+        }
+        if (abs(x - CX) <= 70 && abs(y - 190) <= 30)
+            setup_next();
+        return;
+    }
+    if (y >= NEW_BTN_Y1 - 8 && y <= NEW_BTN_Y2 + 8) {
+        if (x >= 124 && x <= 264)
+            setup_next();
+        else if (x >= 58 && x < 118) {
+            if (U.setup_step)
+                U.setup_step--;
+            else if (!U.setup_first) { /* left without finishing: what was changed on the way stays */
+                settings_save();
+                U.scr = UI_SCR_LIST;
+            }
+        }
+    } else if (U.setup_step == SU_NAME && abs(y - SU_NAME_Y) <= 28) {
+        if (x < CX)
+            setup_knob(1);
+        else
+            edit_open(ED_NAME, S.name, sizeof(S.name) - 1);
+    } else if (y < 240 && (x < 110 || x >= 250))
+        setup_knob(x < 110 ? -1 : 1);
+}
+
 static void draw_cb(lv_event_t *e)
 {
     lv_layer_t *l = lv_event_get_layer(e);
@@ -2017,6 +2241,7 @@ static void draw_cb(lv_event_t *e)
     case UI_SCR_SETTINGS: draw_settings(l); break;
     case UI_SCR_LIST: draw_list(l); break;
     case UI_SCR_EDIT: draw_edit(l); break;
+    case UI_SCR_SETUP: draw_setup(l); break;
     case UI_SCR_GAME:
         if (solo())
             T->light ? draw_solo_light(l) : draw_solo(l);
@@ -2059,7 +2284,9 @@ static void unlocked(void)
 /* The logo is over. */
 static void boot_done(void)
 {
-    if (S.pin[0] && S.v[SD_S_PIN_BOOT])
+    if (!S.v[SD_S_SETUP_DONE])
+        setup_open(true);
+    else if (S.pin[0] && S.v[SD_S_PIN_BOOT])
         edit_open(ED_BOOT, NULL, 4);
     else
         unlocked();
@@ -2197,6 +2424,7 @@ static void knob(int detents)
         haptic(UI_HAPTIC_DETENT);
         break;
     case UI_SCR_EDIT: edit_knob(detents); break;
+    case UI_SCR_SETUP: setup_knob(detents); break;
     case UI_SCR_OVER: break;
     }
     redraw();
@@ -2360,6 +2588,7 @@ void ui_tap(int x, int y, uint32_t now)
     }
     case UI_SCR_LIST: list_tap(x, y); break;
     case UI_SCR_EDIT: edit_tap(x, y); break;
+    case UI_SCR_SETUP: setup_tap(x, y); break;
     case UI_SCR_OVER:
         if (y >= 196 && y < 252) {
             undo();
