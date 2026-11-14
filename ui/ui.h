@@ -21,6 +21,8 @@ typedef struct {
     void (*haptic)(ui_haptic_t pattern); /* may be NULL */
     void (*save)(const sd_game_t *g);    /* called after every committed delta, undo and new game; may be NULL */
     void (*save_settings)(const sd_settings_t *s); /* called when the user changed a setting; may be NULL */
+    void (*factory_reset)(void); /* erase the saved game and settings; the UI is back to its defaults; may be NULL */
+    const char *version;         /* firmware version and build date, as the settings show them; may be NULL */
 } ui_hooks_t;
 
 typedef enum {

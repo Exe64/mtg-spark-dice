@@ -67,7 +67,7 @@ static struct {
         bool wrong;
         ui_screen_t back;
     } ed;
-    uint32_t now, undo_until, boot_until;
+    uint32_t now, undo_until, boot_until, seed;
     lv_obj_t *dial;
     lv_font_t *f_solo, *f_arena[SD_MAX_PLAYERS + 1], *f_hub, *f_title, *f_name[2], *f_row, *f_label, *f_small;
 } U;
@@ -1596,8 +1596,8 @@ typedef enum {
     ROW_ACTION,  /* runs on a tap; `confirm` = on the second tap */
     ROW_BACK
 } row_kind_t;
-enum { INFO_GAME_TYPE };
-enum { ACT_RESET_GAME };
+enum { INFO_GAME_TYPE, INFO_VERSION };
+enum { ACT_RESET_GAME, ACT_NAME, ACT_NAME_RANDOM, ACT_SETUP, ACT_PIN, ACT_MSG, ACT_FACTORY };
 
 typedef struct {
     uint16_t label; /* ui_str_t */
@@ -1629,6 +1629,22 @@ static const row_t ROWS_GAME[] = {
     {STR_MENU_BACK, ROW_BACK, 0, 0, 0, false},
 };
 
+static const row_t ROWS_DEVICE[] = {
+    {STR_R_VERSION, ROW_INFO, INFO_VERSION, 0, 0, false},
+    {STR_R_LANG, ROW_LANG, SD_S_LANG, 1, 0, false},
+    {STR_R_NAME, ROW_ACTION, ACT_NAME, 0, 0, false},
+    {STR_R_NAME_RANDOM, ROW_ACTION, ACT_NAME_RANDOM, 0, 0, false},
+    {STR_R_SETUP, ROW_ACTION, ACT_SETUP, 0, 0, false},
+    {STR_PIN, ROW_ACTION, ACT_PIN, 0, 0, false}, /* asks twice to remove a PIN, see row_confirm() */
+    {STR_R_PIN_BOOT, ROW_BOOL, SD_S_PIN_BOOT, 1, 0, false},
+    {STR_OWNER_MSG, ROW_ACTION, ACT_MSG, 0, 0, false},
+    {STR_R_KNOB_DIR, ROW_ENUM, SD_S_KNOB_REVERSE, 1, STR_V_NORMAL, false},
+    {STR_R_KNOB_COUNTS, ROW_INT, SD_S_KNOB_COUNTS, 1, 0, false},
+    {STR_R_HAPTIC, ROW_ENUM, SD_S_HAPTIC, 1, STR_V_HAPTIC_OFF, false},
+    {STR_R_FACTORY, ROW_ACTION, ACT_FACTORY, 0, 0, true},
+    {STR_MENU_BACK, ROW_BACK, 0, 0, 0, false},
+};
+
 #define NROWS(a) (int)(sizeof(a) / sizeof((a)[0]))
 static const struct {
     uint16_t name;
@@ -1637,7 +1653,7 @@ static const struct {
 } SECTIONS[SEC_N] = {
     [SEC_GAME] = {STR_SEC_GAME, ROWS_GAME, NROWS(ROWS_GAME)}, [SEC_PLAYERS] = {STR_SEC_PLAYERS, NULL, 0},
     [SEC_TURNS] = {STR_SEC_TURNS, NULL, 0},                  [SEC_DISPLAY] = {STR_SEC_DISPLAY, NULL, 0},
-    [SEC_NETWORK] = {STR_SEC_NETWORK, NULL, 0},              [SEC_DEVICE] = {STR_SEC_DEVICE, NULL, 0},
+    [SEC_NETWORK] = {STR_SEC_NETWORK, NULL, 0},              [SEC_DEVICE] = {STR_SEC_DEVICE, ROWS_DEVICE, NROWS(ROWS_DEVICE)},
 };
 
 static void unlocked(void);
@@ -1690,8 +1706,46 @@ static void edit_done(void)
         else
             U.scr = UI_SCR_SETTINGS;
         return;
-    default: U.scr = U.ed.back; return;
+    case ED_PIN_NEW: memcpy(S.pin, U.ed.buf, sizeof(S.pin)); break;
+    default: {
+        while (U.ed.len && U.ed.buf[U.ed.len - 1] == ' ') /* no trailing blanks */
+            U.ed.buf[--U.ed.len] = '\0';
+        char *dst = U.ed.purpose == ED_NAME ? S.name : S.owner_msg;
+        snprintf(dst, (size_t)U.ed.max + 1, "%s", U.ed.buf);
     }
+    }
+    U.dirty = true;
+    settings_save();
+    U.scr = U.ed.back;
+}
+
+/* ponytail: a generator stirred by the time of the taps; plenty for a name, not for dice (plan #7 brings the HAL's) */
+static uint32_t rnd(void)
+{
+    U.seed = U.seed * 1664525u + 1013904223u + U.now;
+    return U.seed >> 10;
+}
+
+/* Two words in the language in use: "DRAGON ÉCARLATE", "CRIMSON DRAGON". */
+static void random_name(void)
+{
+    const ui_lang_t *L = ui_langs[S.v[SD_S_LANG] % UI_LANG_COUNT];
+    const char *n = L->noun[rnd() % (uint32_t)L->n_noun], *a = L->adj[rnd() % (uint32_t)L->n_adj];
+    snprintf(S.name, sizeof(S.name), "%s %s", L->adj_first ? a : n, L->adj_first ? n : a);
+    U.dirty = true;
+}
+
+/* Everything back as shipped: no game, no settings. */
+static void factory_reset(void)
+{
+    if (U.hooks.factory_reset)
+        U.hooks.factory_reset();
+    sd_settings_defaults(&S);
+    U.has_resume = U.in_game = U.dirty = false;
+    default_profile();
+    if (U.hooks.save_settings) /* the HAL takes the defaults back too (knob, haptics) */
+        U.hooks.save_settings(&S);
+    unlocked();
 }
 
 static void settings_sec_xy(int i, int *x, int *y)
@@ -1756,10 +1810,17 @@ static void row_value(const row_t *r, int idx, char *buf, size_t n)
             snprintf(buf, n, "%s", TR(FROM_FORMAT));
         break;
     case ROW_MS: snprintf(buf, n, "%d MS", v); break;
-    case ROW_INFO: snprintf(buf, n, "%s", TR(MAGIC)); break;
+    case ROW_INFO:
+        snprintf(buf, n, "%s", r->id == INFO_GAME_TYPE ? TR(MAGIC) : U.hooks.version ? U.hooks.version : "DEV");
+        break;
     case ROW_ACTION:
         if (idx == U.armed)
             snprintf(buf, n, "%s", TR(CONFIRM));
+        else if (r->id == ACT_NAME || r->id == ACT_MSG) {
+            const char *v = r->id == ACT_NAME ? S.name : S.owner_msg;
+            snprintf(buf, n, "%s", v[0] ? v : NONE);
+        } else if (r->id == ACT_PIN)
+            snprintf(buf, n, "%s", S.pin[0] ? "\xE2\x80\xA2\xE2\x80\xA2\xE2\x80\xA2\xE2\x80\xA2" : TR(PIN_NONE));
         break;
     default: break;
     }
@@ -1784,8 +1845,26 @@ static void row_action(const row_t *r)
 {
     switch (r->id) {
     case ACT_RESET_GAME: restart_game(); break;
+    case ACT_NAME: edit_open(ED_NAME, S.name, sizeof(S.name) - 1); break;
+    case ACT_NAME_RANDOM:
+        random_name();
+        settings_save();
+        break;
+    case ACT_PIN:
+        if (S.pin[0]) { /* confirmed: no PIN any more */
+            S.pin[0] = '\0';
+            U.dirty = true;
+            settings_save();
+        } else
+            edit_open(ED_PIN_NEW, NULL, 4);
+        break;
+    case ACT_MSG: edit_open(ED_MSG, S.owner_msg, sizeof(S.owner_msg) - 1); break;
+    case ACT_FACTORY: factory_reset(); break;
     }
 }
+
+/* Does the action want a second tap? What cannot be taken back does. */
+static bool row_confirm(const row_t *r) { return r->confirm || (r->id == ACT_PIN && S.pin[0]); }
 
 /* The focused row sits in the middle, large; two rows above and below show what is around it. */
 #define LIST_Y1 142
@@ -1836,7 +1915,7 @@ static void list_tap(int x, int y)
         settings_save();
         U.scr = UI_SCR_SETTINGS;
     } else if (r->kind == ROW_ACTION) {
-        if (r->confirm && U.armed != U.row)
+        if (row_confirm(r) && U.armed != U.row)
             U.armed = U.row;
         else {
             U.armed = -1;

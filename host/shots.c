@@ -22,6 +22,8 @@ static void on_save(const sd_game_t *g)
     saved = *g;
 }
 static void on_haptic(ui_haptic_t p) { haptics[p]++; }
+static int factory_resets;
+static void on_factory_reset(void) { factory_resets++; }
 static int settings_saves;
 static sd_settings_t saved_settings;
 static void on_save_settings(const sd_settings_t *s)
@@ -77,6 +79,7 @@ static void snap(const char *name)
 }
 
 /* From home: NOUVELLE PARTIE, `formats` knob steps on the format, SUIVANT, `sizes` steps on the table size, JOUER. */
+#define AFTER_FACTORY_RESET /* step 7 puts the assistant here */
 #define NEW_OK 194, 286
 #define MENU_ROW(i) 180, 70 + (i) * 44 /* undo, log, sheet, new game, settings, back */
 static void new_game(int formats, int sizes)
@@ -133,7 +136,8 @@ int main(int argc, char **argv)
     (void)path;
 
     shot_init();
-    ui_hooks_t hooks = {.haptic = on_haptic, .save = on_save, .save_settings = on_save_settings};
+    ui_hooks_t hooks = {.haptic = on_haptic, .save = on_save, .save_settings = on_save_settings,
+                        .factory_reset = on_factory_reset, .version = "0.2.0 \xC2\xB7 2026-11-14"};
     if (argc == 4)
         ui_set_theme(UI_THEME_BOOSTER, 0);
     ui_init(&hooks, prof, n_prof, NULL);
@@ -740,6 +744,124 @@ int main(int argc, char **argv)
         assert(ui_screen() == UI_SCR_GAME);
         ui_long_press(180, 180, t);
         ui_tap(MENU_ROW(3), t);
+        assert(ui_screen() == UI_SCR_HOME);
+    }
+
+    /* --- device settings */
+    {
+        const sd_settings_t *s = ui_settings();
+        ui_tap(92, 96, t);
+        ui_tap(252, 226, t);      /* APPAREIL */
+        assert(ui_screen() == UI_SCR_LIST);
+        snap("21-reglages-appareil");
+        ui_knob(1, t);            /* LANGUE: the list itself changes as the knob turns */
+        ui_tap(180, 180, t);
+        ui_knob(1, t);
+        assert(s->v[SD_S_LANG] == 1);
+        snap("21a-appareil-english");
+        ui_knob(1, t);            /* two languages: round to French */
+        assert(s->v[SD_S_LANG] == 0);
+        ui_tap(180, 180, t);
+
+        ui_knob(2, t);            /* NOM AU HASARD: two words, new ones at each tap */
+        assert(!s->name[0]);
+        ui_tap(180, 180, t);
+        char first[sizeof(s->name)];
+        strcpy(first, s->name);
+        assert(strchr(first, ' ') && !strcmp(saved_settings.name, first));
+        t += 37;
+        ui_tap(180, 180, t);
+        assert(strchr(s->name, ' ') && strcmp(first, s->name));
+        snap("21b-nom-au-hasard");
+
+        ui_knob(-1, t);           /* NOM: typed with the knob, one tap per letter */
+        ui_tap(180, 180, t);
+        assert(ui_screen() == UI_SCR_EDIT);
+        strcpy(first, s->name);
+        for (int i = 0; i < 30 && ui_screen() == UI_SCR_EDIT; i++)
+            ui_tap(88, 286, t);   /* erase it all; once empty, the same button gives up */
+        assert(ui_screen() == UI_SCR_LIST && !strcmp(first, s->name)); /* giving up changes nothing */
+        { /* start from an empty name */
+            sd_settings_t st = *s;
+            st.name[0] = 0;
+            ui_set_settings(&st);
+        }
+        ui_tap(180, 180, t);
+        ui_knob(9, t);            /* A -> J */
+        ui_tap(180, 168, t);
+        ui_knob(11, t);           /* J -> U */
+        ui_tap(180, 168, t);
+        ui_knob(-21, t);          /* U -> the space, shown by its name */
+        snap("21c-saisie-du-nom");
+        ui_tap(180, 168, t);
+        ui_tap(194, 286, t);      /* OK: trailing blank dropped */
+        assert(ui_screen() == UI_SCR_LIST && !strcmp(s->name, "JU") && !strcmp(saved_settings.name, "JU"));
+
+        ui_knob(3, t);            /* CODE PIN: four digits, done at the fourth */
+        ui_tap(180, 180, t);
+        assert(ui_screen() == UI_SCR_EDIT);
+        for (int i = 0; i < 4; i++) {
+            ui_knob(1, t);
+            ui_tap(180, 168, t);
+        }
+        assert(ui_screen() == UI_SCR_LIST && !strcmp(s->pin, "1234") && !strcmp(saved_settings.pin, "1234"));
+        snap("21d-pin-defini");
+        ui_knob(1, t);            /* PIN AU DÉMARRAGE */
+        ui_tap(180, 180, t);
+        ui_knob(1, t);
+        ui_tap(180, 180, t);
+        assert(saved_settings.v[SD_S_PIN_BOOT] == 1);
+        ui_tap(180, 180, t);
+        ui_knob(1, t);
+        ui_tap(180, 180, t);
+        assert(saved_settings.v[SD_S_PIN_BOOT] == 0);
+        ui_knob(-1, t);           /* a PIN is removed in two taps */
+        ui_tap(180, 180, t);
+        assert(s->pin[0]);
+        ui_tap(180, 180, t);
+        assert(!s->pin[0] && !saved_settings.pin[0]);
+
+        ui_knob(2, t);            /* MESSAGE */
+        ui_tap(180, 180, t);
+        ui_tap(180, 168, t);      /* A */
+        ui_tap(194, 286, t);
+        assert(ui_screen() == UI_SCR_LIST && !strcmp(saved_settings.owner_msg, "A"));
+        ui_knob(1, t);            /* SENS DE LA MOLETTE */
+        ui_tap(180, 180, t);
+        ui_knob(1, t);
+        ui_tap(180, 180, t);
+        assert(saved_settings.v[SD_S_KNOB_REVERSE] == 1);
+        ui_tap(180, 180, t);
+        ui_knob(1, t);
+        ui_tap(180, 180, t);
+        ui_knob(1, t);            /* IMPULSIONS PAR CRAN */
+        ui_tap(180, 180, t);
+        ui_knob(-2, t);
+        ui_tap(180, 180, t);
+        assert(saved_settings.v[SD_S_KNOB_COUNTS] == 2);
+        ui_tap(180, 180, t);
+        ui_knob(2, t);
+        ui_tap(180, 180, t);
+        ui_knob(1, t);            /* VIBRATION: four levels, round */
+        ui_tap(180, 180, t);
+        ui_knob(1, t);
+        assert(s->v[SD_S_HAPTIC] == 0);
+        snap("21e-vibration-coupee");
+        ui_knob(-1, t);
+        ui_tap(180, 180, t);
+        assert(saved_settings.v[SD_S_HAPTIC] == 3 && saved_settings.v[SD_S_KNOB_COUNTS] == 4);
+
+        ui_knob(1, t);            /* RÉINITIALISATION D'USINE: two taps, then nothing is left */
+        ui_tap(180, 180, t);
+        snap("21f-usine-confirmer");
+        assert(factory_resets == 0 && s->name[0]);
+        ui_tap(180, 180, t);
+        assert(factory_resets == 1 && !s->name[0] && !s->owner_msg[0] && !saved_settings.name[0]);
+        AFTER_FACTORY_RESET
+        assert(ui_screen() == UI_SCR_HOME);
+        ui_tap(180, 300, t);      /* no game to resume any more: bare ground, START is focused */
+        assert(ui_screen() == UI_SCR_NEW);
+        ui_tap(88, 286, t);
         assert(ui_screen() == UI_SCR_HOME);
     }
 

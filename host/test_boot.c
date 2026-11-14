@@ -55,6 +55,37 @@ int main(int argc, char **argv)
         assert(ui_screen() == UI_SCR_HOME);
         ui_tap(180, 300, t);
         assert(ui_screen() == UI_SCR_GAME && ui_game()->p[1].life == 12);
+    } else if (!strcmp(sc, "pin")) { /* locked at power-on: the owner's message, then the PIN */
+        strcpy(st.pin, "0420");
+        strcpy(st.owner_msg, "A JU - 06 12 34 56 78");
+        st.v[SD_S_PIN_BOOT] = 1;
+        st.v[SD_S_START_ON] = 1;
+        ui_set_settings(&st);
+        ui_init(NULL, prof, n_prof, &g);
+        boot();
+        assert(ui_screen() == UI_SCR_EDIT);
+        shot_set_time(t);
+        shot_render();
+        assert(shot_save("shots-out/22-verrouillage.png"));
+        ui_tap(88, 286, t);       /* no way round: nothing to erase, nothing to give up */
+        ui_long_press(180, 180, t);
+        ui_drag(60, 180, 300, 180, t);
+        assert(ui_screen() == UI_SCR_EDIT);
+        for (int i = 0; i < 4; i++)
+            ui_tap(180, 168, t);  /* 0000 */
+        assert(ui_screen() == UI_SCR_EDIT);
+        static const int code[] = {0, 4, -2, -2}; /* knob steps to 0, 4, 2, 0 */
+        for (int i = 0; i < 4; i++) {
+            ui_knob(code[i], t);
+            ui_tap(180, 168, t);
+        }
+        assert(ui_screen() == UI_SCR_GAME && ui_game()->p[1].life == 12); /* unlocked: the saved game, as asked */
+    } else if (!strcmp(sc, "pin-not-at-boot")) { /* a PIN for the settings only */
+        strcpy(st.pin, "0420");
+        ui_set_settings(&st);
+        ui_init(NULL, prof, n_prof, &g);
+        boot();
+        assert(ui_screen() == UI_SCR_HOME);
     } else {
         fprintf(stderr, "unknown scenario %s\n", sc);
         return 1;

@@ -73,8 +73,8 @@ add_test(NAME fx COMMAND test_fx ${CMAKE_CURRENT_BINARY_DIR}/shots-out/fx-specim
 
 add_executable(test_boot test_boot.c)
 target_link_libraries(test_boot sd_ui shot)
-foreach(sc start-on-game start-on-game-none start-on-home)
-  add_test(NAME boot_${sc} COMMAND test_boot ${ROOT}/profiles/data ${sc})
+foreach(sc start-on-game start-on-game-none start-on-home pin pin-not-at-boot)
+  add_test(NAME boot_${sc} COMMAND test_boot ${ROOT}/profiles/data ${sc} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endforeach()
 
 # not a test (timings): host/build/bench <profiles_dir>
