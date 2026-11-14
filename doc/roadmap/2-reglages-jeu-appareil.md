@@ -57,7 +57,7 @@ Dépend de #5 (direction visuelle lumineuse : l'accueil radial, les réglages et
 - [x] Étape 1 — Cœur : `sd_settings` (défauts, bornes, sérialisation NVS versionnée) + règles paramétrables dans `core/` (KO auto, victoire auto, PV du commandant, ordre du tour, attaque = cmdt, clics/point, délai de validation) + tests host (M · standard → Sonnet)
 - [x] Étape 2 — Traductions : remplacer les macros de `strings_fr.h` par des tables par langue (`strings_fr.c`, `strings_en.c`), sélection à chaud, test host qui vérifie que chaque chaîne existe dans chaque langue (M · standard → Sonnet)
 - [x] Étape 3 — Accueil : l'accueil radial et l'écran « Nouvelle partie » (format puis joueurs) existent depuis #5 (étape 8) ; reste à brancher le bouton Réglages, le focus à la molette et le choix Solo/Arène ; pas de pastille Type de jeu (S · standard → Sonnet)
-- [ ] Étape 4 — Cadre Réglages : grille 6 sections, listes éditables, protection PIN, accès accueil/menu (M · standard → Sonnet)
+- [x] Étape 4 — Cadre Réglages : grille 6 sections, listes éditables, protection PIN, accès accueil/menu (M · standard → Sonnet)
 - [ ] Étape 5 — Section Jeu : tous les réglages listés + vue Solo « ma seule vie » à plusieurs joueurs (M · standard → Sonnet)
 - [ ] Étape 6 — Section Appareil : version, langue, nom (aléatoire par langue + Régénérer + saisie molette), PIN + écran de verrouillage avec message, sens encodeur, haptique, réinitialisation d'usine (M · standard → Sonnet)
 - [ ] Étape 7 — Mise en route : langue, bienvenue, type de jeu/profil, nom, calibrage molette, test tactile + mire, tutoriel des gestes ; relance depuis Appareil (L · reasoning → Opus)
@@ -86,6 +86,9 @@ Dépend de #5 (direction visuelle lumineuse : l'accueil radial, les réglages et
 | « PV du commandant » | Interprété comme « les dégâts de commandant retirent aussi des PV » (oui par défaut) | Libellé ambigu dans la liste d'origine ; à corriger si le sens voulu est autre |
 | Traductions | Une table par langue (`ui/strings_fr.c`, `strings_en.c`) indexée par un énuméré commun ; les formats `printf` portent le suffixe `_FMT` et le test `strings` vérifie qu'ils prennent les mêmes arguments dans chaque langue | Une langue = un fichier ; une chaîne oubliée ou un format divergent fait échouer le build de test |
 | Famille de format en anglais | Champ optionnel `family_en` dans les profils JSON | « Construit » venait des données, pas des tables |
+| Cadre Réglages | Grille 2 × 3 de pastilles + bouton retour (7 crans de molette) ; une section = une liste en carrousel, ligne focalisée au centre ; tap = entrer/sortir de l'édition, molette = valeur ; tap hors bouton = action focalisée | Tout se fait à la molette et d'un tap, comme sur l'accueil |
+| Lignes de réglage | Tables de données (`row_t`) : libellé, type, réglage, pas ; les bornes viennent du cœur | Ajouter un réglage = une ligne ; #3 et #4 n'ont qu'à fournir leurs tables |
+| PIN | Saisi chiffre par chiffre à la molette, sans limite d'essais, stocké en clair | Garde-fou de table de jeu, pas une protection contre un attaquant |
 | Découpage | 3 plans : #2 (ce plan), #3 Affichage et veille, #4 Joueurs, tours et minuteur | Choix opérateur 2026-11-12 |
 | Ordre | #5 → #2 → #6 → #7 → #4 → #3 | Choix opérateur 2026-11-14 : #2 est lancé sans attendre #6 (8 icônes en attente) ni #7 ; remplace l'ordre du 2026-11-13 |
 
@@ -116,6 +119,7 @@ cd /srv/dev/mtg-dial
 | 2026-11-14 | Étape 1 — host + ASan/UBSan (`test_rule_options`, `test_settings`) | 0 avert., 6/6 deux fois | 0, 6/6, 6/6 (auto-check, même contexte) | ✅ |
 | 2026-11-14 | Étape 2 — host + ASan/UBSan (`strings`, bascule FR→EN à chaud dans `ui_flows`, capture `18-nouvelle-partie-en`) | 0 avert., 7/7 deux fois, écran en anglais | 0, 7/7, 7/7, « CONSTRUCTED / 20 LIFE · POISON 10 / NEXT » (auto-check) | ✅ |
 | 2026-11-14 | Étape 3 — host + ASan/UBSan (`ui_flows` : focus molette START/REPRENDRE/Réglages, tap hors bouton = action focalisée, 3ᵉ pas « écran de jeu ») ; captures `01b`, `15d`, `15e` relues | 0 avert., 7/7 deux fois ; bouton Réglages allumé au focus ; ARÈNE/SOLO lisibles dans les deux thèmes | 0, 7/7, 7/7 ; conforme (auto-check) | ✅ |
+| 2026-11-14 | Étape 4 — host + ASan/UBSan (`ui_flows` : grille, section « bientôt », liste, édition molette/chevrons, bornes, PIN refusé puis accepté, abandon, accès depuis le menu) ; captures `19`–`19g` relues dans les deux thèmes | 0 avert., 7/7 deux fois ; 4 enregistrements de réglages ; écrans lisibles | 0, 7/7, 7/7 ; 4 ; conforme. Constat : la ligne ANNULER du menu déborde de sa pastille quand le libellé est long (déjà le cas avant, à reprendre avec le menu de #7) (auto-check) | ✅ |
 
 ## Journal de session
 

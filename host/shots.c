@@ -78,6 +78,7 @@ static void snap(const char *name)
 
 /* From home: NOUVELLE PARTIE, `formats` knob steps on the format, SUIVANT, `sizes` steps on the table size, JOUER. */
 #define NEW_OK 194, 286
+#define MENU_ROW(i) 180, 70 + (i) * 44 /* undo, log, sheet, new game, settings, back */
 static void new_game(int formats, int sizes)
 {
     assert(ui_screen() == UI_SCR_HOME);
@@ -214,12 +215,12 @@ int main(int argc, char **argv)
     ui_long_press(180, 180, t);
     assert(ui_screen() == UI_SCR_MENU);
     snap("06-menu");
-    ui_tap(180, 76, t);       /* ANNULER */
+    ui_tap(MENU_ROW(0), t);      /* ANNULER */
     assert(ui_screen() == UI_SCR_GAME && ui_game()->p[0].life == 40 && ui_game()->log_len == 0);
 
     /* --- new game from menu keeps the old one resumable; 4-player Commander arena */
     ui_long_press(180, 180, t);
-    ui_tap(180, 232, t);      /* NOUVELLE PARTIE */
+    ui_tap(MENU_ROW(3), t);      /* NOUVELLE PARTIE */
     assert(ui_screen() == UI_SCR_HOME);
     snap("07-accueil-reprendre");
     ui_knob(-1, t);           /* REPRENDRE is focused first; back one = START */
@@ -228,7 +229,7 @@ int main(int argc, char **argv)
     ui_tap(180, 250, t);      /* bare ground: the focused action, REPRENDRE: the solo game comes back as it was */
     assert(ui_screen() == UI_SCR_GAME && ui_game()->n_players == 1 && ui_game()->p[0].life == 40);
     ui_long_press(180, 180, t);
-    ui_tap(180, 232, t);
+    ui_tap(MENU_ROW(3), t);
     new_game(0, 3);           /* same format, SOLO -> 4 */
     assert(ui_game()->n_players == 4 && ui_game()->p[3].life == 40);
     snap("08-arene-4");
@@ -289,7 +290,7 @@ int main(int argc, char **argv)
     seat_xy(4, 3, &x, &y);
     ui_tap(x, y, t);
     ui_long_press(x, y, t);
-    ui_tap(180, 180, t);      /* FICHE J4 */
+    ui_tap(MENU_ROW(2), t);      /* FICHE J4 */
     assert(ui_screen() == UI_SCR_SHEET);
     ui_knob(3, t);
     t += 200;
@@ -303,11 +304,11 @@ int main(int argc, char **argv)
 
     /* log */
     ui_long_press(180, 180, t);
-    ui_tap(180, 128, t);
+    ui_tap(MENU_ROW(1), t);
     assert(ui_screen() == UI_SCR_LOG);
     snap("12-journal");
     ui_tap(180, 180, t);
-    ui_tap(180, 284, t);      /* RETOUR */
+    ui_tap(MENU_ROW(5), t);      /* RETOUR */
     assert(ui_screen() == UI_SCR_GAME);
 
     /* J2 out (life), J4 out (poison): J1 and J3 left, then J1 kills J3 */
@@ -329,7 +330,7 @@ int main(int argc, char **argv)
     seat_xy(4, 3, &x, &y);
     ui_tap(x, y, t);
     ui_long_press(x, y, t);
-    ui_tap(180, 180, t);
+    ui_tap(MENU_ROW(2), t);
     ui_knob(7, t);
     ui_tap(180, 180, t);      /* leave sheet = commit */
     seat_xy(4, 2, &x, &y);
@@ -347,7 +348,7 @@ int main(int argc, char **argv)
 
     /* --- 2 and 3 player arenas (Standard profile, no commander damage) */
     ui_long_press(180, 180, t);
-    ui_tap(180, 232, t);
+    ui_tap(MENU_ROW(3), t);
     ui_tap(180, 160, t);
     ui_knob(1, t);            /* Commander 1v1: 30 life, commander damage, two seats only */
     snap("15a-format-commander-1v1");
@@ -388,7 +389,7 @@ int main(int argc, char **argv)
     ui_tick(t);
     snap("15-arene-2-standard");
     ui_long_press(180, 180, t);
-    ui_tap(180, 232, t);
+    ui_tap(MENU_ROW(3), t);
     new_game(-4, -1);         /* back to Commander, 4 -> 3 */
     assert(ui_game()->n_players == 3 && ui_game()->p[0].life == 40);
     seat_xy(3, 2, &x, &y);
@@ -431,11 +432,11 @@ int main(int argc, char **argv)
     assert(ui_screen() == UI_SCR_GAME);
     snap("16c-arene-marqueurs");
     ui_long_press(180, 180, t);
-    ui_tap(180, 128, t);      /* JOURNAL: counters and states have their lines */
+    ui_tap(MENU_ROW(1), t);      /* JOURNAL: counters and states have their lines */
     assert(ui_screen() == UI_SCR_LOG);
     snap("16d-journal-marqueurs");
     ui_tap(180, 180, t);
-    ui_tap(180, 284, t);      /* RETOUR */
+    ui_tap(MENU_ROW(5), t);      /* RETOUR */
     ui_tap(180, 180, t);      /* undo pill: takes the last state change back */
     assert(ui_screen() == UI_SCR_GAME && !ui_game()->p[2].ascended);
     /* the other seat's panel is its own: J1 holds nothing, and takes the crown from J3 */
@@ -450,7 +451,7 @@ int main(int argc, char **argv)
 
     /* --- same panel from Solo: the three-dot button on the right */
     ui_long_press(180, 180, t);
-    ui_tap(180, 232, t);
+    ui_tap(MENU_ROW(3), t);
     new_game(0, -2);          /* 3 -> 2 -> SOLO */
     assert(ui_game()->n_players == 1);
     ui_tap(296, 262, t);
@@ -463,7 +464,7 @@ int main(int argc, char **argv)
 
     /* --- themes and grounds, on the home screen: (180,250), (180,3) and (3,180) are bare ground there */
     ui_long_press(180, 180, t);
-    ui_tap(180, 232, t);      /* NOUVELLE PARTIE */
+    ui_tap(MENU_ROW(3), t);      /* NOUVELLE PARTIE */
     assert(ui_screen() == UI_SCR_HOME);
     ui_set_theme(UI_THEME_BOOSTER, 0); /* flat ground */
     shot_render();
@@ -483,6 +484,9 @@ int main(int argc, char **argv)
     ui_set_theme(99, 99);     /* out of range: default theme, default ground */
     shot_render();
     assert(UI_THEME_DEFAULT == UI_THEME_LUMINEUX && near(shot_pixel(180, 250), well(ui_grounds[0], ui_ground_rim(ui_grounds[0]), 70), 5));
+
+    if (argc == 4) /* the booster run goes on in its own theme */
+        ui_set_theme(UI_THEME_BOOSTER, 0);
 
     /* --- languages: a change shows at once, on the screen that is up */
     {
@@ -507,6 +511,109 @@ int main(int argc, char **argv)
         ui_knob(-4, t);
         ui_tap(88, 286, t);   /* back home */
         assert(ui_screen() == UI_SCR_HOME);
+    }
+
+    /* --- settings: six sections, the list of one, values edited with the knob */
+    {
+        int ss = settings_saves;
+        ui_tap(92, 96, t);        /* the settings button of the home screen */
+        assert(ui_screen() == UI_SCR_SETTINGS);
+        snap("19-reglages");
+        ui_knob(1, t);            /* JOUEURS: not there yet, a tap does nothing */
+        snap("19a-reglages-bientot");
+        ui_tap(180, 264, t);
+        assert(ui_screen() == UI_SCR_SETTINGS);
+        ui_tap(108, 118, t);      /* JEU */
+        assert(ui_screen() == UI_SCR_LIST);
+        snap("19b-reglages-jeu");
+        ui_knob(5, t);            /* -> CLICS PAR POINT */
+        ui_tap(180, 180, t);      /* tap = enter */
+        ui_knob(2, t);
+        snap("19c-reglages-edition");
+        assert(ui_settings()->v[SD_S_CLICKS] == 3 && settings_saves == ss);
+        ui_tap(310, 180, t);      /* the chevron steps like the knob */
+        assert(ui_settings()->v[SD_S_CLICKS] == 4);
+        ui_knob(20, t);           /* a number stops at its bound */
+        assert(ui_settings()->v[SD_S_CLICKS] == 12);
+        ui_tap(180, 180, t);      /* tap = leave: the HAL is told once */
+        assert(settings_saves == ss + 1 && saved_settings.v[SD_S_CLICKS] == 12);
+        ui_knob(1, t);            /* no longer editing: the knob moves along the list */
+        assert(ui_settings()->v[SD_S_CLICKS] == 12);
+        ui_tap(180, 116, t);      /* the row above takes the focus */
+        ui_tap(180, 180, t);
+        ui_knob(-20, t);
+        ui_tap(180, 180, t);
+        assert(ui_settings()->v[SD_S_CLICKS] == 1 && settings_saves == ss + 2);
+        ui_tap(180, 116, t);      /* PV DE DÉPART: 0 = the format's, then by fives */
+        ui_tap(180, 180, t);
+        ui_knob(6, t);
+        assert(ui_settings()->v[SD_S_START_LIFE] == 30);
+        ui_knob(-9, t);
+        assert(ui_settings()->v[SD_S_START_LIFE] == 0);
+        ui_tap(180, 180, t);
+        ui_knob(-1, t);           /* ORDRE DU TOUR: named values go round */
+        ui_tap(180, 180, t);
+        ui_knob(3, t);
+        assert(ui_settings()->v[SD_S_TURN_ORDER] == 1);
+        ui_knob(-1, t);
+        ui_tap(180, 180, t);
+        assert(ui_settings()->v[SD_S_TURN_ORDER] == 0);
+        ui_knob(-1, t);           /* a row that only informs: nothing to enter */
+        ui_knob(-2, t);
+        ui_tap(180, 180, t);
+        ui_knob(1, t);
+        ui_knob(100, t);          /* the list stops on its last row, the way back */
+        snap("19d-reglages-retour");
+        ui_tap(180, 180, t);
+        assert(ui_screen() == UI_SCR_SETTINGS);
+        ui_knob(-1, t);           /* the back button is the grid's last stop */
+        ui_tap(180, 264, t);      /* bare ground: the focused one runs */
+        assert(ui_screen() == UI_SCR_HOME);
+
+        /* a PIN keeps the settings shut */
+        sd_settings_t st = *ui_settings();
+        strcpy(st.pin, "0420");
+        ui_set_settings(&st);
+        int buzz = haptics[UI_HAPTIC_DEFEAT];
+        ui_tap(92, 96, t);
+        assert(ui_screen() == UI_SCR_EDIT);
+        ui_tap(180, 168, t);      /* 0 */
+        ui_tap(180, 168, t);
+        snap("19e-pin");
+        ui_tap(88, 286, t);       /* erase one */
+        ui_tap(180, 168, t);
+        ui_tap(180, 168, t);
+        ui_tap(180, 168, t);      /* 0000: refused, start again */
+        assert(ui_screen() == UI_SCR_EDIT && haptics[UI_HAPTIC_DEFEAT] == buzz + 1);
+        snap("19f-pin-refuse");
+        ui_tap(180, 168, t);      /* 0 */
+        ui_knob(4, t);
+        ui_tap(180, 168, t);      /* 4 */
+        ui_tap(40, 168, t);       /* the left chevron, twice: 2 */
+        ui_knob(-1, t);
+        ui_tap(180, 168, t);
+        ui_knob(-2, t);
+        ui_tap(180, 168, t);      /* 0: the door opens */
+        assert(ui_screen() == UI_SCR_SETTINGS);
+        ui_tap(180, 304, t);      /* back button */
+        assert(ui_screen() == UI_SCR_HOME);
+        ui_tap(92, 96, t);
+        ui_tap(88, 286, t);       /* nothing typed: erase gives up */
+        assert(ui_screen() == UI_SCR_HOME);
+        st.pin[0] = 0;
+        ui_set_settings(&st);
+
+        /* from a game: the menu's settings entry, and back to the menu */
+        ui_tap(180, 300, t);      /* REPRENDRE */
+        assert(ui_screen() == UI_SCR_GAME);
+        ui_long_press(180, 180, t);
+        snap("19g-menu-reglages");
+        ui_tap(MENU_ROW(4), t);
+        assert(ui_screen() == UI_SCR_SETTINGS);
+        ui_tap(180, 304, t);
+        assert(ui_screen() == UI_SCR_MENU);
+        ui_tap(MENU_ROW(3), t);   /* NOUVELLE PARTIE: home */
+        assert(ui_screen() == UI_SCR_HOME && settings_saves == ss + 4);
     }
 
     printf("shots: all flows passed (%d saves, %d detents, %d commits, %d defeats)\n", saves,

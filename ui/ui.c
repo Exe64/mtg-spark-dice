@@ -23,21 +23,22 @@
 
 /* format-name font, embedded by the build from the git-ignored ui/assets/licensed/ (ui/name_font.cmake) */
 extern const uint8_t _binary_Original_Motion_ttf_start[], _binary_Original_Motion_ttf_end[];
-#define MENU_ROWS 5
+#define MENU_ROWS 6
 #define LOG_ROWS 5
 #define UNDO_PILL_MS 4000
 #define PM_TAP 26 /* |local x| beyond which a tap on the selected seat is - or + */
 
 enum { NEW_FORMAT, NEW_PLAYERS, NEW_VIEW }; /* the steps of UI_SCR_NEW; the last one only with several players */
 enum { HOME_START, HOME_RESUME, HOME_SETTINGS, HOME_N }; /* what the knob focuses on the home screen */
-enum { MENU_UNDO, MENU_LOG, MENU_SHEET, MENU_NEW, MENU_BACK };
+enum { MENU_UNDO, MENU_LOG, MENU_SHEET, MENU_NEW, MENU_SETTINGS, MENU_BACK };
 
 static const ui_theme_t *const THEMES[UI_THEME_COUNT] = {[UI_THEME_BOOSTER] = &ui_theme_booster,
                                                          [UI_THEME_LUMINEUX] = &ui_theme_lumineux};
 static ui_theme_t TH; /* active theme, with the user's ground applied */
 static sd_settings_t S; /* the settings, see ui_set_settings() */
 static bool s_ready;
-#define TR(id) (ui_langs[S.v[SD_S_LANG] % UI_LANG_COUNT]->str[STR_##id])
+static const char *tr(int id) { return ui_langs[S.v[SD_S_LANG] % UI_LANG_COUNT]->str[id]; }
+#define TR(id) tr(STR_##id)
 static const ui_theme_t *T = &ui_theme_lumineux; /* == *THEMES[UI_THEME_DEFAULT] until ui_set_theme() */
 
 static struct {
@@ -54,6 +55,15 @@ static struct {
     uint8_t sel;
     ui_screen_t scr;
     int menu_focus, log_scroll;
+    /* settings: the sections grid, then the list of one section */
+    int set_focus, section, row, armed; /* armed: the action row waiting for its confirming tap, or -1 */
+    bool set_from_game, editing;
+    struct { /* text / PIN entry */
+        char buf[32];
+        uint8_t len, max, ch, purpose;
+        bool wrong;
+        ui_screen_t back;
+    } ed;
     uint32_t now, undo_until, boot_until;
     lv_obj_t *dial;
     lv_font_t *f_solo, *f_arena[SD_MAX_PLAYERS + 1], *f_hub, *f_title, *f_name[2], *f_row, *f_label, *f_small;
@@ -247,8 +257,8 @@ static void fmt_signed(char *buf, size_t n, int v)
 }
 
 #define N_MARKERS (SD_KIND_COUNT - SD_POISON)
-#define MARKER_NAME (&TR(MK_POISON))
-#define MARKER_ABBR (&TR(MKA_POISON))
+#define MARKER_NAME (ui_langs[S.v[SD_S_LANG] % UI_LANG_COUNT]->str + STR_MK_POISON)
+#define MARKER_ABBR (ui_langs[S.v[SD_S_LANG] % UI_LANG_COUNT]->str + STR_MKA_POISON)
 
 static void appendf(char *buf, size_t n, const char *fmt, ...)
 {
@@ -954,7 +964,7 @@ static void draw_arena_light(lv_layer_t *l)
     draw_hub_light(l);
 }
 
-static int menu_row_y(int i) { return 76 + i * 52; }
+static int menu_row_y(int i) { return 70 + i * 44; }
 
 /* Text of menu row `i` (the undo row previews what it would undo). */
 static const char *menu_label(int i, char *buf, size_t n)
@@ -977,6 +987,7 @@ static const char *menu_label(int i, char *buf, size_t n)
         snprintf(buf, n, TR(MENU_SHEET_FMT), U.sel + 1);
         return buf;
     case MENU_NEW: return TR(MENU_NEW);
+    case MENU_SETTINGS: return TR(SETTINGS);
     default: return TR(MENU_BACK);
     }
 }
@@ -990,7 +1001,7 @@ static void draw_menu(lv_layer_t *l)
         const char *s = menu_label(i, buf, sizeof(buf));
         bool f = i == U.menu_focus;
         if (f)
-            fill(l, 36, y - 24, UI_W - 37, y + 23, T->ink, 0);
+            fill(l, 36, y - 21, UI_W - 37, y + 20, T->ink, 0);
         text(l, U.f_row, f ? T->ground : T->ink, LV_OPA_COVER, CX, y, s);
     }
 }
@@ -1105,9 +1116,9 @@ static void draw_menu_light(lv_layer_t *l)
     for (int i = 0; i < MENU_ROWS; i++) {
         int y = menu_row_y(i);
         if (i == U.menu_focus) { /* focus = a lit glass pill, kept inside the round dial */
-            int dy = abs(y - CY) + 24, hw = (int)sqrtf((float)(R * R - dy * dy)) - 8;
+            int dy = abs(y - CY) + 21, hw = (int)sqrtf((float)(R * R - dy * dy)) - 8;
             hw = hw > 144 ? 144 : hw;
-            pill(l, CX - hw, y - 24, CX + hw, y + 23, true);
+            pill(l, CX - hw, y - 21, CX + hw, y + 20, true);
         }
         text(l, U.f_row, T->ink, i == U.menu_focus ? LV_OPA_COVER : LV_OPA_70, CX, y, menu_label(i, buf, sizeof(buf)));
     }
@@ -1233,6 +1244,13 @@ extern const lv_image_dsc_t ui_home_icons_a8[4];
 #define RESUME_X2 244
 #define RESUME_Y2 326
 static void open_settings(bool from_game);
+
+/* "New game" opens on the format the settings name. */
+static void default_profile(void)
+{
+    U.profile = U.n_profiles ? S.v[SD_S_PROFILE] % U.n_profiles : 0;
+    U.players = U.n_profiles ? U.profiles[U.profile].players : 1;
+}
 
 static void home_activate(int action)
 {
@@ -1494,6 +1512,344 @@ static void draw_markers(lv_layer_t *l)
         text(l, U.f_small, T->ink, LV_OPA_70, CX, 232, TR(MENU_BACK));
 }
 
+/* ---------- settings: the sections grid, the list of one section, text / PIN entry ---------- */
+
+enum { SEC_GAME, SEC_PLAYERS, SEC_TURNS, SEC_DISPLAY, SEC_NETWORK, SEC_DEVICE, SEC_N };
+#define SET_BACK SEC_N /* the grid's seventh focus stop: its back button */
+
+typedef enum {
+    ROW_BOOL,    /* yes / no */
+    ROW_ENUM,    /* named values: the strings `values`, `values + 1`... */
+    ROW_LANG,    /* a language of ui_langs[] */
+    ROW_PROFILE, /* a shipped format */
+    ROW_INT,     /* a number */
+    ROW_AUTO,    /* a number, 0 = whatever the format says */
+    ROW_MS,      /* a duration */
+    ROW_INFO,    /* nothing to change */
+    ROW_ACTION,  /* runs on a tap; `confirm` = on the second tap */
+    ROW_BACK
+} row_kind_t;
+enum { INFO_GAME_TYPE };
+enum { ACT_RESET_GAME };
+
+typedef struct {
+    uint16_t label; /* ui_str_t */
+    uint8_t kind;   /* row_kind_t */
+    uint8_t id;     /* the setting (sd_setting_id_t), INFO_* or ACT_* */
+    uint8_t step;
+    uint16_t values;
+    bool confirm;
+} row_t;
+
+static const row_t ROWS_GAME[] = {
+    {STR_R_GAME_TYPE, ROW_INFO, INFO_GAME_TYPE, 0, 0, false},
+    {STR_R_DEFAULT_FORMAT, ROW_PROFILE, SD_S_PROFILE, 1, 0, false},
+    {STR_GAME_SCREEN, ROW_ENUM, SD_S_VIEW, 1, STR_ARENA, false},
+    {STR_R_TURN_ORDER, ROW_ENUM, SD_S_TURN_ORDER, 1, STR_V_CLOCKWISE, false},
+    {STR_R_START_LIFE, ROW_AUTO, SD_S_START_LIFE, 5, 0, false},
+    {STR_R_CLICKS, ROW_INT, SD_S_CLICKS, 1, 0, false},
+    {STR_R_START_ON, ROW_ENUM, SD_S_START_ON, 1, STR_V_HOME, false},
+    {STR_R_ROTATE, ROW_BOOL, SD_S_ROTATE_SEATS, 1, 0, false},
+    {STR_R_AUTO_KO, ROW_BOOL, SD_S_AUTO_KO, 1, 0, false},
+    {STR_R_AUTO_WIN, ROW_BOOL, SD_S_AUTO_WIN, 1, 0, false},
+    {STR_R_CMD_LIFE, ROW_BOOL, SD_S_CMD_LIFE, 1, 0, false},
+    {STR_R_DRAG_CMD, ROW_BOOL, SD_S_DRAG_CMD, 1, 0, false},
+    {STR_R_CMD_LETHAL, ROW_AUTO, SD_S_CMD_LETHAL, 1, 0, false},
+    {STR_R_POISON_LETHAL, ROW_AUTO, SD_S_POISON_LETHAL, 1, 0, false},
+    {STR_R_CMD_SHOW, ROW_ENUM, SD_S_CMD_SHOW, 1, STR_V_TARGET, false},
+    {STR_R_COMMIT, ROW_MS, SD_S_COMMIT_MS, 100, 0, false},
+    {STR_R_RESET_GAME, ROW_ACTION, ACT_RESET_GAME, 0, 0, true},
+    {STR_MENU_BACK, ROW_BACK, 0, 0, 0, false},
+};
+
+#define NROWS(a) (int)(sizeof(a) / sizeof((a)[0]))
+static const struct {
+    uint16_t name;
+    const row_t *rows; /* NULL = not there yet: shown dimmed, "BIENTÔT" */
+    int n;
+} SECTIONS[SEC_N] = {
+    [SEC_GAME] = {STR_SEC_GAME, ROWS_GAME, NROWS(ROWS_GAME)}, [SEC_PLAYERS] = {STR_SEC_PLAYERS, NULL, 0},
+    [SEC_TURNS] = {STR_SEC_TURNS, NULL, 0},                  [SEC_DISPLAY] = {STR_SEC_DISPLAY, NULL, 0},
+    [SEC_NETWORK] = {STR_SEC_NETWORK, NULL, 0},              [SEC_DEVICE] = {STR_SEC_DEVICE, NULL, 0},
+};
+
+/* text / PIN entry: the knob picks a character, a tap on it appends it */
+enum { ED_GATE, ED_BOOT, ED_PIN_NEW, ED_NAME, ED_MSG }; /* the first three take a PIN */
+static const char ALPHA[] = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-'!?"; /* ponytail: no accents, add them when asked */
+static const char DIGITS[] = "0123456789";
+#define ED_Y 168
+#define ED_R 40
+
+static bool ed_pin(void) { return U.ed.purpose <= ED_PIN_NEW; }
+static const char *ed_alpha(void) { return ed_pin() ? DIGITS : ALPHA; }
+
+static void edit_open(int purpose, const char *init, int max)
+{
+    memset(&U.ed, 0, sizeof(U.ed));
+    U.ed.purpose = (uint8_t)purpose;
+    U.ed.max = (uint8_t)max;
+    U.ed.back = U.scr;
+    snprintf(U.ed.buf, (size_t)max + 1, "%s", init ? init : "");
+    U.ed.len = (uint8_t)strlen(U.ed.buf);
+    U.ed.ch = ed_pin() ? 0 : 1;
+    U.scr = UI_SCR_EDIT;
+}
+
+static void open_settings(bool from_game)
+{
+    U.set_from_game = from_game;
+    U.set_focus = SEC_GAME;
+    if (S.pin[0])
+        edit_open(ED_GATE, NULL, 4); /* comes back to where it was opened from if given up */
+    else
+        U.scr = UI_SCR_SETTINGS;
+}
+
+static void edit_done(void)
+{
+    switch (U.ed.purpose) {
+    case ED_GATE:
+    case ED_BOOT:
+        /* ponytail: no limit on attempts; the PIN keeps the table honest, it does not resist an attacker */
+        if (strcmp(U.ed.buf, S.pin)) {
+            U.ed.wrong = true;
+            U.ed.len = 0;
+            U.ed.buf[0] = '\0';
+            haptic(UI_HAPTIC_DEFEAT);
+        } else
+            U.scr = UI_SCR_SETTINGS;
+        return;
+    default: U.scr = U.ed.back; return;
+    }
+}
+
+static void settings_sec_xy(int i, int *x, int *y)
+{
+    *x = i % 2 ? 252 : 108;
+    *y = 118 + (i / 2) * 54;
+}
+
+static void draw_settings(lv_layer_t *l)
+{
+    ground(l);
+    if (T->light)
+        knob_ring(l);
+    text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 56, TR(SETTINGS));
+    for (int i = 0; i < SEC_N; i++) {
+        int x, y;
+        settings_sec_xy(i, &x, &y);
+        uint32_t ink = button(l, x - 66, y - 22, x + 66, y + 22, i == U.set_focus);
+        text(l, U.f_small, ink, SECTIONS[i].rows ? LV_OPA_COVER : LV_OPA_40, x, y, tr(SECTIONS[i].name));
+    }
+    if (U.set_focus < SEC_N && !SECTIONS[U.set_focus].rows)
+        text(l, U.f_small, T->ink, LV_OPA_70, CX, 264, TR(SOON));
+    button(l, CX - 22, 282, CX + 22, 326, U.set_focus == SET_BACK);
+    fx_icon(l, FX_ICON_UNDO, CX, 304, U.set_focus == SET_BACK && !T->light ? T->ground : T->ink, LV_OPA_COVER);
+}
+
+static void settings_activate(int i)
+{
+    if (i == SET_BACK) {
+        settings_save();
+        U.scr = U.set_from_game ? UI_SCR_MENU : UI_SCR_HOME;
+    } else if (SECTIONS[i].rows) {
+        U.section = i;
+        U.row = 0;
+        U.editing = false;
+        U.armed = -1;
+        U.scr = UI_SCR_LIST;
+    }
+}
+
+static const row_t *cur_row(void) { return &SECTIONS[U.section].rows[U.row]; }
+
+/* What the row shows next to its label; empty for a plain action. */
+static void row_value(const row_t *r, int idx, char *buf, size_t n)
+{
+    int v = r->kind <= ROW_MS ? S.v[r->id] : 0;
+    buf[0] = '\0';
+    switch (r->kind) {
+    case ROW_BOOL: snprintf(buf, n, "%s", v ? TR(YES) : TR(NO)); break;
+    case ROW_ENUM: snprintf(buf, n, "%s", tr(r->values + v)); break;
+    case ROW_LANG: snprintf(buf, n, "%s", ui_langs[v % UI_LANG_COUNT]->name); break;
+    case ROW_PROFILE:
+        snprintf(buf, n, "%s", U.n_profiles ? U.profiles[v % U.n_profiles].name : NONE);
+        upper(buf);
+        break;
+    case ROW_INT: snprintf(buf, n, "%d", v); break;
+    case ROW_AUTO:
+        if (v)
+            snprintf(buf, n, "%d", v);
+        else
+            snprintf(buf, n, "%s", TR(FROM_FORMAT));
+        break;
+    case ROW_MS: snprintf(buf, n, "%d MS", v); break;
+    case ROW_INFO: snprintf(buf, n, "%s", TR(MAGIC)); break;
+    case ROW_ACTION:
+        if (idx == U.armed)
+            snprintf(buf, n, "%s", TR(CONFIRM));
+        break;
+    default: break;
+    }
+}
+
+/* Knob step on the row being edited. Named values go round, numbers stop at their bounds. */
+static void row_change(const row_t *r, int d)
+{
+    int v = S.v[r->id], lo = sd_setting_min(r->id);
+    int n = r->kind == ROW_LANG ? UI_LANG_COUNT : r->kind == ROW_PROFILE ? U.n_profiles : sd_setting_max(r->id) - lo + 1;
+    if (r->kind <= ROW_PROFILE)
+        v = n ? lo + ((v - lo + d) % n + n) % n : v;
+    else
+        v += d * r->step;
+    sd_setting_set(&S, r->id, v);
+    U.dirty = true;
+    if (r->id == SD_S_PROFILE)
+        default_profile();
+}
+
+static void row_action(const row_t *r) { (void)r; }
+
+/* The focused row sits in the middle, large; two rows above and below show what is around it. */
+#define LIST_Y1 142
+#define LIST_Y2 218
+static void draw_list(lv_layer_t *l)
+{
+    static const int ys[] = {84, 116, 0, 244, 276};
+    const row_t *rows = SECTIONS[U.section].rows;
+    char buf[80], val[40];
+    ground(l);
+    if (T->light)
+        knob_ring(l);
+    text(l, U.f_small, T->ink, LV_OPA_70, CX, 46, tr(SECTIONS[U.section].name));
+    for (int k = -2; k <= 2; k++) {
+        int i = U.row + k;
+        if (!k || i < 0 || i >= SECTIONS[U.section].n)
+            continue;
+        row_value(&rows[i], i, val, sizeof(val));
+        snprintf(buf, sizeof(buf), "%s%s%s", tr(rows[i].label), val[0] ? "  " : "", val);
+        text(l, U.f_small, T->ink, abs(k) == 1 ? LV_OPA_70 : LV_OPA_40, CX, ys[k + 2], buf);
+    }
+    const row_t *r = cur_row();
+    uint32_t ink = button(l, 30, LIST_Y1, UI_W - 31, LIST_Y2, U.editing || U.armed == U.row);
+    row_value(r, U.row, val, sizeof(val));
+    if (val[0]) {
+        text(l, U.f_small, ink, LV_OPA_COVER, CX, 162, tr(r->label));
+        text(l, U.f_row, ink, LV_OPA_COVER, CX, 196, val);
+    } else
+        text(l, U.f_row, ink, LV_OPA_COVER, CX, 180, tr(r->label));
+    if (U.editing)
+        for (int k = -1; k <= 1; k += 2) /* a tap on either side steps like the knob */
+            text(l, U.f_row, ink, LV_OPA_COVER, CX + k * 128, 194, k < 0 ? "\xE2\x80\xB9" : "\xE2\x80\xBA");
+}
+
+static void list_tap(int x, int y)
+{
+    int k = y < 100 ? -2 : y < LIST_Y1 - 6 ? -1 : y <= LIST_Y2 + 6 ? 0 : y < 262 ? 1 : 2;
+    const row_t *r = cur_row();
+    if (k) { /* another row: it takes the focus */
+        int i = U.row + k;
+        if (i < 0 || i >= SECTIONS[U.section].n)
+            return;
+        U.row = i;
+        U.editing = false;
+        U.armed = -1;
+        settings_save();
+    } else if (r->kind == ROW_BACK) {
+        settings_save();
+        U.scr = UI_SCR_SETTINGS;
+    } else if (r->kind == ROW_ACTION) {
+        if (r->confirm && U.armed != U.row)
+            U.armed = U.row;
+        else {
+            U.armed = -1;
+            row_action(r);
+        }
+    } else if (r->kind != ROW_INFO) {
+        if (U.editing && (x < 76 || x >= UI_W - 76))
+            row_change(r, x < CX ? -1 : 1);
+        else {
+            U.editing = !U.editing; /* tap = enter, tap = leave */
+            if (!U.editing)
+                settings_save();
+        }
+    }
+}
+
+static void draw_edit(lv_layer_t *l)
+{
+    static const uint16_t TITLE[] = {STR_PIN, STR_PIN, STR_PIN_NEW, STR_DEVICE_NAME, STR_OWNER_MSG};
+    const int mid = (NEW_BTN_Y1 + NEW_BTN_Y2) / 2;
+    char c[2] = {ed_alpha()[U.ed.ch], '\0'};
+    ground(l);
+    if (T->light)
+        knob_ring(l);
+    /* at power-on the owner's message is the title: whoever finds the device reads it */
+    text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 56,
+         U.ed.purpose == ED_BOOT && S.owner_msg[0] ? S.owner_msg : tr(TITLE[U.ed.purpose]));
+    if (ed_pin())
+        for (int i = 0; i < 4; i++) { /* four slots, filled as the digits come */
+            int x = CX - 45 + i * 30;
+            fill(l, x - 7, 97, x + 7, 111, T->ink, T->light ? LV_RADIUS_CIRCLE : 0);
+            if (i >= U.ed.len)
+                fill(l, x - 5, 99, x + 5, 109, T->ground, T->light ? LV_RADIUS_CIRCLE : 0);
+        }
+    else
+        text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 104, U.ed.buf);
+    if (T->light)
+        fx_ring(l, CX, ED_Y, ED_R, T->ink, LV_OPA_70);
+    uint32_t ink = button(l, CX - ED_R, ED_Y - ED_R, CX + ED_R, ED_Y + ED_R, true);
+    if (c[0] == ' ')
+        text(l, U.f_small, ink, LV_OPA_COVER, CX, ED_Y, TR(SPACE));
+    else
+        text(l, U.f_title, ink, LV_OPA_COVER, CX, ED_Y, c);
+    for (int k = -1; k <= 1; k += 2)
+        text(l, U.f_row, T->ink, LV_OPA_60, CX + k * 124, ED_Y, k < 0 ? "\xE2\x80\xB9" : "\xE2\x80\xBA");
+    if (U.ed.wrong)
+        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 232, TR(PIN_WRONG));
+    if (U.ed.purpose != ED_BOOT || U.ed.len) { /* erase, or give up when there is nothing to erase */
+        button(l, 66, NEW_BTN_Y1 + 2, 110, NEW_BTN_Y2 - 2, false);
+        fx_icon(l, FX_ICON_UNDO, 88, mid, T->ink, LV_OPA_COVER);
+    }
+    if (!ed_pin()) { /* a PIN is complete at four digits; a text is when its owner says so */
+        ink = button(l, 124, NEW_BTN_Y1, 264, NEW_BTN_Y2, true);
+        text(l, U.f_row, ink, LV_OPA_COVER, 194, mid, TR(OK));
+    }
+}
+
+static void edit_knob(int d)
+{
+    int n = (int)strlen(ed_alpha());
+    U.ed.ch = (uint8_t)(((U.ed.ch + d) % n + n) % n);
+    haptic(UI_HAPTIC_DETENT);
+}
+
+static void edit_tap(int x, int y)
+{
+    if (y >= NEW_BTN_Y1 - 8 && y <= NEW_BTN_Y2 + 8) {
+        if (x >= 58 && x < 118) {
+            if (U.ed.len) { /* one character back, whole even when it takes several bytes */
+                do
+                    U.ed.len--;
+                while (U.ed.len && ((uint8_t)U.ed.buf[U.ed.len] & 0xC0) == 0x80);
+                U.ed.buf[U.ed.len] = '\0';
+            } else if (U.ed.purpose != ED_BOOT)
+                U.scr = U.ed.back;
+        } else if (x >= 124 && x <= 264 && !ed_pin())
+            edit_done();
+    } else if ((x - CX) * (x - CX) + (y - ED_Y) * (y - ED_Y) <= 54 * 54) {
+        if (U.ed.len < U.ed.max) {
+            U.ed.buf[U.ed.len++] = ed_alpha()[U.ed.ch];
+            U.ed.buf[U.ed.len] = '\0';
+            U.ed.wrong = false;
+            haptic(UI_HAPTIC_COMMIT);
+        }
+        if (ed_pin() && U.ed.len == 4)
+            edit_done();
+    } else if (y < 240 && (x < 110 || x >= 250))
+        edit_knob(x < 110 ? -1 : 1);
+}
+
 static void draw_cb(lv_event_t *e)
 {
     lv_layer_t *l = lv_event_get_layer(e);
@@ -1502,6 +1858,9 @@ static void draw_cb(lv_event_t *e)
     case UI_SCR_HOME: draw_home(l); break;
     case UI_SCR_NEW: draw_new(l); break;
     case UI_SCR_MARKERS: draw_markers(l); break;
+    case UI_SCR_SETTINGS: draw_settings(l); break;
+    case UI_SCR_LIST: draw_list(l); break;
+    case UI_SCR_EDIT: draw_edit(l); break;
     case UI_SCR_GAME:
         if (U.g.n_players == 1)
             T->light ? draw_solo_light(l) : draw_solo(l);
@@ -1530,15 +1889,6 @@ void ui_set_theme(int theme, int ground_idx)
         lv_obj_set_style_bg_color(lv_screen_active(), C(T->ground_rim), 0);
         redraw();
     }
-}
-
-static void open_settings(bool from_game) { (void)from_game; }
-
-/* "New game" opens on the format the settings name. */
-static void default_profile(void)
-{
-    U.profile = U.n_profiles ? S.v[SD_S_PROFILE] % U.n_profiles : 0;
-    U.players = U.n_profiles ? U.profiles[U.profile].players : 1;
 }
 
 /* The logo is over. */
@@ -1656,6 +2006,21 @@ void ui_knob(int detents, uint32_t now)
         haptic(UI_HAPTIC_DETENT);
         break;
     }
+    case UI_SCR_SETTINGS:
+        U.set_focus = ((U.set_focus + detents) % (SEC_N + 1) + SEC_N + 1) % (SEC_N + 1);
+        haptic(UI_HAPTIC_DETENT);
+        break;
+    case UI_SCR_LIST:
+        if (U.editing)
+            row_change(cur_row(), detents);
+        else { /* the list stops at both ends: the last row is the way back */
+            int i = U.row + detents, n = SECTIONS[U.section].n;
+            U.row = i < 0 ? 0 : i >= n ? n - 1 : i;
+            U.armed = -1;
+        }
+        haptic(UI_HAPTIC_DETENT);
+        break;
+    case UI_SCR_EDIT: edit_knob(detents); break;
     case UI_SCR_OVER: break;
     }
     redraw();
@@ -1674,6 +2039,7 @@ static void menu_activate(int row)
         break;
     case MENU_SHEET: U.scr = UI_SCR_SHEET; break;
     case MENU_NEW: go_home(); break;
+    case MENU_SETTINGS: open_settings(true); break;
     default: U.scr = UI_SCR_GAME; break;
     }
 }
@@ -1749,7 +2115,7 @@ void ui_tap(int x, int y, uint32_t now)
         break;
     case UI_SCR_MENU:
         for (int i = 0; i < MENU_ROWS; i++)
-            if (y >= menu_row_y(i) - 26 && y < menu_row_y(i) + 26) {
+            if (y >= menu_row_y(i) - 22 && y < menu_row_y(i) + 22) {
                 U.menu_focus = i;
                 menu_activate(i);
             }
@@ -1781,6 +2147,21 @@ void ui_tap(int x, int y, uint32_t now)
         }
         break;
     }
+    case UI_SCR_SETTINGS: {
+        int hit = (x - CX) * (x - CX) + (y - 304) * (y - 304) <= 30 * 30 ? SET_BACK : -1;
+        for (int i = 0; i < SEC_N; i++) {
+            int sx, sy;
+            settings_sec_xy(i, &sx, &sy);
+            if (abs(x - sx) <= 70 && abs(y - sy) <= 26)
+                hit = i;
+        }
+        if (hit >= 0)
+            U.set_focus = hit;
+        settings_activate(U.set_focus); /* a tap anywhere else runs the focused one, as on the home screen */
+        break;
+    }
+    case UI_SCR_LIST: list_tap(x, y); break;
+    case UI_SCR_EDIT: edit_tap(x, y); break;
     case UI_SCR_OVER:
         if (y >= 196 && y < 252) {
             undo();

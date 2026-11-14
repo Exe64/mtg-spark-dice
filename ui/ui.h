@@ -23,7 +23,12 @@ typedef struct {
     void (*save_settings)(const sd_settings_t *s); /* called when the user changed a setting; may be NULL */
 } ui_hooks_t;
 
-typedef enum { UI_SCR_HOME, UI_SCR_GAME, UI_SCR_MENU, UI_SCR_LOG, UI_SCR_SHEET, UI_SCR_OVER, UI_SCR_BOOT, UI_SCR_NEW, UI_SCR_MARKERS } ui_screen_t;
+typedef enum {
+    UI_SCR_HOME, UI_SCR_GAME, UI_SCR_MENU, UI_SCR_LOG, UI_SCR_SHEET, UI_SCR_OVER, UI_SCR_BOOT, UI_SCR_NEW, UI_SCR_MARKERS,
+    UI_SCR_SETTINGS, /* the six sections */
+    UI_SCR_LIST,     /* the settings of one section */
+    UI_SCR_EDIT,     /* text or PIN entry */
+} ui_screen_t;
 
 /* Call after lv_init() and display creation. `resume` (may be NULL) is offered as "REPRENDRE" on the home screen.
  * Home starts a game in steps on UI_SCR_NEW: the format (one of `profiles`), the table size, then, with several
