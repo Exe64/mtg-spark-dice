@@ -20,8 +20,8 @@
 
 #define PIN_KNOB_A 8
 #define PIN_KNOB_B 7
-/* Calibration knob: quadrature counts per mechanical detent (x4 decoding). Tune on hardware (2 or 4). */
-#define KNOB_COUNTS_PER_DETENT 4
+/* Quadrature counts per mechanical detent and the knob's direction are settings (SD_S_KNOB_COUNTS, SD_S_KNOB_REVERSE):
+ * the first-start assistant measures them, the device settings change them. */
 
 /* Touch gestures */
 #define TOUCH_DRAG_PX 24

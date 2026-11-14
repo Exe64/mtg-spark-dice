@@ -482,6 +482,7 @@ static void test_settings(void)
     strcpy(s.pin, "0429");
     size_t n = sd_settings_save(&s, buf, sizeof(buf));
     assert(n == sd_settings_save_size() && n <= sizeof(buf) && !sd_settings_save(&s, buf, n - 1));
+    assert(n <= sizeof(sd_settings_t) + 16); /* the firmware's NVS buffer (main/main.c) */
     assert(sd_settings_load(&l, buf, n) && !memcmp(&l, &s, sizeof(s)));
 
     /* a save from an older firmware (two settings fewer): they take their defaults, the rest is kept */

@@ -1,4 +1,5 @@
 /* SparkDice firmware: hardware glue (display, touch gestures, knob, haptics, NVS, LittleFS) around ui/ + core/. */
+#include <stdio.h>
 #include <string.h>
 
 #include "board.h"
@@ -9,6 +10,7 @@
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_st77916.h"
+#include "esp_app_desc.h"
 #include "esp_lcd_touch_cst816s.h"
 #include "esp_littlefs.h"
 #include "esp_log.h"
@@ -23,6 +25,7 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "profile.h"
+#include "settings.h"
 #include "theme.h"
 #include "ui.h"
 
@@ -52,9 +55,40 @@ static bool load_game(sd_game_t *g)
     return nvs_get_blob(nvs, "game", blob, &n) == ESP_OK && sd_game_load(g, blob, n);
 }
 
+/* The settings as the HAL uses them (knob, haptics). Read and written by the input task only: the UI calls the
+ * hooks from there. */
+static sd_settings_t settings;
+
+static void save_settings(const sd_settings_t *s)
+{
+    static uint8_t blob[sizeof(sd_settings_t) + 16];
+    settings = *s;
+    size_t n = sd_settings_save(s, blob, sizeof(blob));
+    if (n && nvs_set_blob(nvs, "settings", blob, n) == ESP_OK)
+        nvs_commit(nvs);
+}
+
+static void load_settings(void)
+{
+    static uint8_t blob[sizeof(sd_settings_t) + 16];
+    size_t n = sizeof(blob);
+    if (nvs_get_blob(nvs, "settings", blob, &n) != ESP_OK || !sd_settings_load(&settings, blob, n))
+        sd_settings_defaults(&settings); /* first start, or a save this firmware cannot read */
+}
+
+/* Out of the box again: the saved game, the settings, the look. */
+static void factory_reset(void)
+{
+    nvs_erase_all(nvs);
+    nvs_commit(nvs);
+}
+
 static void on_haptic(ui_haptic_t p)
 {
-    haptic_play(p == UI_HAPTIC_DETENT ? HAPTIC_TICK : p == UI_HAPTIC_COMMIT ? HAPTIC_CLICK : HAPTIC_BUZZ);
+    static const uint8_t effect[3][3] = HAPTIC_EFFECTS;
+    int level = settings.v[SD_S_HAPTIC];
+    if (level >= 1 && level <= 3)
+        haptic_play(effect[level - 1][p]);
 }
 
 /* ---------- hardware init ---------- */
@@ -200,15 +234,15 @@ static void knob_init(void)
 static int knob_read(void)
 {
     static int last;
-    int count;
+    int count, per = settings.v[SD_S_KNOB_COUNTS];
     pcnt_unit_get_count(knob, &count);
-    int detents = (count - last) / KNOB_COUNTS_PER_DETENT;
-    last += detents * KNOB_COUNTS_PER_DETENT;
+    int detents = (count - last) / per;
+    last += detents * per;
     if (last > 800 || last < -800) { /* re-centre before the hardware limit */
         pcnt_unit_clear_count(knob);
         last = 0;
     }
-    return detents;
+    return settings.v[SD_S_KNOB_REVERSE] ? -detents : detents;
 }
 
 typedef struct {
@@ -282,6 +316,7 @@ void app_main(void)
     int n_profiles = sd_profiles_load("/storage", profiles, SD_PROFILES_MAX);
     static sd_game_t saved;
     bool has_saved = load_game(&saved);
+    load_settings();
     ESP_LOGI(TAG, "%d profiles, saved game: %s", n_profiles, has_saved ? "yes" : "no");
 
     i2c_master_bus_handle_t bus = i2c_init();
@@ -296,7 +331,12 @@ void app_main(void)
     nvs_get_u8(nvs, "theme", &theme);
     nvs_get_u8(nvs, "ground", &ground);
     ui_set_theme(theme, ground);
-    ui_hooks_t hooks = {.haptic = on_haptic, .save = save_game};
+    static char version[64]; /* "0.2.0 · Nov 14 2026"; sized for the longest version and date IDF allows */
+    const esp_app_desc_t *app = esp_app_get_description();
+    snprintf(version, sizeof(version), "%s \xC2\xB7 %s", app->version, app->date);
+    ui_hooks_t hooks = {.haptic = on_haptic, .save = save_game, .save_settings = save_settings,
+                        .factory_reset = factory_reset, .version = version};
+    ui_set_settings(&settings);
     ui_init(&hooks, profiles, n_profiles, has_saved ? &saved : NULL);
     disp_unlock();
 

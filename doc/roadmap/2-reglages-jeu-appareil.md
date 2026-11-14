@@ -61,7 +61,7 @@ Dépend de #5 (direction visuelle lumineuse : l'accueil radial, les réglages et
 - [x] Étape 5 — Section Jeu : tous les réglages listés + vue Solo « ma seule vie » à plusieurs joueurs (M · standard → Sonnet)
 - [x] Étape 6 — Section Appareil : version, langue, nom (aléatoire par langue + Régénérer + saisie molette), PIN + écran de verrouillage avec message, sens encodeur, haptique, réinitialisation d'usine (M · standard → Sonnet)
 - [x] Étape 7 — Mise en route : langue, bienvenue, type de jeu/profil, nom, calibrage molette, test tactile + mire, tutoriel des gestes ; relance depuis Appareil (L · reasoning → Opus)
-- [ ] Étape 8 — HAL : appliquer sens/impulsions de l'encodeur et intensité haptique, PIN au démarrage, version de build (S · standard → Sonnet)
+- [x] Étape 8 — HAL : appliquer sens/impulsions de l'encodeur et intensité haptique, PIN au démarrage, version de build (S · standard → Sonnet)
 - [ ] Étape 9 — Design : extension du thème, captures, revue de finition, DESIGN.md (S · standard → Sonnet)
 - [ ] 🧪 Tests — Rédiger et exécuter la procédure de test (avant-dernière étape, obligatoire)
 - [ ] ✅ Validation — Vérifier les résultats des tests et clôturer (dernière étape, obligatoire)
@@ -97,6 +97,8 @@ Dépend de #5 (direction visuelle lumineuse : l'accueil radial, les réglages et
 | Réinitialisation d'usine | Efface partie et réglages (crochet HAL `factory_reset`), puis relance la mise en route | Retour à l'état de sortie de boîte |
 | Calibrage de la molette | L'assistant demande 10 crans vers la droite et compare aux crans reçus : signe = sens, rapport = impulsions par cran ; rien tourné = étape passée | Pas de mode brut dans le HAL : l'UI ne voit que des crans, le rapport suffit |
 | Test tactile | Mire (anneaux, 4 couleurs de siège) et 4 cibles haut/droite/bas/gauche ; le bouton central passe l'étape | Vérifie les bords de la dalle ronde, là où les sièges sont touchés |
+| Intensité haptique | 3 niveaux = 3 jeux d'effets de la bibliothèque DRV2605 (100 %, 60–80 %, 30–40 %), 0 = coupé | Le DRV2605 en mode bibliothèque n'a pas de gain réglable simple ; à ajuster sur le matériel |
+| Version | `PROJECT_VER` = 0.2.0 dans `CMakeLists.txt`, affichée avec la date de compilation | Lisible dans Appareil sans dépendre de l'état git |
 | Découpage | 3 plans : #2 (ce plan), #3 Affichage et veille, #4 Joueurs, tours et minuteur | Choix opérateur 2026-11-12 |
 | Ordre | #5 → #2 → #6 → #7 → #4 → #3 | Choix opérateur 2026-11-14 : #2 est lancé sans attendre #6 (8 icônes en attente) ni #7 ; remplace l'ordre du 2026-11-13 |
 
@@ -131,6 +133,7 @@ cd /srv/dev/mtg-dial
 | 2026-11-14 | Étape 5 — host + ASan/UBSan (`ui_flows` : Solo à 4, dégâts de commandant par la fiche, affichage source, 3 clics/point, sièges droits, attaque = cmdt, ordre inversé et KO manuel appliqués à la partie en cours, réinitialisation en deux taps ; `boot_start-on-*`) ; captures `20`–`20e` relues | 0 avert., 10/10 deux fois | 0, 10/10, 10/10 ; conforme. Constat : sièges non tournés, les marques − / + des sièges de gauche et de droite touchent le bord et le moyeu (les zones de tap restent justes) (auto-check) | ✅ |
 | 2026-11-14 | Étape 6 — host + ASan/UBSan (`ui_flows` : version, langue à chaud, nom au hasard, nom saisi « JU », PIN défini puis retiré en deux taps, PIN au démarrage, message, sens/impulsions de molette, vibration, réinitialisation d'usine en deux taps ; `boot_pin`, `boot_pin-not-at-boot`) ; captures `21`–`21f`, `22` relues | 0 avert., 12/12 deux fois ; écran verrouillé sans échappatoire, message du propriétaire affiché | 0, 12/12, 12/12 ; conforme (auto-check) | ✅ |
 | 2026-11-14 | Étape 7 — host + ASan/UBSan (`ui_flows` démarre par l'assistant : langue à chaud, bienvenue, format par défaut, nom tiré/régénéré/modifié, calibrage molette « 10 crans reçus −5 » → sens inversé et 2 impulsions/cran, 4 cibles, gestes ; relance et abandon depuis Appareil ; assistant après réinitialisation d'usine) ; captures `00a`–`00h` relues dans les deux thèmes | 0 avert., 12/12 deux fois ; `SETUP_DONE` enregistré à la fin | 0, 12/12, 12/12 ; conforme (auto-check) | ✅ |
+| 2026-11-14 | Étape 8 — firmware `idf.py build` (réglages en NVS, sens/impulsions de molette, 3 intensités haptiques, version `0.2.0 · date`, effacement d'usine) + host | exit 0, 0 avert., binaire < 4 Mio, version dans le binaire ; 12/12 | exit 0, 0, 1 124 416 o, `0.2.0` présent ; 12/12. Non vérifié : ressenti molette/haptique, faute de matériel (auto-check) | ✅ |
 
 ## Journal de session
 
