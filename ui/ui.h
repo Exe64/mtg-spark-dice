@@ -6,6 +6,7 @@
 
 #include "game.h"
 #include "profile.h"
+#include "settings.h"
 
 /* The product name is not a string: it is drawn from the masks of ui/wordmark_a8.c. To rename the product, run
  * ui/assets/wordmark2a8.py with the new name (the only place it is written; PRODUCT.md, Brand Commitments). */
@@ -30,6 +31,11 @@ void ui_init(const ui_hooks_t *hooks, const sd_profile_t *profiles, int n_profil
 /* Theme (ui_theme_id_t, see theme.h) and ground hue (index in ui_grounds[], used by themes that let the user pick).
  * Out-of-range values fall back to the defaults. May be called before ui_init() or at any time after. */
 void ui_set_theme(int theme, int ground);
+
+/* The settings the UI reads and edits (NULL = the defaults). May be called before ui_init() or at any time after;
+ * a new language shows at once. */
+void ui_set_settings(const sd_settings_t *s);
+const sd_settings_t *ui_settings(void);
 
 void ui_knob(int detents, uint32_t now_ms); /* +cw / -ccw */
 void ui_tap(int x, int y, uint32_t now_ms);

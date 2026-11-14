@@ -32,6 +32,7 @@ bool sd_profile_parse(const char *json, sd_profile_t *out, const char **err)
     cJSON *root = cJSON_Parse(json);
     const cJSON *name = cJSON_GetObjectItemCaseSensitive(root, "name");
     const cJSON *family = cJSON_GetObjectItemCaseSensitive(root, "family");
+    const cJSON *family_en = cJSON_GetObjectItemCaseSensitive(root, "family_en");
 
     if (!cJSON_IsObject(root))
         e = "invalid JSON";
@@ -43,6 +44,8 @@ bool sd_profile_parse(const char *json, sd_profile_t *out, const char **err)
         e = "players: integer 1..4 required";
     else if (family && (!cJSON_IsString(family) || strlen(family->valuestring) >= sizeof(out->family)))
         e = "family: string of 0..15 chars";
+    else if (family_en && (!cJSON_IsString(family_en) || strlen(family_en->valuestring) >= sizeof(out->family_en)))
+        e = "family_en: string of 0..15 chars";
     else if (!opt_int(root, "players_min", 2, SEATS_MAX, 2, &pmin) ||
              !opt_int(root, "players_max", 2, SEATS_MAX, SEATS_MAX, &pmax) || pmin > pmax)
         e = "players_min/players_max: integers 2..4, min <= max";
@@ -56,6 +59,8 @@ bool sd_profile_parse(const char *json, sd_profile_t *out, const char **err)
         strcpy(out->name, name->valuestring);
         if (family)
             strcpy(out->family, family->valuestring);
+        if (family_en)
+            strcpy(out->family_en, family_en->valuestring);
         out->players = (uint8_t)players;
         out->players_min = (uint8_t)pmin;
         out->players_max = (uint8_t)pmax;

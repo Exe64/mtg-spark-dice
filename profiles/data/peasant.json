@@ -1,6 +1,7 @@
 {
   "name": "Peasant",
   "family": "Construit",
+  "family_en": "Constructed",
   "start_life": 20,
   "players": 2,
   "players_min": 2,

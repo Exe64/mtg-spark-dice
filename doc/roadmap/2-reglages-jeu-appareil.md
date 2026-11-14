@@ -55,7 +55,7 @@ Dépend de #5 (direction visuelle lumineuse : l'accueil radial, les réglages et
 ## Étapes
 
 - [x] Étape 1 — Cœur : `sd_settings` (défauts, bornes, sérialisation NVS versionnée) + règles paramétrables dans `core/` (KO auto, victoire auto, PV du commandant, ordre du tour, attaque = cmdt, clics/point, délai de validation) + tests host (M · standard → Sonnet)
-- [ ] Étape 2 — Traductions : remplacer les macros de `strings_fr.h` par des tables par langue (`strings_fr.c`, `strings_en.c`), sélection à chaud, test host qui vérifie que chaque chaîne existe dans chaque langue (M · standard → Sonnet)
+- [x] Étape 2 — Traductions : remplacer les macros de `strings_fr.h` par des tables par langue (`strings_fr.c`, `strings_en.c`), sélection à chaud, test host qui vérifie que chaque chaîne existe dans chaque langue (M · standard → Sonnet)
 - [ ] Étape 3 — Accueil : l'accueil radial et l'écran « Nouvelle partie » (format puis joueurs) existent depuis #5 (étape 8) ; reste à brancher le bouton Réglages, le focus à la molette et le choix Solo/Arène ; pas de pastille Type de jeu (S · standard → Sonnet)
 - [ ] Étape 4 — Cadre Réglages : grille 6 sections, listes éditables, protection PIN, accès accueil/menu (M · standard → Sonnet)
 - [ ] Étape 5 — Section Jeu : tous les réglages listés + vue Solo « ma seule vie » à plusieurs joueurs (M · standard → Sonnet)
@@ -84,6 +84,8 @@ Dépend de #5 (direction visuelle lumineuse : l'accueil radial, les réglages et
 | Règles d'une partie | Options (`SD_OPT_*`) et délai de validation copiés dans `sd_rules_t` au lancement, donc sauvegardés avec la partie (format `SDG4`) | Une partie reprise garde les règles avec lesquelles elle a commencé |
 | PV de départ, seuils cmdt/poison | 0 = « celui du format » ; un seuil ne réactive jamais une règle que le format n'a pas | Les formats restent la référence |
 | « PV du commandant » | Interprété comme « les dégâts de commandant retirent aussi des PV » (oui par défaut) | Libellé ambigu dans la liste d'origine ; à corriger si le sens voulu est autre |
+| Traductions | Une table par langue (`ui/strings_fr.c`, `strings_en.c`) indexée par un énuméré commun ; les formats `printf` portent le suffixe `_FMT` et le test `strings` vérifie qu'ils prennent les mêmes arguments dans chaque langue | Une langue = un fichier ; une chaîne oubliée ou un format divergent fait échouer le build de test |
+| Famille de format en anglais | Champ optionnel `family_en` dans les profils JSON | « Construit » venait des données, pas des tables |
 | Découpage | 3 plans : #2 (ce plan), #3 Affichage et veille, #4 Joueurs, tours et minuteur | Choix opérateur 2026-11-12 |
 | Ordre | #5 → #2 → #6 → #7 → #4 → #3 | Choix opérateur 2026-11-14 : #2 est lancé sans attendre #6 (8 icônes en attente) ni #7 ; remplace l'ordre du 2026-11-13 |
 
@@ -112,6 +114,7 @@ cd /srv/dev/mtg-dial
 | Date | Test | Attendu | Observé | Verdict |
 |------|------|---------|---------|---------|
 | 2026-11-14 | Étape 1 — host + ASan/UBSan (`test_rule_options`, `test_settings`) | 0 avert., 6/6 deux fois | 0, 6/6, 6/6 (auto-check, même contexte) | ✅ |
+| 2026-11-14 | Étape 2 — host + ASan/UBSan (`strings`, bascule FR→EN à chaud dans `ui_flows`, capture `18-nouvelle-partie-en`) | 0 avert., 7/7 deux fois, écran en anglais | 0, 7/7, 7/7, « CONSTRUCTED / 20 LIFE · POISON 10 / NEXT » (auto-check) | ✅ |
 
 ## Journal de session
 

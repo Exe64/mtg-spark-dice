@@ -449,6 +449,31 @@ int main(int argc, char **argv)
     shot_render();
     assert(UI_THEME_DEFAULT == UI_THEME_LUMINEUX && near(shot_pixel(180, 250), well(ui_grounds[0], ui_ground_rim(ui_grounds[0]), 70), 5));
 
+    /* --- languages: a change shows at once, on the screen that is up */
+    {
+        sd_settings_t st = *ui_settings();
+        assert(st.v[SD_S_LANG] == 0 && ui_screen() == UI_SCR_HOME);
+        ui_tap(180, 160, t);
+        ui_knob(4, t);        /* Standard: "CONSTRUIT" */
+        shot_render();
+        uint32_t fr = 0, en = 0;
+        for (int y = 40; y < 300; y++)
+            for (int x = 60; x < 300; x++)
+                fr = fr * 31 + shot_pixel(x, y);
+        st.v[SD_S_LANG] = 1;
+        ui_set_settings(&st);
+        snap("18-nouvelle-partie-en");
+        for (int y = 40; y < 300; y++)
+            for (int x = 60; x < 300; x++)
+                en = en * 31 + shot_pixel(x, y);
+        assert(fr != en);
+        st.v[SD_S_LANG] = 0;
+        ui_set_settings(&st);
+        ui_knob(-4, t);
+        ui_tap(88, 286, t);   /* back home */
+        assert(ui_screen() == UI_SCR_HOME);
+    }
+
     printf("shots: all flows passed (%d saves, %d detents, %d commits, %d defeats)\n", saves,
            haptics[UI_HAPTIC_DETENT], haptics[UI_HAPTIC_COMMIT], haptics[UI_HAPTIC_DEFEAT]);
     return 0;

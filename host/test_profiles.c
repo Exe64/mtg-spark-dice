@@ -53,7 +53,7 @@ int main(void)
     assert(all[2].rules.start_life == 60 && all[2].rules.poison_lethal == 15);
     assert(all[3].rules.start_life == 20 && all[3].rules.cmd_lethal == 0 && !strcmp(all[3].family, "Singleton"));
     for (int i = 4; i < n; i++)
-        assert(!strcmp(all[i].family, "Construit") && all[i].rules.start_life == 20 && !all[i].rules.cmd_lethal &&
+        assert(!strcmp(all[i].family, "Construit") && !strcmp(all[i].family_en, "Constructed") && all[i].rules.start_life == 20 && !all[i].rules.cmd_lethal &&
                all[i].rules.poison_lethal == 10 && all[i].players_min == 2 && all[i].players_max == 2);
 
     reject("not json", "invalid JSON");

@@ -1,13 +1,15 @@
 #include "ui.h"
 
 #include <math.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "fx.h"
 #include "lvgl.h"
-#include "strings_fr.h"
+#include "settings.h"
+#include "strings.h"
 #include "theme.h"
 
 #define CX 180
@@ -15,6 +17,9 @@
 #define R 180
 #define HUB_R 48
 #define MINUS "\xE2\x88\x92" /* U+2212 */
+#define SEP " \xE2\x80\xBA "  /* U+203A, "J1 › J3" */
+#define DOT " · "
+#define NONE "—"
 
 /* format-name font, embedded by the build from the git-ignored ui/assets/licensed/ (ui/name_font.cmake) */
 extern const uint8_t _binary_Original_Motion_ttf_start[], _binary_Original_Motion_ttf_end[];
@@ -29,6 +34,9 @@ enum { MENU_UNDO, MENU_LOG, MENU_SHEET, MENU_NEW, MENU_BACK };
 static const ui_theme_t *const THEMES[UI_THEME_COUNT] = {[UI_THEME_BOOSTER] = &ui_theme_booster,
                                                          [UI_THEME_LUMINEUX] = &ui_theme_lumineux};
 static ui_theme_t TH; /* active theme, with the user's ground applied */
+static sd_settings_t S; /* the settings, see ui_set_settings() */
+static bool s_ready;
+#define TR(id) (ui_langs[S.v[SD_S_LANG] % UI_LANG_COUNT]->str[STR_##id])
 static const ui_theme_t *T = &ui_theme_lumineux; /* == *THEMES[UI_THEME_DEFAULT] until ui_set_theme() */
 
 static struct {
@@ -237,15 +245,34 @@ static void fmt_signed(char *buf, size_t n, int v)
 }
 
 #define N_MARKERS (SD_KIND_COUNT - SD_POISON)
-static const char *const MARKER_NAME[N_MARKERS] = S_MARKER_NAMES;
-static const char *const MARKER_ABBR[N_MARKERS] = S_MARKER_ABBR;
+#define MARKER_NAME (&TR(MK_POISON))
+#define MARKER_ABBR (&TR(MKA_POISON))
+
+static void appendf(char *buf, size_t n, const char *fmt, ...)
+{
+    size_t len = strlen(buf);
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(buf + len, n - len, fmt, ap);
+    va_end(ap);
+}
+
+/* "J3"; four names may be alive in one expression */
+static const char *seat(int i)
+{
+    static char b[4][8];
+    static int k;
+    k = (k + 1) & 3;
+    snprintf(b[k], sizeof(b[k]), TR(SEAT_FMT), i + 1);
+    return b[k];
+}
 
 /* who a state names: "J3", or a dash for nobody */
 static const char *holder(char *buf, size_t n, uint8_t who)
 {
     if (who >= U.g.n_players)
-        return S_NONE;
-    snprintf(buf, n, S_SEAT_FMT, who + 1);
+        return NONE;
+    snprintf(buf, n, TR(SEAT_FMT), who + 1);
     return buf;
 }
 
@@ -253,20 +280,24 @@ static void fmt_action(char *buf, size_t n, const sd_action_t *a)
 {
     char d[12];
     fmt_signed(d, sizeof(d), a->amount);
-    if (a->kind == SD_TURN)
-        snprintf(buf, n, S_TURN_FMT "  J%d" S_SEP "J%d", a->turn, a->player + 1, a->src + 1);
-    else if (a->kind == SD_LIFE && a->src != a->player)
-        snprintf(buf, n, "J%d" S_SEP "J%d  PV %s", a->src + 1, a->player + 1, d);
+    const char *who = seat(a->player);
+    if (a->kind == SD_TURN) {
+        snprintf(buf, n, TR(TURN_FMT), a->turn);
+        appendf(buf, n, "  %s" SEP "%s", who, seat(a->src));
+    } else if (a->kind == SD_LIFE && a->src != a->player)
+        snprintf(buf, n, "%s" SEP "%s  %s %s", seat(a->src), who, TR(LIFE), d);
     else if (a->kind == SD_LIFE)
-        snprintf(buf, n, "J%d  PV %s", a->player + 1, d);
+        snprintf(buf, n, "%s  %s %s", who, TR(LIFE), d);
     else if (a->kind == SD_CMD || a->kind == SD_CMD2)
-        snprintf(buf, n, "J%d  %s J%d %s", a->player + 1, a->kind == SD_CMD ? S_CMD : S_CMD2, a->src + 1, d);
+        snprintf(buf, n, "%s  %s %s %s", who, a->kind == SD_CMD ? TR(CMD) : TR(CMD2), seat(a->src), d);
     else if (a->kind < SD_ASCEND)
-        snprintf(buf, n, "J%d  %s %s", a->player + 1, MARKER_NAME[a->kind - SD_POISON], d);
+        snprintf(buf, n, "%s  %s %s", who, MARKER_NAME[a->kind - SD_POISON], d);
     else if (a->kind == SD_ASCEND)
-        snprintf(buf, n, "J%d  %s %s", a->player + 1, MARKER_NAME[a->kind - SD_POISON], a->amount > 0 ? "+" : MINUS);
+        snprintf(buf, n, "%s  %s %s", who, MARKER_NAME[a->kind - SD_POISON], a->amount > 0 ? "+" : MINUS);
+    else if (a->kind == SD_DAYNIGHT && a->player == SD_DN_NONE)
+        snprintf(buf, n, "%s  " NONE, TR(MK_DAYNIGHT));
     else if (a->kind == SD_DAYNIGHT)
-        snprintf(buf, n, "%s", a->player == SD_DN_DAY ? S_DAY : a->player == SD_DN_NIGHT ? S_NIGHT : S_DAY " / " S_NIGHT "  " S_NONE);
+        snprintf(buf, n, "%s", a->player == SD_DN_DAY ? TR(DAY) : TR(NIGHT));
     else
         snprintf(buf, n, "%s  %s", MARKER_NAME[a->kind - SD_POISON], holder(d, sizeof(d), a->player));
 }
@@ -275,7 +306,7 @@ static void fmt_action(char *buf, size_t n, const sd_action_t *a)
 static void fmt_undo(char *buf, size_t n, const sd_action_t *a)
 {
     if (a->kind == SD_TURN) /* the hand-off it reverses */
-        snprintf(buf, n, "J%d" S_SEP "J%d", a->player + 1, a->src + 1);
+        snprintf(buf, n, "%s" SEP "%s", seat(a->player), seat(a->src));
     else if (a->kind >= SD_ASCEND)
         snprintf(buf, n, "%s", MARKER_ABBR[a->kind - SD_POISON]);
     else
@@ -534,7 +565,7 @@ static void draw_hub(lv_layer_t *l)
             if (a->automatic && g->log_len > 1) /* an automatic pass is undone with the hit that caused it */
                 a--;
             fill(l, CX - HUB_R, CY - HUB_R, CX + HUB_R, CY + HUB_R, T->ink, LV_RADIUS_CIRCLE);
-            text(l, U.f_small, T->ground, LV_OPA_COVER, CX, CY - 14, S_MENU_UNDO);
+            text(l, U.f_small, T->ground, LV_OPA_COVER, CX, CY - 14, TR(MENU_UNDO));
             fmt_undo(t, sizeof(t), a);
             text(l, U.f_row, T->ground, LV_OPA_COVER, CX, CY + 12, t);
             return;
@@ -542,9 +573,9 @@ static void draw_hub(lv_layer_t *l)
         /* at rest the hub is sealed (everything committed) and shows whose turn it is; tap = next turn */
         fill(l, CX - HUB_R, CY - HUB_R, CX + HUB_R, CY + HUB_R, T->ground, LV_RADIUS_CIRCLE);
         ring(l, HUB_R, 0.f, 360.f, T->ink);
-        snprintf(t, sizeof(t), S_TURN_FMT, g->turn);
+        snprintf(t, sizeof(t), TR(TURN_FMT), g->turn);
         text(l, U.f_small, T->ink, LV_OPA_COVER, CX, CY - 20, t);
-        snprintf(t, sizeof(t), S_SEAT_FMT, g->active + 1);
+        snprintf(t, sizeof(t), TR(SEAT_FMT), g->active + 1);
         text(l, U.f_hub, T->seat[g->active], LV_OPA_COVER, CX, CY + 8, t);
         return;
     }
@@ -553,11 +584,11 @@ static void draw_hub(lv_layer_t *l)
     foil(l, CX - HUB_R, CY - HUB_R, CX + HUB_R, CY + HUB_R, LV_RADIUS_CIRCLE);
     text(l, U.f_hub, T->foil_ink, LV_OPA_COVER, CX, CY - 8, d);
     if (g->pending.kind == SD_CMD)
-        text(l, U.f_small, T->foil_ink, LV_OPA_COVER, CX, CY - 36, S_CMD);
+        text(l, U.f_small, T->foil_ink, LV_OPA_COVER, CX, CY - 36, TR(CMD));
     if (g->pending.src != g->pending.player) { /* source seat, drawn pointer, target seat */
-        snprintf(sub, sizeof(sub), S_SEAT_FMT, g->pending.src + 1);
+        snprintf(sub, sizeof(sub), TR(SEAT_FMT), g->pending.src + 1);
         text(l, U.f_small, T->foil_ink, LV_OPA_COVER, CX - 17, CY + 26, sub);
-        snprintf(sub, sizeof(sub), S_SEAT_FMT, g->pending.player + 1);
+        snprintf(sub, sizeof(sub), TR(SEAT_FMT), g->pending.player + 1);
         text(l, U.f_small, T->foil_ink, LV_OPA_COVER, CX + 17, CY + 26, sub);
         tri(l, CX - 4, CY + 21, CX - 4, CY + 31, CX + 4, CY + 26, T->foil_ink);
     } else {
@@ -584,9 +615,9 @@ static void fmt_counters(char *buf, size_t n, const sd_player_t *p)
     if (sd_counter(p, SD_POISON) && cmd)
         snprintf(buf, n, "P%d  C%d", sd_counter(p, SD_POISON), cmd);
     else if (sd_counter(p, SD_POISON))
-        snprintf(buf, n, S_POISON " %d", sd_counter(p, SD_POISON));
+        snprintf(buf, n, "%s %d", TR(POISON), sd_counter(p, SD_POISON));
     else if (cmd)
-        snprintf(buf, n, S_CMD " %d", cmd);
+        snprintf(buf, n, "%s %d", TR(CMD), cmd);
 }
 
 static void draw_solo(lv_layer_t *l)
@@ -600,7 +631,7 @@ static void draw_solo(lv_layer_t *l)
         ground(l);
     else
         fill(l, 0, 0, UI_W - 1, UI_H - 1, field, 0);
-    snprintf(buf, sizeof(buf), S_SEAT_PROFILE_FMT, 1, U.profile_name);
+    snprintf(buf, sizeof(buf), TR(SEAT_PROFILE_FMT), 1, U.profile_name);
     text(l, U.f_label, ink, LV_OPA_COVER, CX, 62, buf);
     snprintf(buf, sizeof(buf), "%d", p->life);
     if (lost)
@@ -617,7 +648,7 @@ static void draw_solo(lv_layer_t *l)
         const sd_action_t *a = &g->log[g->log_len - 1];
         char d[12];
         fmt_undo(d, sizeof(d), a);
-        snprintf(buf, sizeof(buf), S_MENU_UNDO "  %s", d);
+        snprintf(buf, sizeof(buf), "%s  %s", TR(MENU_UNDO), d);
         fill(l, 100, 282, 260, 318, T->ink, 0);
         text(l, U.f_label, T->ground, LV_OPA_COVER, CX, 300, buf);
     }
@@ -676,11 +707,11 @@ static void draw_arena(lv_layer_t *l)
             pm_marks(ly, nx, ny - 6, n == 2 ? 110 : n == 3 ? 74 : 64, ink);
         fmt_counters(cnt, sizeof(cnt), &g->p[i]);
         if (lost)
-            snprintf(buf, sizeof(buf), S_SEAT_FMT "  " S_DEFEATED, i + 1);
+            snprintf(buf, sizeof(buf), "%s  %s", seat(i), TR(DEFEATED));
         else if (cnt[0])
-            snprintf(buf, sizeof(buf), S_SEAT_FMT "  %s", i + 1, cnt);
+            snprintf(buf, sizeof(buf), "%s  %s", seat(i), cnt);
         else
-            snprintf(buf, sizeof(buf), S_SEAT_FMT, i + 1);
+            snprintf(buf, sizeof(buf), TR(SEAT_FMT), i + 1);
         text(ly, U.f_label, ink, LV_OPA_COVER, nx, ny + lh / 2 - 8, buf); /* rim side, inside the crest */
         if (turn) {
             lv_draw_image_dsc_t d;
@@ -764,9 +795,9 @@ static void draw_hub_light(lv_layer_t *l)
     fx_ring(l, CX, CY, HUB_R, T->ink, g->has_pending ? LV_OPA_30 : LV_OPA_70);
     fill(l, CX - HUB_R, CY - HUB_R, CX + HUB_R, CY + HUB_R, T->ground_rim, LV_RADIUS_CIRCLE);
     if (!g->has_pending) { /* at rest: whose turn it is; tap = next turn */
-        snprintf(t, sizeof(t), S_TURN_FMT, g->turn);
+        snprintf(t, sizeof(t), TR(TURN_FMT), g->turn);
         text(l, U.f_label, T->ink, LV_OPA_COVER, CX, CY - 22, t);
-        snprintf(t, sizeof(t), S_SEAT_FMT, g->active + 1);
+        snprintf(t, sizeof(t), TR(SEAT_FMT), g->active + 1);
         text(l, U.f_hub, T->seat[g->active], LV_OPA_COVER, CX, CY + 9, t);
         return;
     }
@@ -775,11 +806,11 @@ static void draw_hub_light(lv_layer_t *l)
     fmt_signed(d, sizeof(d), cmd ? -g->pending.amount : g->pending.amount); /* effect on life */
     text(l, U.f_hub, T->ink, LV_OPA_COVER, CX, cmd ? CY - 3 : CY - 8, d);
     if (cmd) /* the only mark that tells commander damage from combat damage: kept clear of the ring */
-        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, CY - 31, S_CMD);
+        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, CY - 31, TR(CMD));
     if (g->pending.src != g->pending.player) { /* source seat, drawn pointer, target seat: each in its own light */
-        snprintf(sub, sizeof(sub), S_SEAT_FMT, g->pending.src + 1);
+        snprintf(sub, sizeof(sub), TR(SEAT_FMT), g->pending.src + 1);
         text(l, U.f_small, T->seat[g->pending.src], LV_OPA_COVER, CX - 17, CY + 26, sub);
-        snprintf(sub, sizeof(sub), S_SEAT_FMT, g->pending.player + 1);
+        snprintf(sub, sizeof(sub), TR(SEAT_FMT), g->pending.player + 1);
         text(l, U.f_small, T->seat[g->pending.player], LV_OPA_COVER, CX + 17, CY + 26, sub);
         tri(l, CX - 4, CY + 21, CX - 4, CY + 31, CX + 4, CY + 26, T->ink);
     } else {
@@ -801,12 +832,12 @@ static void draw_solo_light(lv_layer_t *l)
     knob_ring(l);
     if (!lost)
         fx_halo(l, CX, 160, 150, T->seat[0], LV_OPA_40);
-    snprintf(buf, sizeof(buf), S_SEAT_PROFILE_FMT, 1, U.profile_name);
+    snprintf(buf, sizeof(buf), TR(SEAT_PROFILE_FMT), 1, U.profile_name);
     text(l, U.f_label, lost ? T->ink : T->seat[0], opa, CX, 62, buf);
     snprintf(buf, sizeof(buf), "%d", p->life);
     if (lost) {
         skull(l, CX, 158, 150, T->ink, opa);
-        text(l, U.f_label, T->ink, opa, CX, 262, S_DEFEATED);
+        text(l, U.f_label, T->ink, opa, CX, 262, TR(DEFEATED));
     } else {
         text(l, U.f_solo, T->ink, LV_OPA_COVER, CX, 158, buf);
         pm_marks(l, CX, 162, 136, T->ink);
@@ -819,7 +850,7 @@ static void draw_solo_light(lv_layer_t *l)
         const sd_action_t *a = &g->log[g->log_len - 1];
         char d[12];
         fmt_undo(d, sizeof(d), a);
-        snprintf(buf, sizeof(buf), S_MENU_UNDO "  %s", d);
+        snprintf(buf, sizeof(buf), "%s  %s", TR(MENU_UNDO), d);
         pill(l, 100, 282, 260, 318, true);
         text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 300, buf);
     }
@@ -889,11 +920,11 @@ static void draw_arena_light(lv_layer_t *l)
             pm_marks(ly, nx, ny - 6, n == 2 ? 110 : n == 3 ? 74 : 64, T->ink);
         fmt_counters(cnt, sizeof(cnt), &g->p[i]);
         if (lost)
-            snprintf(buf, sizeof(buf), S_SEAT_FMT "  " S_DEFEATED, i + 1);
+            snprintf(buf, sizeof(buf), "%s  %s", seat(i), TR(DEFEATED));
         else if (cnt[0])
-            snprintf(buf, sizeof(buf), S_SEAT_FMT "  %s", i + 1, cnt);
+            snprintf(buf, sizeof(buf), "%s  %s", seat(i), cnt);
         else
-            snprintf(buf, sizeof(buf), S_SEAT_FMT, i + 1);
+            snprintf(buf, sizeof(buf), TR(SEAT_FMT), i + 1);
         /* 30 px label (readable across the table); white on the lit glass of the selected seat */
         text(ly, U.f_row, lost || sel ? T->ink : T->seat[i], opa, nx, ny + lh / 2 - 6, buf);
         if (turn) {
@@ -919,21 +950,21 @@ static const char *menu_label(int i, char *buf, size_t n)
     switch (i) {
     case MENU_UNDO:
         if (!U.g.log_len)
-            return S_NOTHING_TO_UNDO;
+            return TR(NOTHING_TO_UNDO);
         {
             const sd_action_t *last = &U.g.log[U.g.log_len - 1];
             if (last->automatic && U.g.log_len > 1) /* undone together with the hit that caused it */
                 last--;
             fmt_action(act, sizeof(act), last);
-            snprintf(buf, n, S_MENU_UNDO "  %s", act);
+            snprintf(buf, n, "%s  %s", TR(MENU_UNDO), act);
         }
         return buf;
-    case MENU_LOG: return S_MENU_LOG;
+    case MENU_LOG: return TR(MENU_LOG);
     case MENU_SHEET:
-        snprintf(buf, n, S_MENU_SHEET_FMT, U.sel + 1);
+        snprintf(buf, n, TR(MENU_SHEET_FMT), U.sel + 1);
         return buf;
-    case MENU_NEW: return S_MENU_NEW;
-    default: return S_MENU_BACK;
+    case MENU_NEW: return TR(MENU_NEW);
+    default: return TR(MENU_BACK);
     }
 }
 
@@ -974,10 +1005,10 @@ static void log_row(lv_layer_t *l, const sd_action_t *a, int y)
 static void draw_log(lv_layer_t *l)
 {
     ground(l);
-    text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 48, S_MENU_LOG);
+    text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 48, TR(MENU_LOG));
     line(l, 120, 70, 240, 70, T->ink, LV_OPA_COVER);
     if (!U.g.log_len)
-        text(l, U.f_row, T->ink, LV_OPA_COVER, CX, CY, S_LOG_EMPTY);
+        text(l, U.f_row, T->ink, LV_OPA_COVER, CX, CY, TR(LOG_EMPTY));
     for (int k = 0; k < LOG_ROWS; k++) {
         int idx = U.g.log_len - 1 - U.log_scroll - k;
         if (idx < 0)
@@ -987,7 +1018,7 @@ static void draw_log(lv_layer_t *l)
         fill(l, 70, y - 7, 84, y + 7, log_hue(a), 0);
         log_row(l, a, y);
     }
-    text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 326, S_TAP_BACK);
+    text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 326, TR(TAP_BACK));
 }
 
 static void draw_sheet(lv_layer_t *l)
@@ -997,23 +1028,23 @@ static void draw_sheet(lv_layer_t *l)
     char buf[48];
     ground(l);
     fill(l, 0, 0, UI_W - 1, 132, T->seat[U.sel], 0);
-    snprintf(buf, sizeof(buf), S_SEAT_FMT, U.sel + 1);
+    snprintf(buf, sizeof(buf), TR(SEAT_FMT), U.sel + 1);
     text(l, U.f_title, T->seat_ink[U.sel], LV_OPA_COVER, CX, 84, buf);
-    text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 152, S_POISON);
+    text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 152, TR(POISON));
     if (g->rules.poison_lethal)
-        snprintf(buf, sizeof(buf), S_SHEET_POISON_FMT, sd_counter(p, SD_POISON), g->rules.poison_lethal);
+        snprintf(buf, sizeof(buf), "%d / %d", sd_counter(p, SD_POISON), g->rules.poison_lethal);
     else
         snprintf(buf, sizeof(buf), "%d", sd_counter(p, SD_POISON));
     text(l, U.f_hub, T->ink, LV_OPA_COVER, CX, 182, buf);
     if (g->n_players > 1 && g->rules.cmd_lethal) {
         /* one column per source seat: seat label in its hue over the tally; "/ 21" once within 5 of lethal */
-        text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 272, S_CMD);
+        text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 272, TR(CMD));
         int cols = g->n_players - 1, k = 0;
         for (int s = 0; s < g->n_players; s++) {
             if (s == U.sel)
                 continue;
             int x = CX + (k++ - (cols - 1) / 2.f) * 84;
-            snprintf(buf, sizeof(buf), S_SEAT_FMT, s + 1);
+            snprintf(buf, sizeof(buf), TR(SEAT_FMT), s + 1);
             text(l, U.f_small, T->seat[s], LV_OPA_COVER, x, 294, buf);
             if (p->cmd[s][0] + 5 >= g->rules.cmd_lethal)
                 snprintf(buf, sizeof(buf), "%d / %d", p->cmd[s][0], g->rules.cmd_lethal);
@@ -1041,15 +1072,15 @@ static void draw_over(lv_layer_t *l)
     else
         ground(l);
     if (w >= 0)
-        snprintf(buf, sizeof(buf), S_WINS_FMT, w + 1);
+        snprintf(buf, sizeof(buf), TR(WINS_FMT), w + 1);
     else
-        snprintf(buf, sizeof(buf), S_DEFEAT);
+        snprintf(buf, sizeof(buf), "%s", TR(DEFEAT));
     text(l, U.f_title, ink, LV_OPA_COVER, CX, 112, buf);
-    text(l, U.f_label, ink, LV_OPA_COVER, CX, 158, S_GAME_OVER);
+    text(l, U.f_label, ink, LV_OPA_COVER, CX, 158, TR(GAME_OVER));
     outline(l, 70, 200, 290, 246, ink);
-    text(l, U.f_row, ink, LV_OPA_COVER, CX, 223, S_MENU_UNDO);
+    text(l, U.f_row, ink, LV_OPA_COVER, CX, 223, TR(MENU_UNDO));
     fill(l, 70, 258, 290, 304, ink, 0);
-    text(l, U.f_row, field, LV_OPA_COVER, CX, 281, S_MENU_NEW);
+    text(l, U.f_row, field, LV_OPA_COVER, CX, 281, TR(MENU_NEW));
 }
 
 /* ---------- luminous theme: menus ---------- */
@@ -1072,10 +1103,10 @@ static void draw_menu_light(lv_layer_t *l)
 static void draw_log_light(lv_layer_t *l)
 {
     ground(l);
-    text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 48, S_MENU_LOG);
+    text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 48, TR(MENU_LOG));
     line(l, 120, 70, 240, 70, T->ink, LV_OPA_40);
     if (!U.g.log_len)
-        text(l, U.f_row, T->ink, LV_OPA_70, CX, CY, S_LOG_EMPTY);
+        text(l, U.f_row, T->ink, LV_OPA_70, CX, CY, TR(LOG_EMPTY));
     for (int k = 0; k < LOG_ROWS; k++) {
         int idx = U.g.log_len - 1 - U.log_scroll - k;
         if (idx < 0)
@@ -1085,7 +1116,7 @@ static void draw_log_light(lv_layer_t *l)
         fx_halo(l, 77, y, 14, log_hue(a), LV_OPA_COVER); /* a point of the seat's light; the text names it */
         log_row(l, a, y);
     }
-    text(l, U.f_small, T->ink, LV_OPA_70, CX, 326, S_TAP_BACK);
+    text(l, U.f_small, T->ink, LV_OPA_70, CX, 326, TR(TAP_BACK));
 }
 
 static void draw_sheet_light(lv_layer_t *l)
@@ -1096,23 +1127,23 @@ static void draw_sheet_light(lv_layer_t *l)
     ground(l);
     knob_ring(l);
     fx_halo(l, CX, 84, 96, T->seat[U.sel], LV_OPA_30);
-    snprintf(buf, sizeof(buf), S_SEAT_FMT, U.sel + 1);
+    snprintf(buf, sizeof(buf), TR(SEAT_FMT), U.sel + 1);
     text(l, U.f_title, T->ink, LV_OPA_COVER, CX, 84, buf);
-    text(l, U.f_label, T->seat[U.sel], LV_OPA_COVER, CX, 152, S_POISON);
+    text(l, U.f_label, T->seat[U.sel], LV_OPA_COVER, CX, 152, TR(POISON));
     if (g->rules.poison_lethal)
-        snprintf(buf, sizeof(buf), S_SHEET_POISON_FMT, sd_counter(p, SD_POISON), g->rules.poison_lethal);
+        snprintf(buf, sizeof(buf), "%d / %d", sd_counter(p, SD_POISON), g->rules.poison_lethal);
     else
         snprintf(buf, sizeof(buf), "%d", sd_counter(p, SD_POISON));
     text(l, U.f_hub, T->ink, LV_OPA_COVER, CX, 182, buf);
     if (g->n_players > 1 && g->rules.cmd_lethal) {
         /* one column per source seat: seat label in its hue over the tally; "/ 21" once within 5 of lethal */
-        text(l, U.f_label, T->seat[U.sel], LV_OPA_COVER, CX, 268, S_CMD);
+        text(l, U.f_label, T->seat[U.sel], LV_OPA_COVER, CX, 268, TR(CMD));
         int cols = g->n_players - 1, k = 0;
         for (int s = 0; s < g->n_players; s++) {
             if (s == U.sel)
                 continue;
             int x = CX + (k++ - (cols - 1) / 2.f) * 78;
-            snprintf(buf, sizeof(buf), S_SEAT_FMT, s + 1);
+            snprintf(buf, sizeof(buf), TR(SEAT_FMT), s + 1);
             text(l, U.f_small, T->seat[s], LV_OPA_COVER, x, 290, buf);
             if (p->cmd[s][0] + 5 >= g->rules.cmd_lethal)
                 snprintf(buf, sizeof(buf), "%d / %d", p->cmd[s][0], g->rules.cmd_lethal);
@@ -1139,15 +1170,15 @@ static void draw_over_light(lv_layer_t *l)
     knob_ring(l);
     if (w >= 0) { /* the winner's light fills the well */
         fx_halo(l, CX, 120, 170, T->seat[w], LV_OPA_30);
-        snprintf(buf, sizeof(buf), S_WINS_FMT, w + 1);
+        snprintf(buf, sizeof(buf), TR(WINS_FMT), w + 1);
     } else
-        snprintf(buf, sizeof(buf), S_DEFEAT);
+        snprintf(buf, sizeof(buf), "%s", TR(DEFEAT));
     text(l, U.f_title, T->ink, w >= 0 ? LV_OPA_COVER : LV_OPA_60, CX, 112, buf);
-    text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 158, S_GAME_OVER);
+    text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 158, TR(GAME_OVER));
     pill(l, 70, 200, 290, 246, false);
-    text(l, U.f_row, T->ink, LV_OPA_COVER, CX, 223, S_MENU_UNDO);
+    text(l, U.f_row, T->ink, LV_OPA_COVER, CX, 223, TR(MENU_UNDO));
     pill(l, 70, 258, 290, 304, true);
-    text(l, U.f_row, T->ink, LV_OPA_COVER, CX, 281, S_MENU_NEW);
+    text(l, U.f_row, T->ink, LV_OPA_COVER, CX, 281, TR(MENU_NEW));
 }
 
 /* ---------- logo: boot screen (both themes) and the luminous home ---------- */
@@ -1189,10 +1220,10 @@ extern const lv_image_dsc_t ui_home_icons_a8[4];
 #define RESUME_Y2 326
 static void draw_home(lv_layer_t *l)
 {
-    static const struct { /* order = ui_home_icons_a8[] (ui/assets/icons2a8.py) */
+    const struct { /* order = ui_home_icons_a8[] (ui/assets/icons2a8.py) */
         int x, y, r;
         const char *label;
-    } off[] = {{92, 96, 24, NULL}, {268, 96, 24, NULL}, {76, 206, 34, S_HOST}, {284, 206, 34, S_JOIN}};
+    } off[] = {{92, 96, 24, NULL}, {268, 96, 24, NULL}, {76, 206, 34, TR(HOST)}, {284, 206, 34, TR(JOIN)}};
     char buf[24];
     ground(l);
     fx_image(l, &ui_wordmark_small_a8, CX, 46, T->ink, LV_OPA_COVER);
@@ -1207,11 +1238,11 @@ static void draw_home(lv_layer_t *l)
         fx_ring(l, CX, NEW_Y, NEW_R, T->ink, LV_OPA_70);
     uint32_t ink = button(l, CX - NEW_R, NEW_Y - NEW_R, CX + NEW_R, NEW_Y + NEW_R, !U.has_resume);
     fx_image(l, &ui_logo_small_a8, CX, NEW_Y - 12, ink, LV_OPA_COVER); /* the product's mark starts a game */
-    text(l, U.f_row, ink, LV_OPA_COVER, CX, NEW_Y + 38, S_START);
+    text(l, U.f_row, ink, LV_OPA_COVER, CX, NEW_Y + 38, TR(START));
     if (U.has_resume) {
         ink = button(l, RESUME_X1, RESUME_Y1, RESUME_X2, RESUME_Y2, true);
-        text(l, U.f_small, ink, LV_OPA_COVER, CX, RESUME_Y1 + 15, S_RESUME);
-        snprintf(buf, sizeof(buf), S_RESUME_SUB_FMT, U.resume.turn, U.resume.n_players);
+        text(l, U.f_small, ink, LV_OPA_COVER, CX, RESUME_Y1 + 15, TR(RESUME));
+        snprintf(buf, sizeof(buf), TR(RESUME_SUB_FMT), U.resume.turn, U.resume.n_players);
         text(l, U.f_small, ink, LV_OPA_COVER, CX, RESUME_Y1 + 36, buf);
     }
 }
@@ -1235,19 +1266,20 @@ static void draw_new(lv_layer_t *l)
     ground(l);
     if (T->light)
         knob_ring(l);
-    snprintf(buf, sizeof(buf), "%s", p->family);
+    /* ponytail: one extra language, one extra field; a per-language map in the profile if a third one comes */
+    snprintf(buf, sizeof(buf), "%s", ui_langs[S.v[SD_S_LANG] % UI_LANG_COUNT] == &ui_lang_en && p->family_en[0] ? p->family_en : p->family);
     upper(buf);
-    text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 60, U.new_step == NEW_PLAYERS ? S_PLAYERS : buf[0] ? buf : S_FORMAT);
+    text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 60, U.new_step == NEW_PLAYERS ? TR(PLAYERS) : buf[0] ? buf : TR(FORMAT));
     /* the format name in the product name's face and case (Original Motion runs wide: 48 px past 300 px) */
     snprintf(name, sizeof(name), "%s", p->name);
     const lv_font_t *nf = U.f_name[lv_text_get_width(name, strlen(name), U.f_name[0], 0) > 300];
     text(l, nf, T->ink, LV_OPA_COVER, CX, 112, name);
     /* only the rules the format has: no commander damage, no mention of it */
-    int n = snprintf(buf, sizeof(buf), S_LIFE_FMT, p->rules.start_life);
+    snprintf(buf, sizeof(buf), TR(LIFE_FMT), p->rules.start_life);
     if (p->rules.cmd_lethal)
-        n += snprintf(buf + n, sizeof(buf) - (size_t)n, S_DOT S_CMD " %d", p->rules.cmd_lethal);
+        appendf(buf, sizeof(buf), DOT "%s %d", TR(CMD), p->rules.cmd_lethal);
     if (p->rules.poison_lethal)
-        snprintf(buf + n, sizeof(buf) - (size_t)n, S_DOT S_POISON " %d", p->rules.poison_lethal);
+        appendf(buf, sizeof(buf), DOT "%s %d", TR(POISON), p->rules.poison_lethal);
     text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 154, buf);
     if (U.new_step == NEW_FORMAT) {
         for (int i = 0; i < U.n_profiles; i++) { /* where we are in the list */
@@ -1272,14 +1304,14 @@ static void draw_new(lv_layer_t *l)
             if (on && T->light)
                 fx_halo(l, x, y, 30, T->seat[i], LV_OPA_20);
             lv_draw_rect(l, &d, &a);
-            snprintf(buf, sizeof(buf), S_SEAT_FMT, i + 1);
+            snprintf(buf, sizeof(buf), TR(SEAT_FMT), i + 1);
             text(l, U.f_small, T->light ? T->ink : on ? T->seat_ink[i] : T->seat[i],
                  on || !T->light ? LV_OPA_COVER : LV_OPA_40, x, y, buf);
         }
         if (U.players == 1)
-            snprintf(buf, sizeof(buf), S_SOLO);
+            snprintf(buf, sizeof(buf), "%s", TR(SOLO));
         else
-            snprintf(buf, sizeof(buf), S_PLAYERS_FMT, U.players, "S");
+            snprintf(buf, sizeof(buf), TR(PLAYERS_FMT), U.players);
         text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 240, buf);
     }
     for (int k = -1; k <= 1; k += 2) /* chevrons: a tap on either side steps like the knob */
@@ -1287,7 +1319,7 @@ static void draw_new(lv_layer_t *l)
     button(l, 66, NEW_BTN_Y1 + 2, 110, NEW_BTN_Y2 - 2, false); /* back */
     fx_icon(l, FX_ICON_UNDO, 88, (NEW_BTN_Y1 + NEW_BTN_Y2) / 2, T->ink, LV_OPA_COVER);
     uint32_t ink = button(l, 124, NEW_BTN_Y1, 264, NEW_BTN_Y2, true);
-    text(l, U.f_row, ink, LV_OPA_COVER, 194, (NEW_BTN_Y1 + NEW_BTN_Y2) / 2, U.new_step == NEW_FORMAT ? S_NEXT : S_PLAY);
+    text(l, U.f_row, ink, LV_OPA_COVER, 194, (NEW_BTN_Y1 + NEW_BTN_Y2) / 2, U.new_step == NEW_FORMAT ? TR(NEXT) : TR(PLAY));
 }
 
 static void markers_btn(lv_layer_t *l)
@@ -1391,18 +1423,18 @@ static void draw_markers(lv_layer_t *l)
             text(l, U.f_small, on && (T->light || !focus) ? T->seat[U.sel] : ink, o, x, y, MARKER_ABBR[i]);
         }
     }
-    snprintf(buf, sizeof(buf), S_SEAT_FMT, U.sel + 1);
+    snprintf(buf, sizeof(buf), TR(SEAT_FMT), U.sel + 1);
     text(l, U.f_label, T->seat[U.sel], LV_OPA_COVER, CX, 104, buf);
     text(l, U.f_label, T->ink, LV_OPA_COVER, CX, 134, MARKER_NAME[U.marker]);
     const char *v = buf;
     if (kind == SD_POISON && g->rules.poison_lethal)
-        snprintf(buf, sizeof(buf), S_SHEET_POISON_FMT, sd_counter(p, SD_POISON), g->rules.poison_lethal);
+        snprintf(buf, sizeof(buf), "%d / %d", sd_counter(p, SD_POISON), g->rules.poison_lethal);
     else if (kind < SD_ASCEND)
         snprintf(buf, sizeof(buf), "%d", sd_counter(p, kind));
     else if (kind == SD_ASCEND)
-        v = p->ascended ? S_YES : S_NO;
+        v = p->ascended ? TR(YES) : TR(NO);
     else if (kind == SD_DAYNIGHT)
-        v = g->daynight == SD_DN_DAY ? S_DAY : g->daynight == SD_DN_NIGHT ? S_NIGHT : S_NONE;
+        v = g->daynight == SD_DN_DAY ? TR(DAY) : g->daynight == SD_DN_NIGHT ? TR(NIGHT) : NONE;
     else
         v = holder(who, sizeof(who), kind == SD_MONARCH ? g->monarch : g->initiative);
     text(l, U.f_hub, T->ink, LV_OPA_COVER, CX, 180, v);
@@ -1416,7 +1448,7 @@ static void draw_markers(lv_layer_t *l)
         if (T->light)
             arc(l, KNOB_R + 2, -90.f, -90.f + 360.f * pending_progress(), 5, T->ink, LV_OPA_COVER);
     } else
-        text(l, U.f_small, T->ink, LV_OPA_70, CX, 232, S_MENU_BACK);
+        text(l, U.f_small, T->ink, LV_OPA_70, CX, 232, TR(MENU_BACK));
 }
 
 static void draw_cb(lv_event_t *e)
@@ -1457,9 +1489,24 @@ void ui_set_theme(int theme, int ground_idx)
     }
 }
 
+void ui_set_settings(const sd_settings_t *s)
+{
+    if (s)
+        S = *s;
+    else
+        sd_settings_defaults(&S);
+    s_ready = true;
+    if (U.dial)
+        redraw();
+}
+
+const sd_settings_t *ui_settings(void) { return &S; }
+
 void ui_init(const ui_hooks_t *hooks, const sd_profile_t *profiles, int n_profiles, const sd_game_t *resume)
 {
     memset(&U, 0, sizeof(U));
+    if (!s_ready)
+        ui_set_settings(NULL);
     if (hooks)
         U.hooks = *hooks;
     U.profiles = profiles;
