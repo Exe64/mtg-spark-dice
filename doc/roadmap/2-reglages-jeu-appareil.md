@@ -62,7 +62,7 @@ Dépend de #5 (direction visuelle lumineuse : l'accueil radial, les réglages et
 - [x] Étape 6 — Section Appareil : version, langue, nom (aléatoire par langue + Régénérer + saisie molette), PIN + écran de verrouillage avec message, sens encodeur, haptique, réinitialisation d'usine (M · standard → Sonnet)
 - [x] Étape 7 — Mise en route : langue, bienvenue, type de jeu/profil, nom, calibrage molette, test tactile + mire, tutoriel des gestes ; relance depuis Appareil (L · reasoning → Opus)
 - [x] Étape 8 — HAL : appliquer sens/impulsions de l'encodeur et intensité haptique, PIN au démarrage, version de build (S · standard → Sonnet)
-- [ ] Étape 9 — Design : extension du thème, captures, revue de finition, DESIGN.md (S · standard → Sonnet)
+- [x] Étape 9 — Design : extension du thème, captures, revue de finition, DESIGN.md (S · standard → Sonnet)
 - [ ] 🧪 Tests — Rédiger et exécuter la procédure de test (avant-dernière étape, obligatoire)
 - [ ] ✅ Validation — Vérifier les résultats des tests et clôturer (dernière étape, obligatoire)
 
@@ -134,6 +134,7 @@ cd /srv/dev/mtg-dial
 | 2026-11-14 | Étape 6 — host + ASan/UBSan (`ui_flows` : version, langue à chaud, nom au hasard, nom saisi « JU », PIN défini puis retiré en deux taps, PIN au démarrage, message, sens/impulsions de molette, vibration, réinitialisation d'usine en deux taps ; `boot_pin`, `boot_pin-not-at-boot`) ; captures `21`–`21f`, `22` relues | 0 avert., 12/12 deux fois ; écran verrouillé sans échappatoire, message du propriétaire affiché | 0, 12/12, 12/12 ; conforme (auto-check) | ✅ |
 | 2026-11-14 | Étape 7 — host + ASan/UBSan (`ui_flows` démarre par l'assistant : langue à chaud, bienvenue, format par défaut, nom tiré/régénéré/modifié, calibrage molette « 10 crans reçus −5 » → sens inversé et 2 impulsions/cran, 4 cibles, gestes ; relance et abandon depuis Appareil ; assistant après réinitialisation d'usine) ; captures `00a`–`00h` relues dans les deux thèmes | 0 avert., 12/12 deux fois ; `SETUP_DONE` enregistré à la fin | 0, 12/12, 12/12 ; conforme (auto-check) | ✅ |
 | 2026-11-14 | Étape 8 — firmware `idf.py build` (réglages en NVS, sens/impulsions de molette, 3 intensités haptiques, version `0.2.0 · date`, effacement d'usine) + host | exit 0, 0 avert., binaire < 4 Mio, version dans le binaire ; 12/12 | exit 0, 0, 1 124 416 o, `0.2.0` présent ; 12/12. Non vérifié : ressenti molette/haptique, faute de matériel (auto-check) | ✅ |
+| 2026-11-14 | Étape 9 — revue de finition sur planches (71 captures Lumineux, 70 Booster) ; host | chaque nouvel écran lisible et dans le cadran dans les deux thèmes ; 12/12 | 2 corrections appliquées (ligne ANNULER du menu qui débordait → corps réduit ; lignes éloignées des listes à 40 % → 60 % pour tenir 4,5:1) ; 2 limites consignées dans DESIGN.md (marques − / + des sièges non tournés, saisie sans accents) ; 12/12 (auto-check, pas de relecteur indépendant) | ✅ |
 
 ## Journal de session
 

@@ -45,4 +45,4 @@ As shipped in plan #1 (DESIGN.md until plan #5 step 7 rewrites it): a sealed-boo
 
 ## Open decisions
 - Product name: SparkDice (working name) or DiceSpark, one constant.
-- Exact rotation, timer and settings flows: plans #2–#4.
+- Settings frame, game and device sections, first-start assistant: shipped in plan #2 (DESIGN.md, Components). Rotation, sleep and timer flows: plans #3–#4.

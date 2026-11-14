@@ -33,7 +33,7 @@ SparkDice is a dedicated life counter: a rotary knob + touch round screen that r
 ## Capabilities and Constraints
 
 - MVP: Home (profile, player count), Solo (giant life + pending delta), Arena 1–4 players, game menu (undo, log, new game), player sheet (poison, commander damage), game over. Undo, NVS game resume.
-- UI strings in French, centralized in one file (per-language tables in plan #2).
+- UI strings in per-language tables (French and English since plan #2), one file per language.
 - Out of scope for now: radio, OTA, web/API, D&D mode, 5–6 players, sleep/battery.
 - Embedded constraints: LVGL bitmap/TTF fonts, RGB565 on target, limited animation budget.
 

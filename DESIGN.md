@@ -269,7 +269,7 @@ Lumineux is a dark radial ground, one white ink and four seat lights. Booster is
 ### Named Rules
 **The Real Minus Rule.** Shared. Negative deltas use U+2212 (−), not a hyphen. Positive deltas always show "+".
 
-**The All Caps Rule.** Shared. Every label and row is uppercase French, taken from `ui/strings_fr.h`. Beyond letters and numerals, text carries only signed deltas and the separators "·", "=", "/", "›" and "—" (a rule that is off).
+**The All Caps Rule.** Shared. Every label and row is uppercase, taken from the language tables (`ui/strings_fr.c`, `ui/strings_en.c`; French is the first language, English the second, chosen in the assistant and in the device settings). Beyond letters and numerals, text carries only signed deltas and the separators "·", "=", "/", "›" and "—" (a rule that is off).
 
 **The Drawn Pointer Rule.** Shared. In text rows (journal, menu, undo) a hand-off or attack is written with U+203A as the separator ("J3 › J1"). In the pending hub the pointer is a drawn filled triangle between the two J#, never a glyph. The +/− beside a selected total are drawn 2 px marks (18 px), never glyphs.
 
@@ -340,14 +340,14 @@ Lumineux components first; Booster's equivalents are listed at the end.
 - **Shape:** rounded-full, 46 px tall, filled with the rim colour at 215/255.
 - **Lit:** the thing to tap right now. A 2 px ink border at 80 %. START on the home; REPRENDRE when a saved game exists (a new game would replace it, so START becomes unlit); SUIVANT and JOUER on the new-game screen; NOUVELLE PARTIE on the game-over screen; the Solo undo.
 - **Unlit:** a 1 px ink border at 30 %. Text is ink at full opacity in both states.
-- **Focus:** there is no hover and, since the 2026-11-13 home, no knob focus mark: the lit pill is the only emphasis.
+- **Focus:** there is no hover and no separate focus ring. Where the knob moves a focus (home, settings grid, settings lists), the focused control is the lit pill, and a tap on bare ground runs it.
 
 ### Seat chips (home)
 - **Style:** 36 px circles at a 44 px pitch, each labelled J1–J4 in ink. A seat in play is lit: its hue at 50/255 inside a 2 px border in its hue, over a halo at 20 %. A seat not in play is empty glass: a 2 px ink border at 30 %.
 - Seat chips now live on the new-game screen's table-size step: as many chips as the format allows, lit up to the chosen size; SOLO lights J1 only.
 
 ### Menu
-- **Style:** five centred Row-text rows at a 52 px pitch. The focused row sits in a lit glass pill, 47 px tall, whose half-width is the widest that stays 8 px inside the round bezel, capped at 144 px. Unfocused rows are ink at 70 %.
+- **Style:** six centred Row-text rows at a 44 px pitch from y 70 (undo, journal, sheet, new game, settings, back). The focused row sits in a lit glass pill, 42 px tall, whose half-width is the widest that stays 8 px inside the round bezel, capped at 144 px. Unfocused rows are ink at 70 %. A row too long for its pill (the undo preview) drops from Row to Label.
 - **Undo row:** previews the action it will undo ("ANNULER  J1  PV −3"; for an automatic pass, the hit that caused it), or reads "RIEN À ANNULER".
 
 ### Seat glass and numeral (signature)
@@ -374,7 +374,8 @@ Lumineux components first; Booster's equivalents are listed at the end.
 ### Player sheet
 - **Header:** the knob ring and a halo in the seat hue (radius 96, 30 %) behind the seat number in Title, ink.
 - **Poison:** a POISON label in the seat hue, then "n / 10" in Headline Hub, ink. A pending poison delta waits in an unlit glass pill (x 106–254, y 208–246, Label text) while the light arc runs around the knob ring.
-- **CMDT:** a CMDT label in the seat hue, then one column per opposing seat at a 78 px pitch: the seat label in its own hue (Label Small) over the tally in ink (Row). The tally shows "n / 21" once it is within 5 of lethal.
+- **CMDT:** a CMDT label in the seat hue, then one column per opposing seat at a 78 px pitch: the seat label in its own hue (Label Small) over the tally in ink (Row). The tally shows "n / 21" once it is within 5 of lethal. A tap on a column gives it the knob: its seat label becomes a small lit pill, the tally shows the pending value and the light arc runs as for poison; the same column again, or leaving, commits. With the "source" setting the label reads CMDT INFLIGÉS and the columns show what this player dealt.
+- **Solo at a table of several:** the Solo dial for J1; this sheet is where the commander damage received is entered.
 
 ### Journal
 - **Style:** the JOURNAL label over a 120 px rule in ink at 40 %. Each row starts with a point of the seat's light (a halo of radius 14), then the action in Label, ink, left-aligned, newest first. Action rows carry the turn prefix ("T1  J4  POISON +3", "T1  J3 › J1  PV −5"); turn rows read "TOUR 1  J1 › J2". The point always comes with the "J#" text.
@@ -382,13 +383,37 @@ Lumineux components first; Booster's equivalents are listed at the end.
 ### Game over
 - **Style:** the knob ring; the winner's light fills the well (a halo of radius 170 at 30 %, centred at (180, 120)); "J1 GAGNE" in Title and "PARTIE TERMINÉE" in Label, both ink at full opacity. ANNULER is an unlit pill, NOUVELLE PARTIE the lit one (x 70–290). With no winner (Solo), "DÉFAITE" is ink at 60 % and there is no halo.
 
+### New game, third step
+- **Style:** with two players or more, after the table size: ÉCRAN DE JEU at y 60, the format name kept at y 112, then ARÈNE or SOLO in Headline Hub at y 170, its one-line meaning in Label Small at y 212 ("TOUS LES JOUEURS", "MA SEULE VIE") and two position dots at y 236. Same chevrons, back button and lit JOUER pill as the other steps.
+
+### Settings grid
+- **Style:** the knob ring, RÉGLAGES in Label at y 56, six unlit glass pills 132×44 in two columns (x 108 and 252) and three rows (y 118, 172, 226): JEU, JOUEURS, TOURS, AFFICHAGE, CONNEXION, APPAREIL. A round back button (r 22) at (180, 304).
+- **Focus:** the knob walks the six pills, then the back button; the focused one is lit. A section that is not there yet has its name at 40 % and, when focused, BIENTÔT in Label Small at y 264; a tap does nothing.
+
+### Settings list
+- **Style:** the section name in Label Small at y 46 (ink, 70 %). The focused row sits in the middle in a glass pill (x 30–329, y 142–218): its label in Label Small at y 162 over its value in Row at y 196; a row without a value shows its label alone in Row. Two rows above (y 84, 116) and two below (y 244, 276) read "LABEL  VALUE" in Label Small, at 80 % next to the focus and 60 % beyond.
+- **Edit:** a tap on the focused row lights its pill and shows a chevron on each side; the knob (or a tap on a chevron) changes the value, a tap leaves. Named values go round, numbers stop at their bounds. The change shows at once (language included).
+- **Actions:** run on a tap. One that cannot be taken back (reset the game, remove the PIN, factory reset) first lights the pill and reads CONFIRMER ?; the second tap runs it, moving away disarms it.
+- **The last row is RETOUR.** The list stops at both ends.
+
+### Text and PIN entry
+- **Style:** a title in Label Small at y 56. The candidate character sits in a lit glass disc (r 40) with a ring glow at (180, 168), in Title; the space reads ESPACE in Label Small. Chevrons on both sides. The knob picks the character, a tap on the disc appends it.
+- **Text:** what has been typed in Label at y 104; bottom row as on the new-game screen: erase (the undo icon; with nothing left to erase it gives up) and a lit OK pill.
+- **PIN:** four 14 px slots at y 104 that fill as the digits come; the fourth digit ends the entry, there is no OK. A wrong code empties the slots, reads CODE INCORRECT at y 232 and buzzes.
+- **Lock screen:** the same PIN screen at power-on, with the owner's message as its title and no erase-to-leave.
+
+### First-start assistant
+- **Style:** seven steps on the layout of the new-game screen (title y 60, content, back button and lit pill at the bottom): language (its title is written in every language), BIENVENUE under the wordmark and the small logo, the default format (format name in Original Motion), the device name with two unlit pills AU HASARD and MODIFIER, the knob (the count of detents in Title; the pill reads PASSER until the knob turns), the touch test, the gestures (four Label Small lines), ending on TERMINER.
+- **Touch test:** a test card. Two 1 px rings (r 96, r 150) at 40 %, the four seat hues as 24 px dots on the diagonals, four round targets with a drawn cross at 128 px from the centre (top, right, bottom, left) that light up with a white halo when hit, and the step's pill in the middle (PASSER, then SUIVANT once the four are hit).
+
 ### Boot screen (both themes)
 - **Style:** the ground, the logo mask in the theme's ink, and the product name in Headline Hub. Lumineux adds a soft ink halo behind the logo. The name comes from one constant, `UI_PRODUCT_NAME`.
 
 ### Theme 2: Booster
 - **Buttons:** square, 46 px tall. Primary is ink-inverse (Wrapper Ink fill, Wrapper Black Row text); secondary is a 2 px ink outline with Label text. With a saved game, REPRENDRE is primary and START secondary. On a seat field (game over) the "ink" is the field's own text colour: ANNULER is a 2 px black outline, NOUVELLE PARTIE a solid black bar with text in the field hue.
 - **Seat chips:** 36 px squares. In-game seats are filled with their hue and carry black text; unused seats are a 2 px outline in their hue.
-- **Menu:** the focused row is an ink-inverse bar (47 px tall, x 36–323).
+- **Menu:** the focused row is an ink-inverse bar (42 px tall, x 36–323).
+- **Settings, entry, assistant:** same layouts with Booster's buttons: the focused pill of the grid, the edited row of a list, the candidate character and the hit targets are ink-inverse blocks; unlit ones are 2 px outlines. PIN slots and position dots are squares. No halo, no ring glow.
 - **Seat field:** selected, the hue fills the sector (or the whole screen in Solo) with black numeral and label; unselected, numeral and label in the hue on the ground; defeated, never filled, the skull mark in full seat hue replaces the total.
 - **Pending band:** a full-width silver band (46 px in Solo at y 250–296, 32 px on the player sheet at y 212–244) with black Row text; the foil sheen fills it from the left over the commit delay.
 - **Active-seat crest:** the 6 px rim arc, black on the selected field, Wrapper Ink otherwise.
@@ -407,7 +432,7 @@ Lumineux components first; Booster's equivalents are listed at the end.
 - **Do** mark the thing to tap with white light: a lit pill border, a white halo, the hub's glow.
 - **Do** keep light behind numerals at the shipped levels (Solo halo 40 %, selected glass 46/255, seat halo 20 %, sheet and game-over halos 30 %).
 - **Do** build every light effect from an A8 mask that is pre-rendered or cached, and give every new raster a provenance line in `ui/assets/README.md`.
-- **Do** take every user-facing string from `ui/strings_fr.h`, in uppercase.
+- **Do** take every user-facing string from the language tables (`ui/strings.h` lists them, one `strings_xx.c` per language), in uppercase, and keep `host/test_strings.c` green: every language has every string, with the same printf conversions.
 - **Do** draw each arena seat in its own frame, turned by (seat angle − 90°), with the label on the rim side.
 - **Do** keep the hub the single place for turn, undo and pending state, and repaint only the hub while only it changes.
 - **Do** check a new ground preset with the 7:1 assertion in `host/shots.c`.
@@ -445,4 +470,5 @@ Every raster the firmware ships is recorded in `ui/assets/README.md`. Nothing is
 - **Home and new game (2026-11-13).** The home is radial: product name wordmark y 46 (Original Motion, a 172×39 mask from `ui/assets/wordmark2a8.py`; the boot screen shows it 222 px wide at y 286); START disc r 64 at (180, 160) holding the small logo and the word START, with a 70 % ink ring glow when lit; dimmed settings and update discs r 24 at (92, 96) and (268, 96), host and join discs r 34 at (76, 206) and (284, 206) with their label below, each holding an owner-supplied icon mask (`ui/assets/icons/`, `icons2a8.py`); REPRENDRE pill x 116–244, y 276–326 with "T n | J n". Settings, update, host and join are drawn at 40 % and do nothing until plan #2 and the connectivity lots; the knob does nothing on the home. New game (both themes): family or JOUEURS y 60, format name y 112 (64 px, 48 px beyond 9 letters), rules line y 154 (commander damage and poison only when the format has them), list dots or seat chips y 204–210 between two chevrons at x 56 / 304, back disc x 66–110 and SUIVANT / JOUER x 124–264 at y 262–310. The knob, or a tap left or right of centre above y 240, changes the value. Formats come from `profiles/data` (Singleton: Commander, Commander 1v1, Commander 2HG, Duel Commander; Construit: Standard, Pioneer, Modern, Legacy, Pauper, Peasant); a constructed format is a 20-life duel with no commander damage, and its only table sizes are SOLO and 2.
 - **Concept seed.** The contract says "seed: none (unavailable)" and that there was no direction roll, so the seed could not be checked. `.impeccable/questions/roll.json` holds a roll with a seed; its relation to this build is not established.
 - **Unused tokens.** `ui_theme_lumineux` still defines `seat_ink` and the three foil tokens, which no Lumineux screen reads. `ui/fx.c` draws glass borders and the focus halo in pure white rather than Light Ink.
-- **Theme selector.** `ui_set_theme` and the six grounds exist; the settings screen that exposes them is plan #3.
+- **Theme selector.** `ui_set_theme` and the six grounds exist; the settings section that exposes them (AFFICHAGE) is plan #3.
+- **Settings and assistant (2026-11-14, plan #2).** The home's settings disc is now live and the knob moves a focus on the home (START, REPRENDRE, settings), which supersedes "the knob does nothing on the home" above. No theme token was added: the new screens are built from the existing pills, buttons, halos and text styles. Known limits: with seats not turned (a Jeu setting), the − / + marks of the left and right seats touch the rim and the hub; rows two away from the focus are ink at 60 % (about 5.7:1 on Nuit, estimated); dimmed section names at 40 % are, like the home's inactive buttons, not available actions. The text entry has capitals, digits and - ' ! ? only (no accents).

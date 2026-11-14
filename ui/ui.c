@@ -1081,6 +1081,12 @@ static const char *menu_label(int i, char *buf, size_t n)
     }
 }
 
+/* Row text, or the label size for a line too long for `w` (the undo row previews a whole action). */
+static const lv_font_t *menu_font(const char *s, int w)
+{
+    return lv_text_get_width(s, (uint32_t)strlen(s), U.f_row, 0) > w ? U.f_label : U.f_row;
+}
+
 static void draw_menu(lv_layer_t *l)
 {
     char buf[64];
@@ -1091,7 +1097,7 @@ static void draw_menu(lv_layer_t *l)
         bool f = i == U.menu_focus;
         if (f)
             fill(l, 36, y - 21, UI_W - 37, y + 20, T->ink, 0);
-        text(l, U.f_row, f ? T->ground : T->ink, LV_OPA_COVER, CX, y, s);
+        text(l, menu_font(s, 272), f ? T->ground : T->ink, LV_OPA_COVER, CX, y, s);
     }
 }
 
@@ -1194,12 +1200,12 @@ static void draw_menu_light(lv_layer_t *l)
     ground(l);
     for (int i = 0; i < MENU_ROWS; i++) {
         int y = menu_row_y(i);
-        if (i == U.menu_focus) { /* focus = a lit glass pill, kept inside the round dial */
-            int dy = abs(y - CY) + 21, hw = (int)sqrtf((float)(R * R - dy * dy)) - 8;
-            hw = hw > 144 ? 144 : hw;
+        int dy = abs(y - CY) + 21, hw = (int)sqrtf((float)(R * R - dy * dy)) - 8;
+        const char *s = menu_label(i, buf, sizeof(buf));
+        hw = hw > 144 ? 144 : hw;
+        if (i == U.menu_focus) /* focus = a lit glass pill, kept inside the round dial */
             pill(l, CX - hw, y - 21, CX + hw, y + 20, true);
-        }
-        text(l, U.f_row, T->ink, i == U.menu_focus ? LV_OPA_COVER : LV_OPA_70, CX, y, menu_label(i, buf, sizeof(buf)));
+        text(l, menu_font(s, 2 * hw - 28), T->ink, i == U.menu_focus ? LV_OPA_COVER : LV_OPA_70, CX, y, s);
     }
 }
 
@@ -1892,7 +1898,7 @@ static void draw_list(lv_layer_t *l)
             continue;
         row_value(&rows[i], i, val, sizeof(val));
         snprintf(buf, sizeof(buf), "%s%s%s", tr(rows[i].label), val[0] ? "  " : "", val);
-        text(l, U.f_small, T->ink, abs(k) == 1 ? LV_OPA_70 : LV_OPA_40, CX, ys[k + 2], buf);
+        text(l, U.f_small, T->ink, abs(k) == 1 ? LV_OPA_80 : LV_OPA_60, CX, ys[k + 2], buf); /* 60 % keeps 4.5:1 */
     }
     const row_t *r = cur_row();
     uint32_t ink = button(l, 30, LIST_Y1, UI_W - 31, LIST_Y2, U.editing || U.armed == U.row);
