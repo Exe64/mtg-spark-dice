@@ -29,7 +29,7 @@ Apporter les outils de table que la référence (Soul Dial) propose autour du co
 
 ## Dépendances
 
-Dépend de #6 (les parties archivées utilisent son format) et de #5 (thème lumineux). Passe avant #2 (ordre décidé le 2026-11-13). Les entrées Minuteur et Réglages du menu sont remplies par #4 et #2.
+Dépend de #6 (les parties archivées utilisent son format) et de #5 (thème lumineux). Passe après #2 (ordre revu le 2026-11-14). L'entrée Minuteur du menu est remplie par #4 ; l'entrée Réglages existe déjà (#2) et est reprise dans le nouveau menu.
 
 ## Périmètre
 
@@ -66,7 +66,7 @@ Dépend de #6 (les parties archivées utilisent son format) et de #5 (thème lum
 | Référence | Menu de partie et fin de partie repris du Soul Dial (page d'aide lue le 2026-11-12), Magic uniquement | Demande opérateur : se rapprocher au maximum de la référence |
 | Dés | Affichage 2D du résultat, pas de plateau 3D | Rendu logiciel LVGL sur ESP32-S3 |
 | Courbe de PV | Calculée depuis le journal archivé, pas de série stockée à part | Le journal contient déjà chaque changement de PV |
-| Ordre | #5 → #6 → #7 → #2 → #4 → #3 | Choix opérateur 2026-11-13 |
+| Ordre | #5 → #2 → #6 → #7 → #4 → #3 | Choix opérateur 2026-11-14 |
 
 ## Tests
 

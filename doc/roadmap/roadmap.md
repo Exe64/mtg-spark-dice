@@ -8,7 +8,7 @@
 Backlog consolidé : plans nommés d'après leur issue GitHub (voir `doc/roadmap/`).
 - « À faire » : travaux restants, triés par priorité.
 - « Fait » : ce qui a été livré et validé.
-- Ordre d'exécution (décidé le 2026-11-13) : #5 → #6 → #7 → #2 → #4 → #3 .
+- Ordre d'exécution (revu le 2026-11-14) : #5 → #2 → #6 → #7 → #4 → #3. #2 passe devant : #6 attend 8 icônes de l'opérateur.
 
 ---
 
@@ -18,7 +18,7 @@ Backlog consolidé : plans nommés d'après leur issue GitHub (voir `doc/roadmap
 
 Plan : [`2-reglages-jeu-appareil.md`](2-reglages-jeu-appareil.md)
 
-Nouvel accueil, Réglages en 6 sections, Jeu et Appareil, langues FR/EN, PIN, mise en route. Dépend de #5 ; passe après #6 et #7 ; bloque #3 et #4.
+Nouvel accueil, Réglages en 6 sections, Jeu et Appareil, langues FR/EN, PIN, mise en route. Dépend de #5 ; passe avant #6 et #7 (ordre revu le 2026-11-14) ; bloque #3 et #4.
 
 ---
 

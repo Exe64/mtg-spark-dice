@@ -29,7 +29,7 @@ Suivre en partie les marqueurs Magic que la référence (Soul Dial) propose au-d
 
 ## Dépendances
 
-Dépend de #5 (les écrans sont construits dans le thème lumineux). Bloque #7 (format de partie archivé) et #4 (qui s'appuie sur le cœur à 6 joueurs et le partenaire). Passe avant #2 (ordre décidé le 2026-11-13).
+Dépend de #5 (les écrans sont construits dans le thème lumineux). Bloque #7 (format de partie archivé) et #4 (qui s'appuie sur le cœur à 6 joueurs et le partenaire). Passe après #2 (ordre revu le 2026-11-14).
 
 ## Périmètre
 
@@ -68,7 +68,7 @@ Dépend de #5 (les écrans sont construits dans le thème lumineux). Bloque #7 (
 | Référence | Liste de marqueurs reprise du Soul Dial (page d'aide lue le 2026-11-12), Magic uniquement | Demande opérateur : se rapprocher au maximum de la référence |
 | Format de sauvegarde | Un seul changement pour marqueurs, 6 joueurs et partenaire | Choix opérateur 2026-11-13 ; l'étape 1 de #4 est déplacée ici |
 | Anciennes sauvegardes | Ignorées, pas de migration | Aucun boîtier en service avant ce plan |
-| Ordre | #5 → #6 → #7 → #2 → #4 → #3 | Choix opérateur 2026-11-13 : la parité en partie passe avant les réglages d'appareil |
+| Ordre | #5 → #2 → #6 → #7 → #4 → #3 | Choix opérateur 2026-11-14 : #2 passe devant, ce plan attend 8 icônes |
 | Marqueurs personnalisés | Reportés après #2 | Dépendent de la saisie de texte à la molette |
 | Modèle des marqueurs | Un genre d'action par marqueur (`SD_POISON` … `SD_RAD`), rangés dans `counter[]` ; même API `sd_game_adjust` que la vie | Aucun paramètre ajouté, l'interface du plan #5 ne change pas |
 | Partenaire | `SD_CMD` = premier commandant de la source, `SD_CMD2` = le second ; chacun est létal séparément | Règle Magic : 21 blessures d'un même commandant |
