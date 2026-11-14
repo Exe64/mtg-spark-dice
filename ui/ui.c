@@ -28,7 +28,8 @@ extern const uint8_t _binary_Original_Motion_ttf_start[], _binary_Original_Motio
 #define UNDO_PILL_MS 4000
 #define PM_TAP 26 /* |local x| beyond which a tap on the selected seat is - or + */
 
-enum { NEW_FORMAT, NEW_PLAYERS }; /* the two steps of UI_SCR_NEW */
+enum { NEW_FORMAT, NEW_PLAYERS, NEW_VIEW }; /* the steps of UI_SCR_NEW; the last one only with several players */
+enum { HOME_START, HOME_RESUME, HOME_SETTINGS, HOME_N }; /* what the knob focuses on the home screen */
 enum { MENU_UNDO, MENU_LOG, MENU_SHEET, MENU_NEW, MENU_BACK };
 
 static const ui_theme_t *const THEMES[UI_THEME_COUNT] = {[UI_THEME_BOOSTER] = &ui_theme_booster,
@@ -43,9 +44,10 @@ static struct {
     ui_hooks_t hooks;
     const sd_profile_t *profiles;
     int n_profiles;
-    int profile, players, new_step;
+    int profile, players, new_step, home_focus;
     int marker; /* focused chip of the markers panel: kind - SD_POISON */
     bool has_resume;
+    bool dirty; /* a setting changed and the HAL has not been told yet */
     sd_game_t resume;
     sd_game_t g;
     char profile_name[24];
@@ -459,7 +461,9 @@ static void start_game(const sd_game_t *resume)
         snprintf(U.profile_name, sizeof(U.profile_name), "%s", U.g.format);
     } else {
         const sd_profile_t *p = &U.profiles[U.profile];
-        sd_game_new(&U.g, &p->rules, (uint8_t)U.players);
+        sd_rules_t r = p->rules;
+        sd_settings_rules(&S, &r);
+        sd_game_new(&U.g, &r, (uint8_t)U.players);
         snprintf(U.g.format, sizeof(U.g.format), "%s", p->name);
         snprintf(U.profile_name, sizeof(U.profile_name), "%s", p->name);
         save();
@@ -475,7 +479,16 @@ static void go_home(void)
     flush();
     U.resume = U.g; /* "Nouvelle partie" never destroys the game: it stays resumable */
     U.has_resume = true;
+    U.home_focus = HOME_RESUME;
     U.scr = UI_SCR_HOME;
+}
+
+/* Hand the settings to the HAL if the user changed any since the last time. */
+static void settings_save(void)
+{
+    if (U.dirty && U.hooks.save_settings)
+        U.hooks.save_settings(&S);
+    U.dirty = false;
 }
 
 /* ---------- screens: drawing ---------- */
@@ -1209,8 +1222,9 @@ static uint32_t button(lv_layer_t *l, int x1, int y1, int x2, int y2, bool prima
     return primary ? T->ground : T->ink;
 }
 
-/* Home, radial: START (new game) at the centre, REPRENDRE below when a game is saved. Settings, update, host and
- * join are shown dimmed and do nothing yet (plan #2 and the connectivity lots give them a destination). */
+/* Home, radial: START (new game) at the centre, REPRENDRE below when a game is saved, settings top left. The knob
+ * moves the focus between these three, a tap on one (or anywhere on bare ground, for the focused one) runs it.
+ * Update, host and join are shown dimmed and do nothing yet (the connectivity lots give them a destination). */
 extern const lv_image_dsc_t ui_home_icons_a8[4];
 #define NEW_Y 160
 #define NEW_R 64
@@ -1218,6 +1232,19 @@ extern const lv_image_dsc_t ui_home_icons_a8[4];
 #define RESUME_Y1 276
 #define RESUME_X2 244
 #define RESUME_Y2 326
+static void open_settings(bool from_game);
+
+static void home_activate(int action)
+{
+    if (action == HOME_START && U.n_profiles) { /* opens on the last format played, at first the default one */
+        U.new_step = NEW_FORMAT;
+        U.scr = UI_SCR_NEW;
+    } else if (action == HOME_RESUME && U.has_resume)
+        start_game(&U.resume);
+    else if (action == HOME_SETTINGS)
+        open_settings(false);
+}
+
 static void draw_home(lv_layer_t *l)
 {
     const struct { /* order = ui_home_icons_a8[] (ui/assets/icons2a8.py) */
@@ -1228,19 +1255,20 @@ static void draw_home(lv_layer_t *l)
     ground(l);
     fx_image(l, &ui_wordmark_small_a8, CX, 46, T->ink, LV_OPA_COVER);
     for (size_t i = 0; i < sizeof(off) / sizeof(off[0]); i++) {
-        button(l, off[i].x - off[i].r, off[i].y - off[i].r, off[i].x + off[i].r, off[i].y + off[i].r, false);
-        fx_image(l, &ui_home_icons_a8[i], off[i].x, off[i].y, T->ink, LV_OPA_40);
+        bool lit = i == 0 && U.home_focus == HOME_SETTINGS;
+        uint32_t ik = button(l, off[i].x - off[i].r, off[i].y - off[i].r, off[i].x + off[i].r, off[i].y + off[i].r, lit);
+        fx_image(l, &ui_home_icons_a8[i], off[i].x, off[i].y, ik, i == 0 ? LV_OPA_COVER : LV_OPA_40);
         if (off[i].label)
             text(l, U.f_small, T->ink, LV_OPA_40, off[i].x, off[i].y + off[i].r + 16, off[i].label);
     }
-    /* with a saved game REPRENDRE is the lit action: a new game would replace it */
-    if (T->light && !U.has_resume)
+    /* the focused action is the lit one; with a saved game that is REPRENDRE at first: a new game would replace it */
+    if (T->light && U.home_focus == HOME_START)
         fx_ring(l, CX, NEW_Y, NEW_R, T->ink, LV_OPA_70);
-    uint32_t ink = button(l, CX - NEW_R, NEW_Y - NEW_R, CX + NEW_R, NEW_Y + NEW_R, !U.has_resume);
+    uint32_t ink = button(l, CX - NEW_R, NEW_Y - NEW_R, CX + NEW_R, NEW_Y + NEW_R, U.home_focus == HOME_START);
     fx_image(l, &ui_logo_small_a8, CX, NEW_Y - 12, ink, LV_OPA_COVER); /* the product's mark starts a game */
     text(l, U.f_row, ink, LV_OPA_COVER, CX, NEW_Y + 38, TR(START));
     if (U.has_resume) {
-        ink = button(l, RESUME_X1, RESUME_Y1, RESUME_X2, RESUME_Y2, true);
+        ink = button(l, RESUME_X1, RESUME_Y1, RESUME_X2, RESUME_Y2, U.home_focus == HOME_RESUME);
         text(l, U.f_small, ink, LV_OPA_COVER, CX, RESUME_Y1 + 15, TR(RESUME));
         snprintf(buf, sizeof(buf), TR(RESUME_SUB_FMT), U.resume.turn, U.resume.n_players);
         text(l, U.f_small, ink, LV_OPA_COVER, CX, RESUME_Y1 + 36, buf);
@@ -1259,6 +1287,8 @@ static void players_step(int d) /* SOLO, then the sizes the format allows */
     U.players = i ? p->players_min + i - 1 : 1;
 }
 
+static bool new_last(void) { return U.new_step == NEW_VIEW || (U.new_step == NEW_PLAYERS && U.players == 1); }
+
 static void draw_new(lv_layer_t *l)
 {
     const sd_profile_t *p = &U.profiles[U.profile];
@@ -1269,11 +1299,23 @@ static void draw_new(lv_layer_t *l)
     /* ponytail: one extra language, one extra field; a per-language map in the profile if a third one comes */
     snprintf(buf, sizeof(buf), "%s", ui_langs[S.v[SD_S_LANG] % UI_LANG_COUNT] == &ui_lang_en && p->family_en[0] ? p->family_en : p->family);
     upper(buf);
-    text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 60, U.new_step == NEW_PLAYERS ? TR(PLAYERS) : buf[0] ? buf : TR(FORMAT));
+    bool solo_view = S.v[SD_S_VIEW] == SD_VIEW_SOLO;
+    text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 60,
+         U.new_step == NEW_VIEW ? TR(GAME_SCREEN) : U.new_step == NEW_PLAYERS ? TR(PLAYERS) : buf[0] ? buf : TR(FORMAT));
     /* the format name in the product name's face and case (Original Motion runs wide: 48 px past 300 px) */
     snprintf(name, sizeof(name), "%s", p->name);
     const lv_font_t *nf = U.f_name[lv_text_get_width(name, strlen(name), U.f_name[0], 0) > 300];
     text(l, nf, T->ink, LV_OPA_COVER, CX, 112, name);
+    if (U.new_step == NEW_VIEW) { /* what the dial shows during the game: every seat, or my life alone */
+        text(l, U.f_hub, T->ink, LV_OPA_COVER, CX, 170, solo_view ? TR(SOLO) : TR(ARENA));
+        text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 212, solo_view ? TR(VIEW_SOLO_SUB) : TR(VIEW_ARENA_SUB));
+        for (int i = 0; i < 2; i++) {
+            fill(l, CX - 10 + i * 14, 233, CX - 4 + i * 14, 239, T->ink, T->light ? LV_RADIUS_CIRCLE : 0);
+            if (i != solo_view)
+                fill(l, CX - 9 + i * 14, 234, CX - 5 + i * 14, 238, T->ground, T->light ? LV_RADIUS_CIRCLE : 0);
+        }
+        goto buttons;
+    }
     /* only the rules the format has: no commander damage, no mention of it */
     snprintf(buf, sizeof(buf), TR(LIFE_FMT), p->rules.start_life);
     if (p->rules.cmd_lethal)
@@ -1314,12 +1356,13 @@ static void draw_new(lv_layer_t *l)
             snprintf(buf, sizeof(buf), TR(PLAYERS_FMT), U.players);
         text(l, U.f_small, T->ink, LV_OPA_COVER, CX, 240, buf);
     }
+buttons:
     for (int k = -1; k <= 1; k += 2) /* chevrons: a tap on either side steps like the knob */
         text(l, U.f_row, T->ink, LV_OPA_60, CX + k * 124, 206, k < 0 ? "\xE2\x80\xB9" : "\xE2\x80\xBA");
     button(l, 66, NEW_BTN_Y1 + 2, 110, NEW_BTN_Y2 - 2, false); /* back */
     fx_icon(l, FX_ICON_UNDO, 88, (NEW_BTN_Y1 + NEW_BTN_Y2) / 2, T->ink, LV_OPA_COVER);
     uint32_t ink = button(l, 124, NEW_BTN_Y1, 264, NEW_BTN_Y2, true);
-    text(l, U.f_row, ink, LV_OPA_COVER, 194, (NEW_BTN_Y1 + NEW_BTN_Y2) / 2, U.new_step == NEW_FORMAT ? TR(NEXT) : TR(PLAY));
+    text(l, U.f_row, ink, LV_OPA_COVER, 194, (NEW_BTN_Y1 + NEW_BTN_Y2) / 2, new_last() ? TR(PLAY) : TR(NEXT));
 }
 
 static void markers_btn(lv_layer_t *l)
@@ -1489,6 +1532,22 @@ void ui_set_theme(int theme, int ground_idx)
     }
 }
 
+static void open_settings(bool from_game) { (void)from_game; }
+
+/* "New game" opens on the format the settings name. */
+static void default_profile(void)
+{
+    U.profile = U.n_profiles ? S.v[SD_S_PROFILE] % U.n_profiles : 0;
+    U.players = U.n_profiles ? U.profiles[U.profile].players : 1;
+}
+
+/* The logo is over. */
+static void boot_done(void)
+{
+    U.home_focus = U.has_resume ? HOME_RESUME : HOME_START;
+    U.scr = UI_SCR_HOME;
+}
+
 void ui_set_settings(const sd_settings_t *s)
 {
     if (s)
@@ -1511,7 +1570,7 @@ void ui_init(const ui_hooks_t *hooks, const sd_profile_t *profiles, int n_profil
         U.hooks = *hooks;
     U.profiles = profiles;
     U.n_profiles = n_profiles;
-    U.players = n_profiles ? profiles[0].players : 1;
+    default_profile();
     if (resume) {
         U.resume = *resume;
         U.has_resume = true;
@@ -1550,14 +1609,24 @@ void ui_knob(int detents, uint32_t now)
     if (!detents)
         return;
     switch (U.scr) {
-    case UI_SCR_BOOT: U.scr = UI_SCR_HOME; break; /* any input skips the logo */
-    case UI_SCR_HOME: return; /* two actions, both a tap away: the knob has nothing to drive here yet */
+    case UI_SCR_BOOT: boot_done(); break; /* any input skips the logo */
+    case UI_SCR_HOME: /* START, REPRENDRE (when there is a game), settings */
+        for (int k = abs(detents); k; k--)
+            do
+                U.home_focus = (U.home_focus + (detents > 0 ? 1 : HOME_N - 1)) % HOME_N;
+            while (U.home_focus == HOME_RESUME && !U.has_resume);
+        haptic(UI_HAPTIC_DETENT);
+        break;
     case UI_SCR_NEW:
         if (U.new_step == NEW_FORMAT) {
             U.profile = ((U.profile + detents) % U.n_profiles + U.n_profiles) % U.n_profiles;
             U.players = U.profiles[U.profile].players;
-        } else
+        } else if (U.new_step == NEW_PLAYERS)
             players_step(detents);
+        else if (detents & 1) {
+            sd_setting_set(&S, SD_S_VIEW, !S.v[SD_S_VIEW]);
+            U.dirty = true;
+        }
         haptic(UI_HAPTIC_DETENT);
         break;
     case UI_SCR_GAME: {
@@ -1613,26 +1682,31 @@ void ui_tap(int x, int y, uint32_t now)
 {
     U.now = now;
     switch (U.scr) {
-    case UI_SCR_BOOT: U.scr = UI_SCR_HOME; break;
+    case UI_SCR_BOOT: boot_done(); break;
     case UI_SCR_HOME:
-        if ((x - CX) * (x - CX) + (y - NEW_Y) * (y - NEW_Y) <= NEW_R * NEW_R && U.n_profiles) {
-            U.new_step = NEW_FORMAT;
-            U.scr = UI_SCR_NEW;
-        } else if (U.has_resume && x >= RESUME_X1 && x <= RESUME_X2 && y >= RESUME_Y1 && y <= RESUME_Y2)
-            start_game(&U.resume);
+#define IN(cx, cy, r) ((x - (cx)) * (x - (cx)) + (y - (cy)) * (y - (cy)) <= (r) * (r))
+        if (IN(CX, NEW_Y, NEW_R))
+            home_activate(HOME_START);
+        else if (U.has_resume && x >= RESUME_X1 && x <= RESUME_X2 && y >= RESUME_Y1 && y <= RESUME_Y2)
+            home_activate(HOME_RESUME);
+        else if (IN(92, 96, 32))
+            home_activate(HOME_SETTINGS);
+        else if (!IN(268, 96, 32) && !IN(76, 206, 42) && !IN(284, 206, 42)) /* the dimmed buttons do nothing */
+            home_activate(U.home_focus);
         break;
     case UI_SCR_NEW:
         if (y >= NEW_BTN_Y1 - 8 && y <= NEW_BTN_Y2 + 8) {
             if (x >= 124 && x <= 264) {
-                if (U.new_step == NEW_PLAYERS)
+                if (new_last()) {
+                    settings_save(); /* the game screen chosen here is remembered */
                     start_game(NULL);
-                else
-                    U.new_step = NEW_PLAYERS;
+                } else
+                    U.new_step++;
             } else if (x >= 58 && x < 118) { /* back: one step, then home */
-                if (U.new_step == NEW_PLAYERS)
-                    U.new_step = NEW_FORMAT;
-                else
+                if (U.new_step == NEW_FORMAT)
                     U.scr = UI_SCR_HOME;
+                else
+                    U.new_step--;
             }
         } else if (y < 240 && (x < 110 || x >= 250)) {
             ui_knob(x < 110 ? -1 : 1, now);
@@ -1753,7 +1827,7 @@ void ui_tick(uint32_t now)
         if (!U.boot_until)
             U.boot_until = now + UI_BOOT_MS;
         else if (now >= U.boot_until) {
-            U.scr = UI_SCR_HOME;
+            boot_done();
             redraw();
         }
         return;

@@ -22,6 +22,13 @@ static void on_save(const sd_game_t *g)
     saved = *g;
 }
 static void on_haptic(ui_haptic_t p) { haptics[p]++; }
+static int settings_saves;
+static sd_settings_t saved_settings;
+static void on_save_settings(const sd_settings_t *s)
+{
+    settings_saves++;
+    saved_settings = *s;
+}
 
 static uint32_t t = 1000;
 
@@ -80,6 +87,8 @@ static void new_game(int formats, int sizes)
     ui_tap(NEW_OK, t);
     ui_knob(sizes, t);
     ui_tap(NEW_OK, t);
+    if (ui_screen() == UI_SCR_NEW) /* several players: the game screen (arena by default) */
+        ui_tap(NEW_OK, t);
     assert(ui_screen() == UI_SCR_GAME);
 }
 
@@ -123,7 +132,7 @@ int main(int argc, char **argv)
     (void)path;
 
     shot_init();
-    ui_hooks_t hooks = {.haptic = on_haptic, .save = on_save};
+    ui_hooks_t hooks = {.haptic = on_haptic, .save = on_save, .save_settings = on_save_settings};
     if (argc == 4)
         ui_set_theme(UI_THEME_BOOSTER, 0);
     ui_init(&hooks, prof, n_prof, NULL);
@@ -148,16 +157,22 @@ int main(int argc, char **argv)
     t += 1;
     ui_tick(t);
 
-    /* --- home: one lit action, NOUVELLE PARTIE; the dimmed buttons and the knob do nothing */
+    /* --- home: START is lit; the dimmed buttons do nothing; the knob moves the focus between START and settings
+     * (no saved game: REPRENDRE is skipped) */
     assert(ui_screen() == UI_SCR_HOME);
     snap("01-accueil");
-    ui_tap(92, 96, t);        /* settings */
     ui_tap(268, 96, t);       /* update */
     ui_tap(76, 206, t);       /* host */
     ui_tap(284, 206, t);      /* join */
-    ui_tap(180, 300, t);      /* where REPRENDRE would be: no saved game */
-    ui_knob(2, t);
-    assert(ui_screen() == UI_SCR_HOME && haptics[UI_HAPTIC_DETENT] == 0);
+    assert(ui_screen() == UI_SCR_HOME);
+    ui_knob(1, t);
+    assert(haptics[UI_HAPTIC_DETENT] == 1);
+    snap("01b-accueil-focus-reglages");
+    ui_knob(1, t);            /* round to START again */
+    ui_tap(180, 300, t);      /* bare ground: the focused action runs */
+    assert(ui_screen() == UI_SCR_NEW);
+    ui_tap(88, 286, t);
+    assert(ui_screen() == UI_SCR_HOME);
 
     /* --- new game: the format first (Commander), then the table size; back walks the same way home */
     ui_tap(180, 160, t);
@@ -207,7 +222,10 @@ int main(int argc, char **argv)
     ui_tap(180, 232, t);      /* NOUVELLE PARTIE */
     assert(ui_screen() == UI_SCR_HOME);
     snap("07-accueil-reprendre");
-    ui_tap(180, 300, t);      /* REPRENDRE: the solo game comes back as it was */
+    ui_knob(-1, t);           /* REPRENDRE is focused first; back one = START */
+    ui_knob(2, t);            /* on two = settings */
+    ui_knob(2, t);            /* round: START, REPRENDRE */
+    ui_tap(180, 250, t);      /* bare ground: the focused action, REPRENDRE: the solo game comes back as it was */
     assert(ui_screen() == UI_SCR_GAME && ui_game()->n_players == 1 && ui_game()->p[0].life == 40);
     ui_long_press(180, 180, t);
     ui_tap(180, 232, t);
@@ -341,6 +359,23 @@ int main(int argc, char **argv)
     ui_tap(300, 112, t);      /* a tap on the right steps like the knob: back to 2 */
     ui_knob(2, t);            /* and round again */
     ui_tap(NEW_OK, t);
+    assert(ui_screen() == UI_SCR_NEW); /* two players: one more step, the game screen */
+    snap("15d-ecran-de-jeu-arene");
+    ui_knob(1, t);
+    assert(ui_settings()->v[SD_S_VIEW] == SD_VIEW_SOLO);
+    snap("15e-ecran-de-jeu-solo");
+    ui_tap(88, 286, t);       /* back -> players -> and forward again */
+    ui_tap(NEW_OK, t);
+    ui_tap(300, 112, t);      /* tap on the right: back to the arena */
+    ui_tap(300, 112, t);      /* and on to SOLO: this game is played on my life alone */
+    assert(ui_settings()->v[SD_S_VIEW] == SD_VIEW_SOLO && settings_saves == 0);
+    ui_tap(NEW_OK, t);
+    assert(settings_saves == 1 && saved_settings.v[SD_S_VIEW] == SD_VIEW_SOLO); /* handed to the HAL at the start */
+    { /* ponytail: the Solo view of a table comes with step 5; this flow goes on in the arena */
+        sd_settings_t st = *ui_settings();
+        st.v[SD_S_VIEW] = SD_VIEW_ARENA;
+        ui_set_settings(&st);
+    }
     assert(ui_screen() == UI_SCR_GAME && ui_game()->n_players == 2 && ui_game()->p[0].life == 20);
     assert(ui_game()->rules.cmd_lethal == 0 && ui_game()->rules.poison_lethal == 10);
     seat_xy(2, 0, &x, &y);

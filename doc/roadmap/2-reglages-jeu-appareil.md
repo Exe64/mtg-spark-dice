@@ -56,7 +56,7 @@ Dépend de #5 (direction visuelle lumineuse : l'accueil radial, les réglages et
 
 - [x] Étape 1 — Cœur : `sd_settings` (défauts, bornes, sérialisation NVS versionnée) + règles paramétrables dans `core/` (KO auto, victoire auto, PV du commandant, ordre du tour, attaque = cmdt, clics/point, délai de validation) + tests host (M · standard → Sonnet)
 - [x] Étape 2 — Traductions : remplacer les macros de `strings_fr.h` par des tables par langue (`strings_fr.c`, `strings_en.c`), sélection à chaud, test host qui vérifie que chaque chaîne existe dans chaque langue (M · standard → Sonnet)
-- [ ] Étape 3 — Accueil : l'accueil radial et l'écran « Nouvelle partie » (format puis joueurs) existent depuis #5 (étape 8) ; reste à brancher le bouton Réglages, le focus à la molette et le choix Solo/Arène ; pas de pastille Type de jeu (S · standard → Sonnet)
+- [x] Étape 3 — Accueil : l'accueil radial et l'écran « Nouvelle partie » (format puis joueurs) existent depuis #5 (étape 8) ; reste à brancher le bouton Réglages, le focus à la molette et le choix Solo/Arène ; pas de pastille Type de jeu (S · standard → Sonnet)
 - [ ] Étape 4 — Cadre Réglages : grille 6 sections, listes éditables, protection PIN, accès accueil/menu (M · standard → Sonnet)
 - [ ] Étape 5 — Section Jeu : tous les réglages listés + vue Solo « ma seule vie » à plusieurs joueurs (M · standard → Sonnet)
 - [ ] Étape 6 — Section Appareil : version, langue, nom (aléatoire par langue + Régénérer + saisie molette), PIN + écran de verrouillage avec message, sens encodeur, haptique, réinitialisation d'usine (M · standard → Sonnet)
@@ -115,6 +115,7 @@ cd /srv/dev/mtg-dial
 |------|------|---------|---------|---------|
 | 2026-11-14 | Étape 1 — host + ASan/UBSan (`test_rule_options`, `test_settings`) | 0 avert., 6/6 deux fois | 0, 6/6, 6/6 (auto-check, même contexte) | ✅ |
 | 2026-11-14 | Étape 2 — host + ASan/UBSan (`strings`, bascule FR→EN à chaud dans `ui_flows`, capture `18-nouvelle-partie-en`) | 0 avert., 7/7 deux fois, écran en anglais | 0, 7/7, 7/7, « CONSTRUCTED / 20 LIFE · POISON 10 / NEXT » (auto-check) | ✅ |
+| 2026-11-14 | Étape 3 — host + ASan/UBSan (`ui_flows` : focus molette START/REPRENDRE/Réglages, tap hors bouton = action focalisée, 3ᵉ pas « écran de jeu ») ; captures `01b`, `15d`, `15e` relues | 0 avert., 7/7 deux fois ; bouton Réglages allumé au focus ; ARÈNE/SOLO lisibles dans les deux thèmes | 0, 7/7, 7/7 ; conforme (auto-check) | ✅ |
 
 ## Journal de session
 

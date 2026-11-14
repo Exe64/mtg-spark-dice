@@ -20,12 +20,14 @@ typedef enum { UI_HAPTIC_DETENT, UI_HAPTIC_COMMIT, UI_HAPTIC_DEFEAT } ui_haptic_
 typedef struct {
     void (*haptic)(ui_haptic_t pattern); /* may be NULL */
     void (*save)(const sd_game_t *g);    /* called after every committed delta, undo and new game; may be NULL */
+    void (*save_settings)(const sd_settings_t *s); /* called when the user changed a setting; may be NULL */
 } ui_hooks_t;
 
 typedef enum { UI_SCR_HOME, UI_SCR_GAME, UI_SCR_MENU, UI_SCR_LOG, UI_SCR_SHEET, UI_SCR_OVER, UI_SCR_BOOT, UI_SCR_NEW, UI_SCR_MARKERS } ui_screen_t;
 
 /* Call after lv_init() and display creation. `resume` (may be NULL) is offered as "REPRENDRE" on the home screen.
- * Home starts a game in two steps on UI_SCR_NEW: the format (one of `profiles`), then the table size. */
+ * Home starts a game in steps on UI_SCR_NEW: the format (one of `profiles`), the table size, then, with several
+ * players, what the dial shows (every seat, or my life alone). */
 void ui_init(const ui_hooks_t *hooks, const sd_profile_t *profiles, int n_profiles, const sd_game_t *resume);
 
 /* Theme (ui_theme_id_t, see theme.h) and ground hue (index in ui_grounds[], used by themes that let the user pick).
